@@ -1,0 +1,34 @@
+.page {
+  max-width: 1120px;
+  margin: 0 auto;
+}
+
+.primaryButton {
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: #22c55e;
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.primaryButton:hover {
+  background: #16a34a;
+}
+
+.link {
+  color: #0ea5e9;
+  text-decoration: none;
+  font-size: 0.875rem;
+}
+
+.productGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 1.5rem;
+}
