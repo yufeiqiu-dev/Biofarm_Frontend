@@ -1,11 +1,12 @@
 import styles from "./CartSideBar.module.css";
 import { useCartSideBar } from "../../context/CartSideBarContext";
+import { CartProductCard } from "../CartProductCard";
 type CartSideBarProps = {
     topOffset: number;
   };
 
   export function CartSideBar({ topOffset }: CartSideBarProps) {
-    const { isOpen, closeCartSideBar } = useCartSideBar();
+    const { isOpen, closeCartSideBar, cartItems, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
   
     return (
       <>
@@ -22,6 +23,9 @@ type CartSideBarProps = {
           }}
         >
           <h2>Cart</h2>
+          {cartItems.map((item) => (
+            <CartProductCard key={item.id} item={item} onIncrease={increaseQuantity} onDecrease={decreaseQuantity} onRemove={removeFromCart} />
+          ))}
         </aside>
       </>
     );

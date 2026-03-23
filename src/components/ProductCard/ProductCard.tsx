@@ -1,12 +1,28 @@
 import type { Product } from "../../types/product_type";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductCard.module.css";
+import { useCartSideBar } from "../../context/CartSideBarContext";
 
 interface Props {
   product: Product;
 }
 
 export function ProductCard({ product }: Props) {
+  const { addToCart, cartItems } = useCartSideBar();
+  const isInCart = cartItems.some((item) => item.productId === product.id);
+  const handleAddToCart = () => {
+    addToCart({
+      id: product.id,
+      productId: product.id,
+      variantId: product.variants[0].id,
+      name: product.name,
+      imageUrl: product.imageUrl,
+      catalogNumber: product.catolog_id,
+      sizeLabel: product.variants[0].size_value + product.variants[0].size_unit,
+      unitPrice: product.variants[0].price,
+      quantity: 1,
+    });
+  };
   return (
     <div className={styles.card}>
       <img src={product.imageUrl} alt={product.name} className={styles.image} />
@@ -15,7 +31,7 @@ export function ProductCard({ product }: Props) {
         <p className={styles.description}>{product.description}</p>
         <div className={styles.footer}>
           <span className={styles.price}>${product.variants[0].price.toFixed(2)}</span>
-          <button className={shared.primaryButton}>Add to cart</button>
+          <button className={shared.primaryButton} onClick={handleAddToCart} disabled={isInCart}>{isInCart ? "In Cart" : "Add to cart"}</button>
         </div>
       </div>
     </div>

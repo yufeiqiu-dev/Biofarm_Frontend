@@ -4,12 +4,19 @@ import {
     useState,
     type ReactNode,
   } from "react";
-  
-  type CartSideBarContextValue = {
+import type { CartItem } from "../components/CartProductCard/CartProductCard";
+
+type CartSideBarContextValue = {
     isOpen: boolean;
     toggleCartSideBar: () => void;
     openCartSideBar: () => void;
     closeCartSideBar: () => void;
+    cartItems: CartItem[];
+    addToCart: (item: CartItem) => void;
+    removeFromCart: (itemId: string) => void;
+    increaseQuantity: (itemId: string) => void;
+    decreaseQuantity: (itemId: string) => void;
+    clearCart: () => void;
   };
   
   const CartSideBarContext = createContext<CartSideBarContextValue | undefined>(
@@ -18,14 +25,36 @@ import {
   
   export function CartSideBarProvider({ children }: { children: ReactNode }) {
     const [isOpen, setIsOpen] = useState(false);
-  
+    const [cartItems, setCartItems] = useState<CartItem[]>([]);
+
     const toggleCartSideBar = () => setIsOpen((prev) => !prev);
     const openCartSideBar = () => setIsOpen(true);
     const closeCartSideBar = () => setIsOpen(false);
-  
+
+    const addToCart = (item: CartItem) => {
+      setCartItems((prev) => [...prev, item]);
+    };
+
+    const removeFromCart = (itemId: string) => {
+      // TODO: Implement remove from cart logic
+    };
+
+    const increaseQuantity = (itemId: string) => {
+      // TODO: Implement increase quantity logic
+    };
+    
+    const decreaseQuantity = (itemId: string) => {
+      // TODO: Implement decrease quantity logic
+    };
+
+    const clearCart = () => {
+      // TODO: Implement clear cart logic
+    };
+
     return (
       <CartSideBarContext.Provider
-        value={{ isOpen, toggleCartSideBar, openCartSideBar, closeCartSideBar }}
+        value={{ isOpen, toggleCartSideBar, openCartSideBar, closeCartSideBar, 
+          cartItems, addToCart, removeFromCart, increaseQuantity, decreaseQuantity, clearCart }}
       >
         {children}
       </CartSideBarContext.Provider>
