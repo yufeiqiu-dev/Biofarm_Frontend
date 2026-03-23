@@ -14,7 +14,7 @@ export function ProductCard({ product }: Props) {
         <h3 className={styles.name}>{product.name}</h3>
         <p className={styles.description}>{product.description}</p>
         <div className={styles.footer}>
-          <span className={styles.price}>${product.price.toFixed(2)}</span>
+          <span className={styles.price}>${product.variants[0].price.toFixed(2)}</span>
           <button className={shared.primaryButton}>Add to cart</button>
         </div>
       </div>
