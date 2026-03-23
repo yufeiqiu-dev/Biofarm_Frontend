@@ -2,6 +2,7 @@ import { Outlet } from "react-router-dom";
 import { Navbar } from "../../components/Navbar";
 import { Footer } from "../../components/Footer";
 import { CartSideBar } from "../../components/CartSideBar";
+import { ReminderToast } from "../../components/ReminderToast";
 import { useLayoutEffect, useRef, useState } from "react";
 import styles from "./Layout.module.css";
 
@@ -41,7 +42,7 @@ export function Layout() {
       </main>
 
       <CartSideBar topOffset={navbarHeight} />
-
+      <ReminderToast />
       <Footer />
     </div>
   );

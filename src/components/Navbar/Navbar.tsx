@@ -4,12 +4,14 @@ import { useAuth } from "../../auth/AuthContext";
 import { SearchBar } from "../SearchBar";
 import { useCartSideBar } from "../../context/CartSideBarContext";
 import styles from "./Navbar.module.css";
+import { useReminder } from "../../context/ReminderContext";
 
 export function Navbar() {
   const navigate = useNavigate();
   const { user, signIn, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const { toggleCartSideBar } = useCartSideBar();
+  const { showReminder } = useReminder();
   const handleAccountClick = () => {
     setMenuOpen((open) => !open);
   };

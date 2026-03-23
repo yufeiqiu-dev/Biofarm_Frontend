@@ -2,6 +2,8 @@ import type { Product } from "../../types/product_type";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductCard.module.css";
 import { useCartSideBar } from "../../context/CartSideBarContext";
+import { useReminder } from "../../context/ReminderContext";
+import { useAuth } from "../../auth/AuthContext";
 
 interface Props {
   product: Product;
@@ -9,8 +11,16 @@ interface Props {
 
 export function ProductCard({ product }: Props) {
   const { addToCart, cartItems } = useCartSideBar();
+  const { user } = useAuth();
+  const { showReminder } = useReminder();
   const isInCart = cartItems.some((item) => item.productId === product.id);
   const handleAddToCart = () => {
+    if (!user) {
+      showReminder({
+        message: "Please sign in before adding items to your cart.",
+      });
+      return;
+    }
     addToCart({
       id: product.id,
       productId: product.id,
