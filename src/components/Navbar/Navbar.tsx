@@ -24,6 +24,14 @@ export function Navbar() {
     signOut();
   };
 
+  const handleCartClick = () => {
+    if (!user) {
+      navigate("/signin");
+      return;
+    }
+    toggleCartSideBar();
+  };
+
   return (
     <header className={styles.navbar}>
       <div className={styles.topRow}>
@@ -78,7 +86,7 @@ export function Navbar() {
           <button
             type="button"
             className={styles.cartButton}
-            onClick={toggleCartSideBar}
+            onClick={handleCartClick}
           >
             Cart
           </button>
