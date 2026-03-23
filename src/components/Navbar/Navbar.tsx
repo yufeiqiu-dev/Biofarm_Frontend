@@ -2,13 +2,14 @@ import { useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { SearchBar } from "../SearchBar";
+import { useCartSideBar } from "../../context/CartSideBarContext";
 import styles from "./Navbar.module.css";
 
 export function Navbar() {
   const navigate = useNavigate();
   const { user, signIn, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
-
+  const { toggleCartSideBar } = useCartSideBar();
   const handleAccountClick = () => {
     setMenuOpen((open) => !open);
   };
@@ -74,14 +75,13 @@ export function Navbar() {
               )}
             </div>
           )}
-          <NavLink
-            to="/cart"
-            className={({ isActive }) =>
-              isActive ? `${styles.actionLink} ${styles.linkActive}` : styles.actionLink
-            }
+          <button
+            type="button"
+            className={styles.cartButton}
+            onClick={toggleCartSideBar}
           >
             Cart
-          </NavLink>
+          </button>
         </div>
       </div>
 
