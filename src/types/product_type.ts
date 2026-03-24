@@ -1,6 +1,6 @@
 export interface Product {
     id: string;
-    catolog_id: string;
+    catalog_id: string;
     name: string;
     description: string;
     price: number;
@@ -10,7 +10,7 @@ export interface Product {
 
   export interface ProductVariant {
     id: string;
-    catolog_id: string;
+    catalog_id: string;
     size_value: number;
     size_unit: string;
     price: number;

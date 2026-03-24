@@ -4,15 +4,15 @@ import {
     useState,
     type ReactNode,
   } from "react";
-import type { CartItem } from "../components/CartProductCard/CartProductCard";
-
+import type { CartItem } from "../types/cart_types";
+import type { AddToCartItem } from "../types/cart_types";
 type CartSideBarContextValue = {
     isOpen: boolean;
     toggleCartSideBar: () => void;
     openCartSideBar: () => void;
     closeCartSideBar: () => void;
     cartItems: CartItem[];
-    addToCart: (item: CartItem) => void;
+    addToCart: (item: AddToCartItem) => void;
     removeFromCart: (itemId: string) => void;
     increaseQuantity: (itemId: string) => void;
     decreaseQuantity: (itemId: string) => void;
@@ -31,8 +31,28 @@ type CartSideBarContextValue = {
     const openCartSideBar = () => setIsOpen(true);
     const closeCartSideBar = () => setIsOpen(false);
 
-    const addToCart = (item: CartItem) => {
-      setCartItems((prev) => [...prev, item]);
+    const addToCart = (item: AddToCartItem) => {
+      setCartItems((prev) => {
+        const existingItem = prev.find(
+          (cartItem) => cartItem.variantId === item.variantId
+        );
+  
+        if (existingItem) {
+          return prev.map((cartItem) =>
+            cartItem.variantId === item.variantId
+              ? { ...cartItem, quantity: cartItem.quantity + 1 }
+              : cartItem
+          );
+        }
+  
+        const newCartItem: CartItem = {
+          ...item,
+          id: `${item.productId}-${item.variantId}`,
+          quantity: 1,
+        };
+  
+        return [...prev, newCartItem];
+      });
     };
 
     const removeFromCart = (itemId: string) => {
