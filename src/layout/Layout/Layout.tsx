@@ -37,7 +37,10 @@ export function Layout() {
         <Navbar />
       </div>
 
-      <main className={styles.main}>
+      <main
+        className={styles.main}
+        style={{ paddingTop: 15 + `${navbarHeight}px` }}
+      >
         <Outlet />
       </main>
 
