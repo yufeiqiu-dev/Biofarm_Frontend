@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { SearchBar } from "../SearchBar";
@@ -9,7 +9,22 @@ export function Navbar() {
   const navigate = useNavigate();
   const { user, signIn, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
+  const [showBottomRow, setShowBottomRow] = useState(true);
   const { toggleCartSideBar } = useCartSideBar();
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowBottomRow(window.scrollY <= 10);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   const handleAccountClick = () => {
     setMenuOpen((open) => !open);
   };
@@ -44,7 +59,6 @@ export function Navbar() {
         </div>
 
         <div className={styles.actions}>
-
           {!user ? (
             <button
               type="button"
@@ -83,6 +97,7 @@ export function Navbar() {
               )}
             </div>
           )}
+
           <button
             type="button"
             className={styles.cartButton}
@@ -93,7 +108,11 @@ export function Navbar() {
         </div>
       </div>
 
-      <nav className={styles.bottomRow}>
+      <nav
+        className={`${styles.bottomRow} ${
+          showBottomRow ? styles.bottomRowVisible : styles.bottomRowHidden
+        }`}
+      >
         <NavLink
           to="/"
           end

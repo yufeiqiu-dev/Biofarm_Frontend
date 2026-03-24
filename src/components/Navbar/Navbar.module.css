@@ -28,6 +28,20 @@
   flex-wrap: wrap;
 }
 
+.bottomRowVisible {
+  max-height: 100px;
+  opacity: 1;
+}
+
+.bottomRowHidden {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-color: transparent;
+  pointer-events: none;
+}
+
 .logo {
   justify-self: start;
   font-weight: 700;
