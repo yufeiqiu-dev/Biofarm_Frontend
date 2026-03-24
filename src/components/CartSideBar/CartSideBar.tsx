@@ -17,10 +17,6 @@ type CartSideBarProps = {
   
         <aside
           className={`${styles.cartSideBar} ${isOpen ? styles.open : styles.closed}`}
-          style={{
-            top: `${topOffset}px`,
-            height: `calc(100vh - ${topOffset}px)`,
-          }}
         >
           <h2>Cart</h2>
           {cartItems.map((item) => (
