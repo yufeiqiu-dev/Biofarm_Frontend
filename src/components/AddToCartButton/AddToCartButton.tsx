@@ -29,7 +29,6 @@ interface Props {
         openCartSideBar();
         return;
       }
-  
       addToCart(item);
     };
   

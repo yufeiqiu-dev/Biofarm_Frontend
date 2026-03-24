@@ -77,7 +77,7 @@ useEffect(() => {
       if (existingItem) {
         return prev.map((cartItem) =>
           cartItem.variantId === item.variantId
-            ? { ...cartItem, quantity: cartItem.quantity + 1 }
+            ? { ...cartItem, quantity: cartItem.quantity + item.quantity }
             : cartItem
         );
       }
@@ -85,7 +85,7 @@ useEffect(() => {
       const newCartItem: CartItem = {
         ...item,
         id: `${item.productId}-${item.variantId}`,
-        quantity: 1,
+        quantity: item.quantity,
       };
 
       return [...prev, newCartItem];

@@ -8,8 +8,9 @@
 }
 
 .image {
+  display: block;
   width: 100%;
-  height: 160px;
+  height: auto;
   object-fit: cover;
 }
 
@@ -43,3 +44,19 @@
   color: #16a34a;
 }
 
+.imageLink {
+  display: block;
+  text-decoration: none;
+  line-height: 0;
+}
+
+.nameLink {
+  display: inline-block;
+  text-decoration: none;
+  color: inherit;
+  font-weight: 600;
+}
+
+.nameLink:hover {
+  text-decoration: underline;
+}

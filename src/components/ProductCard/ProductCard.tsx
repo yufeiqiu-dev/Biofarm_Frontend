@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import styles from "./ProductCard.module.css";
@@ -19,15 +20,21 @@ export function ProductCard({ product }: Props) {
       catalogNumber: defaultVariant.catalog_id,
       sizeLabel: `${defaultVariant.size_value}${defaultVariant.size_unit}`,
       unitPrice: defaultVariant.price,
+      quantity: 1,
     };
   };
 
   return (
     <div className={styles.card}>
-      <img src={product.imageUrl} alt={product.name} className={styles.image} />
+      <Link to={`/products/${product.id}`} className={styles.imageLink}>
+        <img src={product.imageUrl} alt={product.name} className={styles.image} />
+      </Link>
 
       <div className={styles.body}>
-        <h3 className={styles.name}>{product.name}</h3>
+        <Link to={`/products/${product.id}`} className={styles.nameLink}>
+          {product.name}
+        </Link>
+
         <p className={styles.description}>{product.description}</p>
 
         <div className={styles.footer}>

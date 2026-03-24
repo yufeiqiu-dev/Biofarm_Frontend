@@ -5,6 +5,7 @@ import { ProductsPage } from "./pages/ProductsPage";
 import { CartPage } from "./pages/CartPage";
 import { AboutPage } from "./pages/AboutPage";
 import { OrdersPage } from "./pages/OrdersPage";
+import { ProductDetailPage } from "./pages/ProductDetailPage";
 
 export default function App() {
   return (
@@ -15,6 +16,7 @@ export default function App() {
         <Route path="/cart" element={<CartPage />} />
         <Route path="/about" element={<AboutPage />} />
         <Route path="/orders" element={<OrdersPage />} />
+        <Route path="/products/:productId" element={<ProductDetailPage />} />
       </Route>
     </Routes>
   );

@@ -6,6 +6,7 @@ export interface AddToCartItem {
     catalogNumber: string;
     sizeLabel: string;
     unitPrice: number;
+    quantity: number;
 }
 
 export interface CartItem extends AddToCartItem {
