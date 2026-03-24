@@ -16,7 +16,7 @@ export function ProductCard({ product }: Props) {
       variantId: defaultVariant.id,
       name: product.name,
       imageUrl: product.imageUrl,
-      catalogNumber: product.catalog_id,
+      catalogNumber: defaultVariant.catalog_id,
       sizeLabel: `${defaultVariant.size_value}${defaultVariant.size_unit}`,
       unitPrice: defaultVariant.price,
     };
