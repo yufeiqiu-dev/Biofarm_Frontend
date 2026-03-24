@@ -33,35 +33,36 @@ export function CartSideBarProvider({ children }: { children: ReactNode }) {
 
   const [isOpen, setIsOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+const [hasLoadedCart, setHasLoadedCart] = useState(false);
 
-  useEffect(() => {
-    if (!user) {
-      setCartItems([]);
-      return;
-    }
+useEffect(() => {
+  setHasLoadedCart(false);
 
-    const storageKey = getCartStorageKey(user.user_id);
-    const savedCart = localStorage.getItem(storageKey);
+  if (!user) {
+    setCartItems([]);
+    setHasLoadedCart(true);
+    return;
+  }
 
-    if (!savedCart) {
-      setCartItems([]);
-      return;
-    }
+  const storageKey = getCartStorageKey(user.user_id);
+  const savedCart = localStorage.getItem(storageKey);
 
-    try {
-      const parsedCart = JSON.parse(savedCart) as CartItem[];
-      setCartItems(Array.isArray(parsedCart) ? parsedCart : []);
-    } catch {
-      setCartItems([]);
-    }
-  }, [user]);
+  try {
+    const parsedCart = savedCart ? JSON.parse(savedCart) : [];
+    setCartItems(Array.isArray(parsedCart) ? parsedCart : []);
+  } catch {
+    setCartItems([]);
+  }
 
-  useEffect(() => {
-    if (!user) return;
+  setHasLoadedCart(true);
+}, [user]);
 
-    const storageKey = getCartStorageKey(user.user_id);
-    localStorage.setItem(storageKey, JSON.stringify(cartItems));
-  }, [user, cartItems]);
+useEffect(() => {
+  if (!user || !hasLoadedCart) return;
+
+  const storageKey = getCartStorageKey(user.user_id);
+  localStorage.setItem(storageKey, JSON.stringify(cartItems));
+}, [user, cartItems, hasLoadedCart]);
 
   const toggleCartSideBar = () => setIsOpen((prev) => !prev);
   const openCartSideBar = () => setIsOpen(true);

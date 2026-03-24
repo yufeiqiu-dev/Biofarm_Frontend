@@ -19,7 +19,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = () => {
     // TODO: replace with real Cognito sign-in flow
-    setUser({ user_id: "abc", name: "Demo User" });
+    setUser({ user_id: "ccc", name: "Demo User" });
   };
 
   const signOut = () => {
