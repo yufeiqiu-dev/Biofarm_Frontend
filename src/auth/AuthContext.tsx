@@ -6,6 +6,7 @@ import {
 } from "react";
 
 type User = {
+  user_id: string;
   name: string;
   email?: string;
 };
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signIn = () => {
     // TODO: replace with real Cognito sign-in flow
-    setUser({ name: "Demo User" });
+    setUser({ user_id: "abc", name: "Demo User" });
   };
 
   const signOut = () => {

@@ -56,15 +56,27 @@ type CartSideBarContextValue = {
     };
 
     const removeFromCart = (itemId: string) => {
-      // TODO: Implement remove from cart logic
+      setCartItems((prev) => prev.filter((item) => item.id !== itemId));
     };
 
     const increaseQuantity = (itemId: string) => {
-      // TODO: Implement increase quantity logic
+      setCartItems((prev) =>
+        prev.map((item) =>
+          item.id === itemId
+            ? { ...item, quantity: item.quantity + 1 }
+            : item
+        )
+      );
     };
     
     const decreaseQuantity = (itemId: string) => {
-      // TODO: Implement decrease quantity logic
+      setCartItems((prev) =>
+        prev.flatMap((item) => {
+          if (item.id !== itemId) return [item];
+          if (item.quantity === 1) return [];
+          return [{ ...item, quantity: item.quantity - 1 }];
+        })
+      );
     };
 
     const clearCart = () => {
