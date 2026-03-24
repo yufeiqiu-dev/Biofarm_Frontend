@@ -44,7 +44,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <CartSideBar topOffset={navbarHeight} />
+      <CartSideBar />
       <ReminderToast />
       <Footer />
     </div>

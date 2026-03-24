@@ -1,114 +1,159 @@
 .card {
-    display: flex;
-    gap: 1rem;
-    padding: 1rem 0;
-    border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  gap: 0.75rem;
+  padding: 1rem 0;
+  border-bottom: 1px solid #e2e8f0;
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.image {
+  width: 72px;
+  height: 72px;
+  object-fit: cover;
+  border-radius: 0.75rem;
+  background: #f8fafc;
+  flex-shrink: 0;
+}
+
+.content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.topRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+  line-height: 1.3;
+  word-break: break-word;
+}
+
+.meta {
+  margin: 0.2rem 0 0;
+  font-size: 0.82rem;
+  color: #64748b;
+  word-break: break-word;
+}
+
+.removeButton {
+  border: none;
+  background: transparent;
+  color: #dc2626;
+  font-size: 0.82rem;
+  cursor: pointer;
+  padding: 0;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.removeButton:hover {
+  text-decoration: underline;
+}
+
+.bottomRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.quantityControls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.quantityButton {
+  width: 30px;
+  height: 30px;
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  background: white;
+  color: #0f172a;
+  font-size: 0.95rem;
+  cursor: pointer;
+}
+
+.quantityButton:hover:not(:disabled) {
+  background: #f8fafc;
+}
+
+.quantityButton:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.quantityValue {
+  min-width: 20px;
+  text-align: center;
+  font-weight: 600;
+  color: #0f172a;
+  font-size: 0.9rem;
+}
+
+.priceBlock {
+  text-align: right;
+  min-width: 0;
+}
+
+.unitPrice {
+  margin: 0;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.subtotal {
+  margin: 0.2rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+@media (max-width: 480px) {
+  .card {
+    gap: 0.6rem;
   }
-  
+
   .image {
-    width: 88px;
-    height: 88px;
-    object-fit: cover;
-    border-radius: 0.75rem;
-    background: #f8fafc;
-    flex-shrink: 0;
+    width: 60px;
+    height: 60px;
   }
-  
-  .content {
-    flex: 1;
-    min-width: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.9rem;
-  }
-  
-  .topRow {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-  
-  .name {
-    margin: 0;
-    font-size: 0.98rem;
-    font-weight: 600;
-    color: #0f172a;
-  }
-  
-  .meta {
-    margin: 0.2rem 0 0;
-    font-size: 0.86rem;
-    color: #64748b;
-  }
-  
-  .removeButton {
-    border: none;
-    background: transparent;
-    color: #dc2626;
-    font-size: 0.85rem;
-    cursor: pointer;
-    padding: 0;
-    white-space: nowrap;
-  }
-  
-  .removeButton:hover {
-    text-decoration: underline;
-  }
-  
+
+  .topRow,
   .bottomRow {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 1rem;
-  }
-  
-  .quantityControls {
-    display: flex;
-    align-items: center;
     gap: 0.5rem;
   }
-  
-  .quantityButton {
-    width: 32px;
-    height: 32px;
-    border: 1px solid #cbd5e1;
-    border-radius: 0.5rem;
-    background: white;
-    color: #0f172a;
-    font-size: 1rem;
-    cursor: pointer;
+
+  .bottomRow {
+    align-items: flex-start;
+    flex-direction: column;
   }
-  
-  .quantityButton:hover:not(:disabled) {
-    background: #f8fafc;
-  }
-  
-  .quantityButton:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-  }
-  
-  .quantityValue {
-    min-width: 24px;
-    text-align: center;
-    font-weight: 600;
-    color: #0f172a;
-  }
-  
+
   .priceBlock {
-    text-align: right;
+    text-align: left;
   }
-  
-  .unitPrice {
-    margin: 0;
-    font-size: 0.82rem;
-    color: #64748b;
+
+  .name {
+    font-size: 0.9rem;
   }
-  
-  .subtotal {
-    margin: 0.2rem 0 0;
-    font-size: 1rem;
-    font-weight: 700;
-    color: #0f172a;
+
+  .meta {
+    font-size: 0.78rem;
   }
+}

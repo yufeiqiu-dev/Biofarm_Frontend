@@ -69,6 +69,7 @@ type CartSideBarContextValue = {
 
     const clearCart = () => {
       // TODO: Implement clear cart logic
+      setCartItems([]);
     };
 
     return (

@@ -1,11 +1,8 @@
 import styles from "./CartSideBar.module.css";
 import { useCartSideBar } from "../../context/CartSideBarContext";
 import { CartProductCard } from "../CartProductCard";
-type CartSideBarProps = {
-    topOffset: number;
-  };
 
-  export function CartSideBar({ topOffset }: CartSideBarProps) {
+  export function CartSideBar() {
     const { isOpen, closeCartSideBar, cartItems, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
   
     return (
