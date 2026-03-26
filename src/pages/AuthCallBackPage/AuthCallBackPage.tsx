@@ -11,7 +11,7 @@ export function AuthCallBackPage() {
     const target = sessionStorage.getItem("RedirectPath") || "/";
     const safeTarget = target.startsWith("/") ? target : "/";
     navigate(safeTarget, { replace: true });
-  }, [loading]);
+  }, [loading, navigate]);
 
   return <>
     <LoadingOverlay visible={true}/>

@@ -6,7 +6,6 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useNavigate } from "react-router-dom";
 import type { User } from "../types/user_type";
 import {
   fetchAuthSession,
