@@ -6,6 +6,7 @@ import "./styles/global.css";
 import { AuthProvider } from "./auth/AuthContext";
 import { CartSideBarProvider } from "./context/CartSideBarContext";
 import { ReminderProvider } from "./context/ReminderContext";
+import "./amplify";
 
 ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
   <React.StrictMode>
