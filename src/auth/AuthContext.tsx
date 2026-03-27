@@ -22,9 +22,12 @@ type AuthContextValue = {
   signOut: () => Promise<void>;
   refreshUser: () => Promise<void>;
   getAccessToken: () => Promise<string | null>;
+  getUserGroups: () => Promise<string[]>;
 };
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+
+const REDIRECT_PATH_KEY = "RedirectPath";
 
 function mapCognitoToUser(params: {
   userId: string;
@@ -81,18 +84,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async () => {
-    sessionStorage.setItem("RedirectPath", getCurrentPath());
+    sessionStorage.setItem(REDIRECT_PATH_KEY, getCurrentPath());
     await signInWithRedirect();
   };
 
   const signOut = async () => {
-    sessionStorage.setItem("RedirectPath", getCurrentPath());
+    sessionStorage.setItem(REDIRECT_PATH_KEY, getCurrentPath());
     await amplifySignOut();
   };
 
   const getAccessToken = async () => {
-    const session = await fetchAuthSession();
-    return session.tokens?.accessToken?.toString() ?? null;
+    try {
+      const session = await fetchAuthSession();
+      return session.tokens?.accessToken?.toString() ?? null;
+    } catch {
+      return null;
+    }
+  };
+
+  const getUserGroups = async () => {
+    try {
+      const session = await fetchAuthSession();
+
+      const groups =
+        session.tokens?.accessToken?.payload["cognito:groups"] ??
+        session.tokens?.idToken?.payload["cognito:groups"] ??
+        [];
+
+      return Array.isArray(groups) ? groups.map(String) : [];
+    } catch {
+      return [];
+    }
   };
 
   const value = useMemo(
@@ -104,6 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       signOut,
       refreshUser,
       getAccessToken,
+      getUserGroups,
     }),
     [user, loading]
   );
