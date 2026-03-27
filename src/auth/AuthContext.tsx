@@ -33,10 +33,12 @@ function mapCognitoToUser(params: {
   userId: string;
   username: string;
   email?: string;
+  roles?: string[];
 }): User {
   return {
     user_id: params.userId,
     name: params.email ?? params.username,
+    roles: params.roles ?? []
   };
 }
 
@@ -57,12 +59,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await getCurrentUser();
       const session = await fetchAuthSession();
       const email = session.tokens?.idToken?.payload?.email?.toString();
+      const groups =
+        session.tokens?.accessToken?.payload["cognito:groups"] ??
+        session.tokens?.idToken?.payload["cognito:groups"] ??
+        [];
+
+      const roles = Array.isArray(groups) ? groups.map(String) : []
 
       setUser(
         mapCognitoToUser({
           userId: currentUser.userId,
           username: currentUser.username,
           email,
+          roles
         })
       );
     } catch {

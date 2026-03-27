@@ -36,7 +36,7 @@ export function Navbar() {
 
   const handleSignOutClick = () => {
     setMenuOpen(false);
-    signOut();
+    void signOut();
   };
 
   const handleCartClick = () => {
@@ -74,7 +74,7 @@ export function Navbar() {
                 className={styles.accountButton}
                 onClick={handleAccountClick}
               >
-                My Account ▾
+                {user.name} ▾
               </button>
 
               {menuOpen && (
