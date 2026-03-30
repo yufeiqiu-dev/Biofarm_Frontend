@@ -4,6 +4,7 @@ import {
   useEffect,
   useMemo,
   useState,
+  useCallback,
   type ReactNode,
 } from "react";
 import type { User } from "../types/user_type";
@@ -38,7 +39,7 @@ function mapCognitoToUser(params: {
   return {
     user_id: params.userId,
     name: params.email ?? params.username,
-    roles: params.roles ?? []
+    roles: params.roles ?? [],
   };
 }
 
@@ -54,30 +55,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const refreshUser = async () => {
+  const refreshUser = useCallback(async () => {
     try {
       const currentUser = await getCurrentUser();
       const session = await fetchAuthSession();
       const email = session.tokens?.idToken?.payload?.email?.toString();
+
       const groups =
         session.tokens?.accessToken?.payload["cognito:groups"] ??
         session.tokens?.idToken?.payload["cognito:groups"] ??
         [];
 
-      const roles = Array.isArray(groups) ? groups.map(String) : []
+      const roles = Array.isArray(groups) ? groups.map(String) : [];
 
       setUser(
         mapCognitoToUser({
           userId: currentUser.userId,
           username: currentUser.username,
           email,
-          roles
+          roles,
         })
       );
     } catch {
       setUser(null);
     }
-  };
+  }, []);
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -90,28 +92,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
 
     void bootstrap();
-  }, []);
+  }, [refreshUser]);
 
-  const signIn = async () => {
+  const signIn = useCallback(async () => {
     sessionStorage.setItem(REDIRECT_PATH_KEY, getCurrentPath());
     await signInWithRedirect();
-  };
+  }, []);
 
-  const signOut = async () => {
+  const signOut = useCallback(async () => {
     sessionStorage.setItem(REDIRECT_PATH_KEY, getCurrentPath());
     await amplifySignOut();
-  };
+  }, []);
 
-  const getAccessToken = async () => {
+  const getAccessToken = useCallback(async () => {
     try {
       const session = await fetchAuthSession();
       return session.tokens?.accessToken?.toString() ?? null;
     } catch {
       return null;
     }
-  };
+  }, []);
 
-  const getUserGroups = async () => {
+  const getUserGroups = useCallback(async () => {
     try {
       const session = await fetchAuthSession();
 
@@ -124,7 +126,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       return [];
     }
-  };
+  }, []);
 
   const value = useMemo(
     () => ({
@@ -137,7 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       getAccessToken,
       getUserGroups,
     }),
-    [user, loading]
+    [user, loading, signIn, signOut, refreshUser, getAccessToken, getUserGroups]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
