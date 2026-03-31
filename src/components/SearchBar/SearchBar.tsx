@@ -4,10 +4,12 @@ import { useNavigate } from "react-router-dom";
 
 type SearchBarProps = {
   placeholder?: string;
+  basePath?: string;
 };
 
 export function SearchBar({
   placeholder = "Search products...",
+  basePath = "/products",
 }: SearchBarProps) {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState("");
@@ -18,11 +20,11 @@ export function SearchBar({
     const trimmedSearch = searchTerm.trim();
 
     if (!trimmedSearch) {
-      navigate("/products");
+      navigate(basePath);
       return;
     }
 
-    navigate(`/products?search=${encodeURIComponent(trimmedSearch)}`);
+    navigate(`${basePath}?search=${encodeURIComponent(trimmedSearch)}`);
   };
 
   return (

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import { AdminProductCard } from "../../components/AdminProductCard";
+import { SearchBar } from "../../components/SearchBar";
 import styles from "./AdminProductsPage.module.css";
 
 // replace this later with real API data
@@ -78,20 +79,31 @@ export function AdminProductsPage() {
         </div>
       </div>
 
-      <div className={styles.toolbar}>
-        <label className={styles.selectAll}>
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={toggleSelectAll}
-          />
-          <span>Select all</span>
-        </label>
 
-        <span className={styles.selectedCount}>
-          {selectedCount} selected
-        </span>
-      </div>
+
+      <div className={styles.toolbar}>
+        <div className={styles.searchWrapper}>
+            <SearchBar
+            placeholder="Search products in admin..."
+            basePath="/admin/products"
+            />
+        </div>
+
+        <div className={styles.selectionControls}>
+            <label className={styles.selectAll}>
+            <input
+                type="checkbox"
+                checked={allSelected}
+                onChange={toggleSelectAll}
+            />
+            <span>Select all</span>
+            </label>
+
+            <span className={styles.selectedCount}>
+            {selectedCount} selected
+            </span>
+        </div>
+        </div>
 
       <div className={styles.list}>
         {products.map((product) => (
