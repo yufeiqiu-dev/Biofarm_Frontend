@@ -9,6 +9,7 @@ import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { AuthCallBackPage } from "./pages/AuthCallBackPage";
 import { AdminRoute } from "./components/AdminRoute.tsx";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
+import { AdminProductDetailPage } from "./pages/AdminProductDetailPage/AdminProductDetailPage.tsx";
 
 export default function App() {
   return (
@@ -22,6 +23,24 @@ export default function App() {
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/auth/callback" element={<AuthCallBackPage />} />
         <Route path="/admin/products" element={<AdminRoute><AdminProductsPage /></AdminRoute>} />
+
+        <Route
+          path="/admin/products/:productId"
+          element={
+            <AdminRoute>
+              <AdminProductDetailPage />
+            </AdminRoute>
+          }
+        />
+
+      <Route
+        path="/admin/products/new"
+        element={
+          <AdminRoute>
+            <AdminProductDetailPage />
+          </AdminRoute>
+        }
+      />
       </Route>
     </Routes>
   );
