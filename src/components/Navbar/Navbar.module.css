@@ -1,0 +1,245 @@
+.navbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  background: white;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.topRow {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.9rem 2rem;
+}
+
+.bottomRow {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 2rem;
+  padding: 0.75rem 2rem;
+  border-top: 1px solid #f1f5f9;
+  flex-wrap: wrap;
+}
+
+.bottomRowVisible {
+  max-height: 100px;
+  opacity: 1;
+}
+
+.bottomRowHidden {
+  max-height: 0;
+  opacity: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-color: transparent;
+  pointer-events: none;
+}
+
+.logo {
+  justify-self: start;
+  font-weight: 700;
+  font-size: 1.4rem;
+  color: #22c55e;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.searchArea {
+  width: 100%;
+  max-width: 700px;
+  justify-self: center;
+  min-width: 0;
+}
+
+.actions {
+  justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  white-space: nowrap;
+}
+
+.link,
+.actionLink {
+  text-decoration: none;
+  color: #475569;
+  font-weight: 500;
+}
+
+.link:hover,
+.actionLink:hover {
+  color: #16a34a;
+}
+
+.linkActive {
+  color: #22c55e;
+}
+
+.signInButton,
+.accountButton {
+  padding: 0.4rem 0.95rem;
+  border-radius: 999px;
+  border: 1px solid #22c55e;
+  background: white;
+  color: #16a34a;
+  font-weight: 500;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.signInButton:hover,
+.accountButton:hover {
+  background: #ecfdf3;
+}
+
+.accountWrapper {
+  position: relative;
+}
+
+.accountButton {
+  max-width: 160px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 0.5rem);
+  min-width: 160px;
+  padding: 0.5rem 0;
+  background: white;
+  border-radius: 0.5rem;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  z-index: 20;
+}
+
+.menuItem {
+  width: 100%;
+  padding: 0.45rem 0.9rem;
+  background: transparent;
+  border: none;
+  text-align: left;
+  font-size: 0.9rem;
+  color: #0f172a;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+}
+
+.menuItem:hover {
+  background: #f1f5f9;
+}
+
+.menuLink {
+  color: inherit;
+  text-decoration: none;
+  flex: 1;
+}
+
+.cartButton {
+  padding: 0.45rem 1rem;
+  border-radius: 999px;
+  border: 1px solid #22c55e;
+  background: #22c55e;
+  color: white;
+  font-weight: 600;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition:
+    background 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.15s ease,
+    box-shadow 0.2s ease;
+}
+
+.cartButton:hover {
+  background: #16a34a;
+  border-color: #16a34a;
+  box-shadow: 0 6px 18px rgba(34, 197, 94, 0.2);
+}
+
+.cartButton:active {
+  transform: translateY(1px);
+}
+
+.cartButton:focus-visible {
+  outline: 2px solid #86efac;
+  outline-offset: 2px;
+}
+/* tablet */
+@media (max-width: 900px) {
+  .topRow {
+    grid-template-columns: auto 1fr auto;
+    gap: 0.75rem;
+    padding: 0.8rem 1rem;
+  }
+
+  .searchArea {
+    max-width: 100%;
+  }
+
+  .bottomRow {
+    gap: 1.25rem;
+    padding: 0.65rem 1rem;
+  }
+}
+
+/* smaller screens */
+@media (max-width: 700px) {
+  .topRow {
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      "logo actions"
+      "search search";
+    row-gap: 0.75rem;
+  }
+
+  .logo {
+    grid-area: logo;
+  }
+
+  .actions {
+    grid-area: actions;
+  }
+
+  .searchArea {
+    grid-area: search;
+    max-width: 100%;
+  }
+
+  .bottomRow {
+    justify-content: flex-start;
+    gap: 1rem;
+  }
+}
+
+/* very small phones */
+@media (max-width: 480px) {
+  .logo {
+    font-size: 1.2rem;
+  }
+
+  .actions {
+    gap: 0.5rem;
+  }
+
+  .signInButton,
+  .accountButton {
+    padding: 0.35rem 0.75rem;
+    font-size: 0.8rem;
+  }
+
+  .bottomRow {
+    padding: 0.6rem 0.75rem;
+  }
+}

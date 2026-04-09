@@ -1,0 +1,1 @@
+export { AuthCallBackPage } from "./AuthCallBackPage";

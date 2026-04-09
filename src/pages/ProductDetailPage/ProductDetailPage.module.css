@@ -1,0 +1,320 @@
+.page {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 20px 16px 32px;
+  }
+  
+  .topSection {
+    display: grid;
+    grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1fr);
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "image variants"
+      "image price";
+    gap: 14px;
+    align-items: start;
+  }
+  
+  .imageSection {
+    grid-area: image;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 12px;
+    min-height: 420px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .productImage {
+    display: block;
+    width: 100%;
+    max-height: 380px;
+    height: auto;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  
+  .variantSection {
+    grid-area: variants;
+    min-width: 0;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+  }
+  
+  .priceSection {
+    grid-area: price;
+  }
+  
+  .priceCard {
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 14px;
+  }
+  
+  .productName {
+    margin: 0 0 12px;
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.2;
+    color: #111827;
+  }
+  
+  .variantTable {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+  
+  .variantTable thead th {
+    padding: 10px 12px;
+    font-size: 13px;
+    text-align: left;
+    color: #374151;
+    border-bottom: 1px solid #e5e7eb;
+  }
+  
+  .variantTable tbody td {
+    padding: 10px 12px;
+    font-size: 13px;
+    color: #111827;
+    border-bottom: 1px solid #e5e7eb;
+    word-break: break-word;
+  }
+  
+  .variantTable tbody tr {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  
+  .variantTable tbody tr:hover {
+    background: #f8fafc;
+  }
+  
+  .selectedRow {
+    background: #ecfdf5;
+  }
+  
+  .label {
+    margin: 0 0 4px;
+    font-size: 12px;
+    color: #6b7280;
+  }
+  
+  .catalogId {
+    margin: 0 0 12px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #111827;
+  }
+  
+  .price,
+  .info {
+    margin: 0 0 12px;
+    color: #111827;
+  }
+  
+  .price {
+    font-size: 28px;
+    font-weight: 700;
+  }
+  
+  .info {
+    font-size: 14px;
+  }
+  
+  .purchaseRow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-top: 6px;
+  }
+  
+  .quantitySelector {
+    display: flex;
+    align-items: center;
+    height: 36px;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #ffffff;
+    flex-shrink: 0;
+  }
+  
+  .quantityButton {
+    width: 36px;
+    height: 36px;
+    border: none;
+    background: #f9fafb;
+    font-size: 16px;
+    line-height: 1;
+    color: #111827;
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+  }
+  
+  .quantityButton:hover:not(:disabled) {
+    background: #f3f4f6;
+  }
+  
+  .quantityButton:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+  
+  .quantityValue {
+    min-width: 32px;
+    padding: 0 10px;
+    text-align: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #111827;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  
+  .addToCartWrapper {
+    flex: 1;
+    min-width: 0;
+  }
+  
+  .addToCartWrapper button {
+    width: 30%;
+    height: 36px;
+    white-space: nowrap;
+  }
+  
+  .descriptionSection {
+    margin-top: 32px;
+    background: #ffffff;
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: clamp(16px, 2vw, 24px);
+  }
+  
+  .descriptionSection h2 {
+    margin: 0 0 12px;
+    font-size: clamp(20px, 2.5vw, 24px);
+    color: #111827;
+  }
+  
+  .descriptionSection p {
+    margin: 0;
+    line-height: 1.7;
+    color: #374151;
+  }
+  
+  .notFound {
+    padding: 48px 24px;
+    text-align: center;
+    font-size: 18px;
+    color: #374151;
+  }
+  
+  /* tablet */
+  @media (max-width: 1100px) {
+    .topSection {
+      grid-template-columns: 1fr;
+      grid-template-rows: auto;
+      grid-template-areas:
+        "image"
+        "variants"
+        "price";
+      gap: 20px;
+    }
+  
+    .imageSection {
+      min-height: 420px;
+    }
+  
+    .productImage {
+      max-height: 380px;
+    }
+  }
+  
+  /* mobile */
+  @media (max-width: 768px) {
+    .page {
+      padding: 16px;
+    }
+  
+    .topSection {
+      gap: 16px;
+    }
+  
+    .imageSection,
+    .variantSection,
+    .priceCard,
+    .descriptionSection {
+      padding: 16px;
+    }
+  
+    .imageSection {
+      min-height: 300px;
+    }
+  
+    .productImage {
+      max-height: 280px;
+    }
+  
+    .variantSection {
+      overflow-x: auto;
+    }
+  
+    .variantTable {
+      min-width: 560px;
+    }
+  
+    .purchaseRow {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 8px;
+    }
+  
+    .quantitySelector {
+      width: auto;
+    }
+  }
+  
+  /* very small phones */
+  @media (max-width: 480px) {
+    .page {
+      padding: 12px;
+    }
+  
+    .productName {
+      margin-bottom: 16px;
+    }
+  
+    .variantTable thead th,
+    .variantTable tbody td {
+      padding: 10px 12px;
+      font-size: 13px;
+    }
+  
+    .quantityButton {
+      width: 32px;
+      height: 32px;
+      font-size: 15px;
+    }
+  
+    .quantitySelector {
+      height: 32px;
+    }
+  
+    .quantityValue {
+      min-width: 28px;
+      font-size: 13px;
+      padding: 0 8px;
+    }
+  
+    .addToCartWrapper button {
+      height: 32px;
+    }
+  }

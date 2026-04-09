@@ -1,0 +1,190 @@
+.page {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px 16px 40px;
+  }
+  
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  
+  .title {
+    margin: 0;
+    font-size: 28px;
+    font-weight: 700;
+  }
+  
+  .subtitle {
+    margin: 8px 0 0;
+    color: #6b7280;
+  }
+  
+  .headerActions {
+    display: flex;
+    gap: 12px;
+  }
+  
+  .form {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  
+  .mainGrid {
+    display: grid;
+    grid-template-columns: 1fr 420px;
+    gap: 24px;
+    align-items: start;
+  }
+  
+  .section {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    background: #ffffff;
+    padding: 20px;
+  }
+  
+  .sectionTitle {
+    margin: 0 0 16px;
+    font-size: 20px;
+    font-weight: 700;
+  }
+  
+  .fieldGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+  
+  .label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #374151;
+  }
+  
+  .input,
+  .textarea {
+    width: 100%;
+    border: 1px solid #d1d5db;
+    border-radius: 8px;
+    padding: 10px 12px;
+    font-size: 14px;
+    box-sizing: border-box;
+  }
+  
+  .textarea {
+    resize: vertical;
+  }
+  
+  .previewBox {
+    min-height: 260px;
+    border: 1px dashed #d1d5db;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: #f9fafb;
+  }
+  
+  .previewImage {
+    max-width: 100%;
+    max-height: 320px;
+    object-fit: contain;
+    border-radius: 8px;
+  }
+  
+  .previewPlaceholder {
+    color: #6b7280;
+    font-size: 14px;
+  }
+  
+  .variantHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  
+  .variantList {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .variantCard {
+    border: 1px solid #e5e7eb;
+    border-radius: 12px;
+    padding: 16px;
+    background: #f9fafb;
+  }
+  
+  .variantCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  
+  .variantTitle {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 700;
+  }
+  
+  .variantGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 16px;
+  }
+  
+  .addVariantButton,
+  .removeVariantButton,
+  .deleteButton,
+  .cancelButton,
+  .saveButton {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: #ffffff;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  
+  .footerActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+  }
+  
+  @media (max-width: 900px) {
+    .mainGrid {
+      grid-template-columns: 1fr;
+    }
+  
+    .variantGrid {
+      grid-template-columns: 1fr 1fr;
+    }
+  }
+  
+  @media (max-width: 640px) {
+    .header {
+      flex-direction: column;
+    }
+  
+    .variantGrid {
+      grid-template-columns: 1fr;
+    }
+  
+    .footerActions {
+      flex-direction: column;
+    }
+  }

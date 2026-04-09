@@ -1,0 +1,17 @@
+export interface Product {
+  id: string;
+  cat_id: string;
+  name: string;
+  description: string;
+  imageUrl: string;
+  variants: ProductVariant[];
+}
+
+export interface ProductVariant {
+  id: string;
+  catalog_id: string;
+  size_value: number;
+  size_unit: string;
+  price: number;
+  stock: number;
+}

@@ -1,0 +1,1 @@
+export { AdminProductCard } from "./AdminProductCard";

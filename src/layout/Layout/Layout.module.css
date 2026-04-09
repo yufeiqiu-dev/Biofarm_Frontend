@@ -1,0 +1,11 @@
+.root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.main {
+  flex: 1;
+  padding: 1.5rem 2rem 3rem;
+}
+
