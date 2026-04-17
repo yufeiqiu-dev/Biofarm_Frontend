@@ -1,22 +1,67 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import { AdminProductCard } from "../../components/AdminProductCard";
 import { SearchBar } from "../../components/SearchBar";
+import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { getProducts } from "../../api/product";
+import { deleteProduct } from "../../api/admin_product";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./AdminProductsPage.module.css";
 
-// replace this later with real API data
-import { mockProducts } from "../../mock/mockProducts";
+
 
 export function AdminProductsPage() {
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [searchParams] = useSearchParams();
 
-  const products: Product[] = mockProducts;
+  const searchTerm = searchParams.get("search")?.trim().toLowerCase() ?? "";
+
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        setLoading(true);
+        const data = await getProducts();
+        const defaultData = data.map((d) => ({
+            ...d,
+            image_url: DEFAULT_PRODUCT_IMAGE,
+          }));
+        setProducts(defaultData);
+      } catch (error) {
+        console.error("Failed to load products", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadProducts();
+  }, []);
+
+  const filteredProducts = useMemo(() => {
+    if (!searchTerm) return products;
+
+    return products.filter((product) => {
+      const matchesProduct =
+        product.name.toLowerCase().includes(searchTerm) ||
+        product.cat_id.toLowerCase().includes(searchTerm) ||
+        product.description.toLowerCase().includes(searchTerm);
+
+      const matchesVariant = product.variants.some((variant) =>
+        variant.catalog_id.toLowerCase().includes(searchTerm)
+      );
+
+      return matchesProduct || matchesVariant;
+    });
+  }, [products, searchTerm]);
 
   const selectedCount = selectedProductIds.length;
 
   const allSelected =
-    products.length > 0 && selectedProductIds.length === products.length;
+    filteredProducts.length > 0 &&
+    filteredProducts.every((product) => selectedProductIds.includes(product.id));
 
   const toggleProductSelection = (productId: string) => {
     setSelectedProductIds((prev) =>
@@ -27,9 +72,15 @@ export function AdminProductsPage() {
   };
 
   const toggleSelectAll = () => {
-    setSelectedProductIds((prev) =>
-      prev.length === products.length ? [] : products.map((product) => product.id)
-    );
+    setSelectedProductIds((prev) => {
+      const filteredIds = filteredProducts.map((product) => product.id);
+
+      if (allSelected) {
+        return prev.filter((id) => !filteredIds.includes(id));
+      }
+
+      return Array.from(new Set([...prev, ...filteredIds]));
+    });
   };
 
   const handleDeleteSelected = async () => {
@@ -42,19 +93,29 @@ export function AdminProductsPage() {
     if (!confirmed) return;
 
     try {
-      // TODO: replace with real delete API call
-      console.log("Deleting products:", selectedProductIds);
+      setDeleting(true);
 
-      // Example:
-      // await Promise.all(selectedProductIds.map((id) => deleteProduct(id)));
+      await Promise.all(selectedProductIds.map((id) => deleteProduct(id)));
 
+      setProducts((prev) =>
+        prev.filter((product) => !selectedProductIds.includes(product.id))
+      );
       setSelectedProductIds([]);
     } catch (error) {
       console.error("Failed to delete selected products", error);
+    } finally {
+      setDeleting(false);
     }
   };
 
-  const selectedSet = useMemo(() => new Set(selectedProductIds), [selectedProductIds]);
+  const selectedSet = useMemo(
+    () => new Set(selectedProductIds),
+    [selectedProductIds]
+  );
+
+  if (loading || deleting) {
+    return <LoadingOverlay visible={true} />;
+  }
 
   return (
     <div className={styles.page}>
@@ -79,34 +140,32 @@ export function AdminProductsPage() {
         </div>
       </div>
 
-
-
       <div className={styles.toolbar}>
         <div className={styles.searchWrapper}>
-            <SearchBar
+          <SearchBar
             placeholder="Search products in admin..."
             basePath="/admin/products"
-            />
+          />
         </div>
 
         <div className={styles.selectionControls}>
-            <label className={styles.selectAll}>
+          <label className={styles.selectAll}>
             <input
-                type="checkbox"
-                checked={allSelected}
-                onChange={toggleSelectAll}
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleSelectAll}
             />
             <span>Select all</span>
-            </label>
+          </label>
 
-            <span className={styles.selectedCount}>
+          <span className={styles.selectedCount}>
             {selectedCount} selected
-            </span>
+          </span>
         </div>
-        </div>
+      </div>
 
       <div className={styles.list}>
-        {products.map((product) => (
+        {filteredProducts.map((product) => (
           <AdminProductCard
             key={product.id}
             product={product}

@@ -178,7 +178,7 @@ export function AdminProductDetailPage() {
                 type="text"
                 value={form.id}
                 onChange={(e) => handleFieldChange("id", e.target.value)}
-                placeholder="Enter product catalog id"
+                placeholder="Enter product id"
               />
             </div>
 
