@@ -33,6 +33,7 @@ export async function apiRequest<T>(
     }
 
     finalHeaders.set("Authorization", `Bearer ${token}`);
+    console.log(token)
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {
