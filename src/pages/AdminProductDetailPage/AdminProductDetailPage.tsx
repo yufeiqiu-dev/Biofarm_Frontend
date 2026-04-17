@@ -172,13 +172,13 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>Basic Information</h2>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Product ID</label>
+              <label className={styles.label}>Product Catalog ID</label>
               <input
                 className={styles.input}
                 type="text"
                 value={form.id}
                 onChange={(e) => handleFieldChange("id", e.target.value)}
-                placeholder="Enter product id"
+                placeholder="Enter product catalog id"
               />
             </div>
 

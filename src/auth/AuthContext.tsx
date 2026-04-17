@@ -14,6 +14,7 @@ import {
   signInWithRedirect,
   signOut as amplifySignOut,
 } from "aws-amplify/auth";
+import { setAccessTokenGetter } from "../api/client";
 
 type AuthContextValue = {
   user: User | null;
@@ -127,6 +128,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return [];
     }
   }, []);
+
+  useEffect(() => {
+    setAccessTokenGetter(getAccessToken);
+
+    return () => {
+      setAccessTokenGetter(null);
+    };
+  }, [getAccessToken]);
 
   const value = useMemo(
     () => ({

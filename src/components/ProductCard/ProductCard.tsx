@@ -16,7 +16,7 @@ export function ProductCard({ product }: Props) {
       productId: product.id,
       variantId: defaultVariant.id,
       name: product.name,
-      imageUrl: product.imageUrl,
+      imageUrl: product.image_url,
       catalogNumber: defaultVariant.catalog_id,
       sizeLabel: `${defaultVariant.size_value}${defaultVariant.size_unit}`,
       unitPrice: defaultVariant.price,
@@ -27,7 +27,7 @@ export function ProductCard({ product }: Props) {
   return (
     <div className={styles.card}>
       <Link to={`/products/${product.id}`} className={styles.imageLink}>
-        <img src={product.imageUrl} alt={product.name} className={styles.image} />
+        <img src={product.image_url} alt={product.name} className={styles.image} />
       </Link>
 
       <div className={styles.body}>

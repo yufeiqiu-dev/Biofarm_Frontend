@@ -3,7 +3,7 @@ export interface Product {
   cat_id: string;
   name: string;
   description: string;
-  imageUrl: string;
+  image_url: string;
   variants: ProductVariant[];
 }
 

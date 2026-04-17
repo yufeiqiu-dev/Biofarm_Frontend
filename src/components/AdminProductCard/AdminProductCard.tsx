@@ -22,7 +22,7 @@ export function AdminProductCard({ product, checked, onToggle }: Props) {
       </div>
 
       <Link to={`/admin/products/${product.id}`} className={styles.imageCell}>
-        <img src={product.imageUrl} alt={product.name} className={styles.image} />
+        <img src={product.image_url} alt={product.name} className={styles.image} />
       </Link>
 
       <div className={styles.content}>
