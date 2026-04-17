@@ -1,6 +1,10 @@
 import { Link } from "react-router-dom";
-import { mockProducts } from "../../mock/mockProducts";
+import { useEffect, useState } from "react";
+import { getProducts } from "../../api/product";
+import type { Product } from "../../types/product_type";
 import { ProductCard } from "../../components/ProductCard";
+import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product"
 import shared from "../../styles/shared.module.css";
 import styles from "./HomePage.module.css";
 
@@ -38,11 +42,40 @@ const categories = [
   },
 ];
 
-const featuredProducts = mockProducts.slice(0, 4);
-
 export function HomePage() {
+  const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadFeaturedProducts = async () => {
+      try {
+        setLoading(true);
+
+        const data = await getProducts();
+
+        const cleanedProducts = data
+          .filter((product) => product.variants.length > 0)
+          .map((product) => ({
+            ...product,
+            image_url: DEFAULT_PRODUCT_IMAGE,
+          }));
+
+        setFeaturedProducts(cleanedProducts.slice(0, 4));
+      } catch (error) {
+        console.error("Failed to load featured products:", error);
+        setFeaturedProducts([]);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    void loadFeaturedProducts();
+  }, []);
+
   return (
     <div className={shared.page}>
+      {loading && <LoadingOverlay visible={true} />}
+
       <section className={styles.hero}>
         <div className={styles.heroContent}>
           <p className={styles.eyebrow}>Biofarm for Research</p>
@@ -73,23 +106,23 @@ export function HomePage() {
         <div className={styles.categoryGrid}>
           {categories.map((category) => (
             <Link
-            key={category.name}
-            to={category.path}
-            className={styles.categoryCard}
-          >
-            <div className={styles.categoryImageWrapper}>
-              <img
-                src={"/images/categories/example.jpeg"}
-                alt={category.name}
-                className={styles.categoryImage}
-              />
-              <div className={styles.categoryBanner}>{category.name}</div>
-            </div>
-          
-            <div className={styles.categoryContent}>
-              <p>{category.description}</p>
-            </div>
-          </Link>
+              key={category.name}
+              to={category.path}
+              className={styles.categoryCard}
+            >
+              <div className={styles.categoryImageWrapper}>
+                <img
+                  src="/images/categories/example.jpeg"
+                  alt={category.name}
+                  className={styles.categoryImage}
+                />
+                <div className={styles.categoryBanner}>{category.name}</div>
+              </div>
+
+              <div className={styles.categoryContent}>
+                <p>{category.description}</p>
+              </div>
+            </Link>
           ))}
         </div>
       </section>
