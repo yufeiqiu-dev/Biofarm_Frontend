@@ -4,7 +4,6 @@ import { getProducts } from "../../api/product";
 import type { Product } from "../../types/product_type";
 import { ProductCard } from "../../components/ProductCard";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
-import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product"
 import shared from "../../styles/shared.module.css";
 import styles from "./HomePage.module.css";
 
@@ -51,6 +50,7 @@ const categories = [
 export function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [featuredError, setFeaturedError] = useState(false);
 
   useEffect(() => {
     const loadFeaturedProducts = async () => {
@@ -59,17 +59,11 @@ export function HomePage() {
 
         const data = await getProducts();
 
-        const cleanedProducts = data
-          .filter((product) => product.variants.length > 0)
-          .map((product) => ({
-            ...product,
-            image_url: DEFAULT_PRODUCT_IMAGE,
-          }));
-
+        const cleanedProducts = data.filter((product) => product.variants.length > 0);
         setFeaturedProducts(cleanedProducts.slice(0, 4));
       } catch (error) {
         console.error("Failed to load featured products:", error);
-        setFeaturedProducts([]);
+        setFeaturedError(true);
       } finally {
         setLoading(false);
       }
@@ -139,11 +133,15 @@ export function HomePage() {
           </Link>
         </div>
 
-        <div className={shared.productGrid}>
-          {featuredProducts.map((product) => (
-            <ProductCard key={product.id} product={product} />
-          ))}
-        </div>
+        {featuredError ? (
+          <p style={{ color: "#667085" }}>Unable to load products right now.</p>
+        ) : (
+          <div className={shared.productGrid}>
+            {featuredProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        )}
       </section>
     </div>
   );

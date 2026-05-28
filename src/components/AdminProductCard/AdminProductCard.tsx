@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import type { Product } from "../../types/product_type";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./AdminProductCard.module.css";
 
 interface Props {
@@ -10,6 +11,7 @@ interface Props {
 
 export function AdminProductCard({ product, checked, onToggle }: Props) {
   const defaultVariant = product.variants[0];
+  const primaryImage = product.image_urls[0] ?? DEFAULT_PRODUCT_IMAGE;
 
   return (
     <div className={styles.row}>
@@ -22,7 +24,12 @@ export function AdminProductCard({ product, checked, onToggle }: Props) {
       </div>
 
       <Link to={`/admin/products/${product.id}`} className={styles.imageCell}>
-        <img src={product.image_url} alt={product.name} className={styles.image} />
+        <img
+          src={primaryImage}
+          alt={product.name}
+          className={styles.image}
+          onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+        />
       </Link>
 
       <div className={styles.content}>

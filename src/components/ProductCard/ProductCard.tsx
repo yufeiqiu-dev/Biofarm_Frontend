@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./ProductCard.module.css";
 import { AddToCartButton } from "../AddToCartButton";
 
@@ -9,6 +10,8 @@ interface Props {
 }
 
 export function ProductCard({ product }: Props) {
+  const primaryImage = product.image_urls[0] ?? DEFAULT_PRODUCT_IMAGE;
+
   const constructAddToCartItem = (): AddToCartItem => {
     const defaultVariant = product.variants[0];
 
@@ -16,7 +19,7 @@ export function ProductCard({ product }: Props) {
       productId: product.id,
       variantId: defaultVariant.id,
       name: product.name,
-      imageUrl: product.image_url,
+      imageUrl: primaryImage,
       catalogNumber: defaultVariant.catalog_id,
       sizeLabel: `${defaultVariant.size_value}${defaultVariant.size_unit}`,
       unitPrice: defaultVariant.price,
@@ -27,7 +30,12 @@ export function ProductCard({ product }: Props) {
   return (
     <div className={styles.card}>
       <Link to={`/products/${product.id}`} className={styles.imageLink}>
-        <img src={product.image_url} alt={product.name} className={styles.image} />
+        <img
+          src={primaryImage}
+          alt={product.name}
+          className={styles.image}
+          onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+        />
       </Link>
 
       <div className={styles.body}>

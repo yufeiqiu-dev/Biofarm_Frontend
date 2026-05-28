@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./ProductDetailPage.module.css";
 import shared from "../../styles/shared.module.css";
 import { getProductById } from "../../api/product";
@@ -7,7 +8,6 @@ import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import { AddToCartButton } from "../../components/AddToCartButton";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
-import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 
 
 export function ProductDetailPage() {
@@ -40,6 +40,8 @@ export function ProductDetailPage() {
     void loadProduct();
   }, [productId]);
 
+  const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+
   const selectedVariant =
     product?.variants.find((variant) => variant.id === selectedVariantId) ??
     product?.variants[0] ??
@@ -63,6 +65,8 @@ export function ProductDetailPage() {
   }
 
   const activeVariant = selectedVariant ?? product.variants[0];
+  const images = product.image_urls.length > 0 ? product.image_urls : [DEFAULT_PRODUCT_IMAGE];
+  const activeImage = images[selectedImageIndex] ?? DEFAULT_PRODUCT_IMAGE;
 
   const decreaseQuantity = () => {
     setQuantity((prev) => Math.max(1, prev - 1));
@@ -77,7 +81,7 @@ export function ProductDetailPage() {
       productId: product.id,
       variantId: activeVariant.id,
       name: product.name,
-      imageUrl: product.image_url || DEFAULT_PRODUCT_IMAGE,
+      imageUrl: images[0],
       catalogNumber: activeVariant.catalog_id,
       sizeLabel: `${activeVariant.size_value} ${activeVariant.size_unit}`,
       unitPrice: activeVariant.price,
@@ -90,10 +94,25 @@ export function ProductDetailPage() {
       <div className={styles.topSection}>
         <div className={styles.imageSection}>
           <img
-            src={DEFAULT_PRODUCT_IMAGE}
+            src={activeImage}
             alt={product.name}
             className={styles.productImage}
+            onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
           />
+          {images.length > 1 && (
+            <div className={styles.thumbnailStrip}>
+              {images.map((url, i) => (
+                <img
+                  key={i}
+                  src={url}
+                  alt={`${product.name} ${i + 1}`}
+                  className={`${styles.thumbnail} ${i === selectedImageIndex ? styles.thumbnailActive : ""}`}
+                  onClick={() => setSelectedImageIndex(i)}
+                  onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className={styles.variantSection}>

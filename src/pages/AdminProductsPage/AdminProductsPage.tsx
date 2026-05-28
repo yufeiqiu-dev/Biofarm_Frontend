@@ -5,7 +5,6 @@ import { AdminProductCard } from "../../components/AdminProductCard";
 import { SearchBar } from "../../components/SearchBar";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import { getAdminProducts, deleteProduct } from "../../api/admin_product";
-import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./AdminProductsPage.module.css";
 
 
@@ -14,6 +13,7 @@ export function AdminProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [searchParams] = useSearchParams();
 
@@ -24,13 +24,10 @@ export function AdminProductsPage() {
       try {
         setLoading(true);
         const data = await getAdminProducts();
-        const defaultData = data.map((d) => ({
-            ...d,
-            image_url: DEFAULT_PRODUCT_IMAGE,
-          }));
-        setProducts(defaultData);
+        setProducts(data);
       } catch (error) {
         console.error("Failed to load products", error);
+        setLoadError(error instanceof Error ? error.message : "Failed to load products");
       } finally {
         setLoading(false);
       }
@@ -114,6 +111,17 @@ export function AdminProductsPage() {
 
   if (loading || deleting) {
     return <LoadingOverlay visible={true} />;
+  }
+
+  if (loadError) {
+    return (
+      <div className={styles.page}>
+        <h1 className={styles.title}>Manage Products</h1>
+        <p style={{ color: "#b42318", marginTop: 16 }}>
+          Failed to load products: {loadError}
+        </p>
+      </div>
+    );
   }
 
   return (

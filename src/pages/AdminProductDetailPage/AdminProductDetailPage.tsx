@@ -1,9 +1,17 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
-import { createProduct, deleteProduct, updateProduct } from "../../api/admin_product";
+import {
+  createProduct,
+  deleteProduct,
+  updateProduct,
+  getImagePresignedUrl,
+  confirmImageUpload,
+  deleteImage,
+} from "../../api/admin_product";
 import { getProductById } from "../../api/product";
-import { useReminder } from "../../context/ReminderContext"; 
+import { useReminder } from "../../context/ReminderContext";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./AdminProductDetailPage.module.css";
 
 type AdminVariantForm = {
@@ -19,7 +27,6 @@ type AdminProductForm = {
   cat_id: string;
   name: string;
   description: string;
-  image_url: string;
   variants: AdminVariantForm[];
 };
 
@@ -36,7 +43,6 @@ const createEmptyForm = (): AdminProductForm => ({
   cat_id: "",
   name: "",
   description: "",
-  image_url: "",
   variants: [],
 });
 
@@ -88,14 +94,23 @@ function validateForm(form: AdminProductForm): string[] {
   return errors;
 }
 
+const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
+const MAX_IMAGES = 10;
+
+function getExtension(filename: string): string {
+  return filename.split(".").pop()?.toLowerCase() ?? "";
+}
+
 export function AdminProductDetailPage() {
   const navigate = useNavigate();
   const { productId } = useParams();
   const { showReminder } = useReminder();
   const isEditMode = Boolean(productId);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -116,7 +131,6 @@ export function AdminProductDetailPage() {
           cat_id: product.cat_id,
           name: product.name,
           description: product.description,
-          image_url: product.image_url ?? "",
           variants: (product.variants ?? []).map((variant) => ({
             id: variant.id,
             catalog_id: variant.catalog_id,
@@ -126,6 +140,7 @@ export function AdminProductDetailPage() {
             stock: String(variant.stock),
           })),
         });
+        setImageUrls(product.image_urls ?? []);
       } catch (error) {
         console.error("Failed to load product", error);
         setSaveError(
@@ -139,36 +154,17 @@ export function AdminProductDetailPage() {
     void loadProduct();
   }, [isEditMode, productId]);
 
-  const imagePreviewUrl = useMemo(() => {
-    if (selectedImageFile) {
-      return URL.createObjectURL(selectedImageFile);
-    }
-
-    return form.image_url.trim();
-  }, [form.image_url, selectedImageFile]);
-
-  useEffect(() => {
-    return () => {
-      if (selectedImageFile && imagePreviewUrl.startsWith("blob:")) {
-        URL.revokeObjectURL(imagePreviewUrl);
-      }
-    };
-  }, [imagePreviewUrl, selectedImageFile]);
-
   const clearErrors = () => {
     if (formErrors.length > 0) setFormErrors([]);
     if (saveError) setSaveError(null);
   };
 
   const handleFieldChange = (
-    field: keyof Omit<AdminProductForm, "variants">,
+    field: keyof AdminProductForm,
     value: string
   ) => {
     clearErrors();
-    setForm((prev) => ({
-      ...prev,
-      [field]: value,
-    }));
+    setForm((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleVariantChange = (
@@ -187,10 +183,7 @@ export function AdminProductDetailPage() {
 
   const handleAddVariant = () => {
     clearErrors();
-    setForm((prev) => ({
-      ...prev,
-      variants: [...prev.variants, createEmptyVariant()],
-    }));
+    setForm((prev) => ({ ...prev, variants: [...prev.variants, createEmptyVariant()] }));
   };
 
   const handleRemoveVariant = (index: number) => {
@@ -201,18 +194,55 @@ export function AdminProductDetailPage() {
     }));
   };
 
-  const handleImageFileChange = (file: File | null) => {
-    clearErrors();
-    setSelectedImageFile(file);
+  const handleImageUpload = async (file: File) => {
+    if (!productId) {
+      showReminder({ message: "Save the product first before uploading images." });
+      return;
+    }
+
+    const ext = getExtension(file.name);
+    if (!ALLOWED_EXTENSIONS.has(ext)) {
+      showReminder({ message: "Only jpg, jpeg, png, and webp files are allowed." });
+      return;
+    }
+
+    if (imageUrls.length >= MAX_IMAGES) {
+      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
+      return;
+    }
+
+    try {
+      setUploadingImage(true);
+
+      const { upload_url, image_url } = await getImagePresignedUrl(productId, ext);
+
+      await fetch(upload_url, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type },
+      });
+
+      const result = await confirmImageUpload(productId, image_url);
+      setImageUrls(result.image_urls);
+    } catch (error) {
+      console.error("Image upload failed", error);
+      showReminder({ message: error instanceof Error ? error.message : "Image upload failed." });
+    } finally {
+      setUploadingImage(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
   };
 
-  const handleClearImage = () => {
-    clearErrors();
-    setSelectedImageFile(null);
-    setForm((prev) => ({
-      ...prev,
-      image_url: "",
-    }));
+  const handleDeleteImage = async (index: number) => {
+    if (!productId) return;
+
+    try {
+      await deleteImage(productId, index + 1); // API uses 1-based index
+      setImageUrls((prev) => prev.filter((_, i) => i !== index));
+    } catch (error) {
+      console.error("Failed to delete image", error);
+      showReminder({ message: "Failed to delete image." });
+    }
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -221,7 +251,7 @@ export function AdminProductDetailPage() {
     const errors = validateForm(form);
     if (errors.length > 0) {
       setFormErrors(errors);
-      showReminder({message: "Please fix errors in the form!"})
+      showReminder({ message: "Please fix errors in the form!" });
       return;
     }
 
@@ -233,7 +263,6 @@ export function AdminProductDetailPage() {
         cat_id: form.cat_id.trim(),
         name: form.name.trim(),
         description: form.description.trim(),
-        image_url: form.image_url.trim() || null,
         variants: form.variants.map((variant) => ({
           ...(variant.id ? { id: variant.id } : {}),
           catalog_id: variant.catalog_id.trim(),
@@ -381,56 +410,75 @@ export function AdminProductDetailPage() {
           </section>
 
           <section className={styles.section}>
-            <h2 className={styles.sectionTitle}>Product Image</h2>
+            <h2 className={styles.sectionTitle}>
+              Product Images
+              <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
+                ({imageUrls.length}/{MAX_IMAGES})
+              </span>
+            </h2>
 
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Upload Image</label>
-              <input
-                className={styles.input}
-                type="file"
-                accept="image/*"
-                onChange={(e) => handleImageFileChange(e.target.files?.[0] ?? null)}
-              />
-              <p style={{ marginTop: 8, fontSize: 13, color: "#667085" }}>
-                File upload is preview-only for now. To persist an image before S3
-                is implemented, use the Image URL field below.
+            {!isEditMode && (
+              <p style={{ fontSize: 13, color: "#667085", marginBottom: 12 }}>
+                Save the product first, then upload images.
               </p>
-            </div>
+            )}
 
-            <div className={styles.fieldGroup}>
-              <label className={styles.label}>Image URL</label>
-              <input
-                className={styles.input}
-                type="text"
-                value={form.image_url}
-                onChange={(e) => handleFieldChange("image_url", e.target.value)}
-                placeholder="Paste image URL"
-              />
-            </div>
+            {isEditMode && (
+              <>
+                <div className={styles.fieldGroup}>
+                  <input
+                    ref={fileInputRef}
+                    className={styles.input}
+                    type="file"
+                    accept=".jpg,.jpeg,.png,.webp"
+                    disabled={uploadingImage || imageUrls.length >= MAX_IMAGES}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) void handleImageUpload(file);
+                    }}
+                  />
+                  {uploadingImage && (
+                    <p style={{ marginTop: 6, fontSize: 13, color: "#6366f1" }}>
+                      Uploading...
+                    </p>
+                  )}
+                </div>
 
-            <div style={{ marginTop: 12, display: "flex", gap: 12 }}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                onClick={handleClearImage}
-              >
-                Clear Image
-              </button>
-            </div>
+                <div className={styles.imageGrid}>
+                  {imageUrls.map((url, i) => (
+                    <div key={i} className={styles.imageItem}>
+                      <img
+                        src={url}
+                        alt={`Product image ${i + 1}`}
+                        className={styles.imageThumb}
+                      />
+                      {i === 0 && (
+                        <span className={styles.primaryBadge}>Primary</span>
+                      )}
+                      <button
+                        type="button"
+                        className={styles.deleteImageButton}
+                        onClick={() => void handleDeleteImage(i)}
+                      >
+                        ×
+                      </button>
+                    </div>
+                  ))}
 
-            <div className={styles.previewBox}>
-              {imagePreviewUrl ? (
-                <img
-                  src={imagePreviewUrl}
-                  alt="Product preview"
-                  className={styles.previewImage}
-                />
-              ) : (
-                <span className={styles.previewPlaceholder}>
-                  Image preview will appear here
-                </span>
-              )}
-            </div>
+                  {imageUrls.length === 0 && (
+                    <div className={styles.imagePlaceholder}>
+                      <img
+                        src={DEFAULT_PRODUCT_IMAGE}
+                        alt="No image"
+                        className={styles.imageThumb}
+                        style={{ opacity: 0.4 }}
+                      />
+                      <span style={{ fontSize: 12, color: "#9ca3af" }}>No images yet</span>
+                    </div>
+                  )}
+                </div>
+              </>
+            )}
           </section>
         </div>
 
@@ -455,7 +503,7 @@ export function AdminProductDetailPage() {
                 color: "#667085",
               }}
             >
-              No variants yet. Click “Add Variant” to create one.
+              No variants yet. Click "Add Variant" to create one.
             </div>
           ) : (
             <div className={styles.variantList}>
