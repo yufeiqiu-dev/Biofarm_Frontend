@@ -27,6 +27,7 @@ type AdminProductForm = {
   cat_id: string;
   name: string;
   description: string;
+  tags: string[];
   variants: AdminVariantForm[];
 };
 
@@ -43,6 +44,7 @@ const createEmptyForm = (): AdminProductForm => ({
   cat_id: "",
   name: "",
   description: "",
+  tags: [],
   variants: [],
 });
 
@@ -109,6 +111,7 @@ export function AdminProductDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
+  const [tagInput, setTagInput] = useState("");
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
@@ -131,6 +134,7 @@ export function AdminProductDetailPage() {
           cat_id: product.cat_id,
           name: product.name,
           description: product.description,
+          tags: product.tags ?? [],
           variants: (product.variants ?? []).map((variant) => ({
             id: variant.id,
             catalog_id: variant.catalog_id,
@@ -192,6 +196,22 @@ export function AdminProductDetailPage() {
       ...prev,
       variants: prev.variants.filter((_, i) => i !== index),
     }));
+  };
+
+  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    const tag = tagInput.trim().toLowerCase();
+    if (!tag || form.tags.includes(tag)) {
+      setTagInput("");
+      return;
+    }
+    setForm((prev) => ({ ...prev, tags: [...prev.tags, tag] }));
+    setTagInput("");
+  };
+
+  const handleRemoveTag = (tag: string) => {
+    setForm((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
   };
 
   const handleImageUpload = async (file: File) => {
@@ -263,6 +283,7 @@ export function AdminProductDetailPage() {
         cat_id: form.cat_id.trim(),
         name: form.name.trim(),
         description: form.description.trim(),
+        tags: form.tags,
         variants: form.variants.map((variant) => ({
           ...(variant.id ? { id: variant.id } : {}),
           catalog_id: variant.catalog_id.trim(),
@@ -406,6 +427,34 @@ export function AdminProductDetailPage() {
                 placeholder="Enter product description"
                 rows={6}
               />
+            </div>
+
+            <div className={styles.fieldGroup}>
+              <label className={styles.label}>Tags</label>
+              <input
+                className={styles.input}
+                type="text"
+                value={tagInput}
+                onChange={(e) => setTagInput(e.target.value)}
+                onKeyDown={handleAddTag}
+                placeholder="Type a tag and press Enter"
+              />
+              {form.tags.length > 0 && (
+                <div className={styles.tagChips}>
+                  {form.tags.map((tag) => (
+                    <span key={tag} className={styles.tagChip}>
+                      {tag}
+                      <button
+                        type="button"
+                        className={styles.tagChipRemove}
+                        onClick={() => handleRemoveTag(tag)}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </section>
 

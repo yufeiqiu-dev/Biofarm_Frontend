@@ -18,6 +18,7 @@ export interface CreateProductPayload {
   cat_id: string;
   name: string;
   description: string;
+  tags: string[];
   variants: ProductVariantInput[];
 }
 
@@ -25,6 +26,7 @@ export interface UpdateProductPayload {
   cat_id?: string;
   name?: string;
   description?: string;
+  tags?: string[];
   variants?: ProductVariantInput[];
 }
 
