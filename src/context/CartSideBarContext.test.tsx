@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
 import { useCartSideBar } from './CartSideBarContext';
 import { createProviderWrapper } from '../test/renderWithProviders';
@@ -7,7 +7,6 @@ import { createMockUser } from '../test/mocks/mockUser';
 import type { AddToCartItem } from '../types/cart_types';
 
 const mockUser = createMockUser({ user_id: 'user-1' });
-const userB = createMockUser({ user_id: 'user-2' });
 
 function makeItem(overrides: Partial<AddToCartItem> = {}): AddToCartItem {
   return {
@@ -27,10 +26,14 @@ describe('CartSideBarContext', () => {
   const store = setupLocalStorageStub();
 
   describe('addToCart', () => {
+    let unmountHook: () => void;
+    afterEach(() => unmountHook?.());
+
     it('creates a new cart item with id = productId-variantId', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
       act(() => { result.current.addToCart(makeItem({ productId: 'p1', variantId: 'v1' })); });
 
@@ -40,9 +43,10 @@ describe('CartSideBarContext', () => {
     });
 
     it('increments quantity when same variantId is added again', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
       act(() => {
         result.current.addToCart(makeItem({ quantity: 1 }));
@@ -54,9 +58,10 @@ describe('CartSideBarContext', () => {
     });
 
     it('persists cart to localStorage under cart:{userId}', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
       act(() => { result.current.addToCart(makeItem()); });
 
@@ -69,61 +74,85 @@ describe('CartSideBarContext', () => {
   });
 
   describe('removeFromCart', () => {
+    let unmountHook: () => void;
+    afterEach(() => unmountHook?.());
+
     it('removes the item matching the given id', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
-      act(() => { result.current.addToCart(makeItem()); });
-      act(() => { result.current.removeFromCart('p1-v1'); });
+      act(() => {
+        result.current.addToCart(makeItem());
+        result.current.removeFromCart('p1-v1');
+      });
 
       expect(result.current.cartItems).toHaveLength(0);
     });
 
     it('is a no-op when id does not exist', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
-      act(() => { result.current.addToCart(makeItem()); });
-      act(() => { result.current.removeFromCart('nonexistent'); });
+      act(() => {
+        result.current.addToCart(makeItem());
+        result.current.removeFromCart('nonexistent');
+      });
 
       expect(result.current.cartItems).toHaveLength(1);
     });
   });
 
   describe('increaseQuantity', () => {
+    let unmountHook: () => void;
+    afterEach(() => unmountHook?.());
+
     it('increments the item quantity by 1', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
-      act(() => { result.current.addToCart(makeItem({ quantity: 2 })); });
-      act(() => { result.current.increaseQuantity('p1-v1'); });
+      act(() => {
+        result.current.addToCart(makeItem({ quantity: 2 }));
+        result.current.increaseQuantity('p1-v1');
+      });
 
       expect(result.current.cartItems[0].quantity).toBe(3);
     });
   });
 
   describe('decreaseQuantity', () => {
+    let unmountHook: () => void;
+    afterEach(() => unmountHook?.());
+
     it('decrements the item quantity by 1', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
-      act(() => { result.current.addToCart(makeItem({ quantity: 3 })); });
-      act(() => { result.current.decreaseQuantity('p1-v1'); });
+      act(() => {
+        result.current.addToCart(makeItem({ quantity: 3 }));
+        result.current.decreaseQuantity('p1-v1');
+      });
 
       expect(result.current.cartItems[0].quantity).toBe(2);
     });
 
     it('removes item entirely when quantity is 1 and decrease is called', () => {
-      const { result } = renderHook(() => useCartSideBar(), {
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
         wrapper: createProviderWrapper({ user: mockUser }),
       });
+      unmountHook = unmount;
 
-      act(() => { result.current.addToCart(makeItem({ quantity: 1 })); });
-      act(() => { result.current.decreaseQuantity('p1-v1'); });
+      act(() => {
+        result.current.addToCart(makeItem({ quantity: 1 }));
+        result.current.decreaseQuantity('p1-v1');
+      });
 
       expect(result.current.cartItems).toHaveLength(0);
     });
