@@ -39,3 +39,10 @@
   .closed {
     transform: translateX(100%);
   }
+
+  .empty {
+    color: #9ca3af;
+    font-size: 0.9rem;
+    text-align: center;
+    margin-top: 2rem;
+  }
