@@ -12,6 +12,17 @@ interface Props {
 export function AdminProductCard({ product, checked, onToggle }: Props) {
   const defaultVariant = product.variants[0];
   const primaryImage = product.image_urls[0] ?? DEFAULT_PRODUCT_IMAGE;
+  const totalStock = product.variants.reduce((sum, v) => sum + v.stock, 0);
+
+  const stockClass =
+    totalStock >= 10
+      ? styles.stockHigh
+      : totalStock >= 1
+      ? styles.stockLow
+      : styles.stockEmpty;
+
+  const visibleTags = product.tags.slice(0, 3);
+  const extraTagCount = Math.max(0, product.tags.length - 3);
 
   return (
     <div className={styles.row}>
@@ -23,33 +34,48 @@ export function AdminProductCard({ product, checked, onToggle }: Props) {
         />
       </div>
 
-      <Link to={`/admin/products/${product.id}`} className={styles.imageCell}>
-        <img
-          src={primaryImage}
-          alt={product.name}
-          className={styles.image}
-          onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
-        />
-      </Link>
+      <img
+        src={primaryImage}
+        alt={product.name}
+        className={styles.image}
+        onError={(e) => {
+          e.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
+        }}
+      />
 
-      <div className={styles.content}>
-        <Link to={`/admin/products/${product.id}`} className={styles.name}>
-          {product.name}
-        </Link>
-
-        <p className={styles.description}>{product.description}</p>
-
-        <div className={styles.meta}>
-          <span>
-            {defaultVariant ? `$${defaultVariant.price.toFixed(2)}` : "-"}
-          </span>
-          <span>
-            {product.variants.length} variant{product.variants.length > 1 ? "s" : ""}
-          </span>
-        </div>
+      <div className={styles.nameCell}>
+        <span className={styles.name}>{product.name}</span>
+        <span className={styles.catId}>{product.cat_id}</span>
       </div>
 
-      <div className={styles.actions}>
+      <div className={styles.tagsCell}>
+        {product.tags.length === 0 ? (
+          <span className={styles.noTags}>—</span>
+        ) : (
+          <>
+            {visibleTags.map((tag) => (
+              <span key={tag.id} className={styles.tagChip}>
+                {tag.name}
+              </span>
+            ))}
+            {extraTagCount > 0 && (
+              <span className={styles.extraTags}>+{extraTagCount}</span>
+            )}
+          </>
+        )}
+      </div>
+
+      <div className={styles.priceCell}>
+        {defaultVariant ? `$${defaultVariant.price.toFixed(2)}` : "—"}
+      </div>
+
+      <div className={styles.stockCell}>
+        <span className={`${styles.stockBadge} ${stockClass}`}>
+          {totalStock}
+        </span>
+      </div>
+
+      <div className={styles.editCell}>
         <Link to={`/admin/products/${product.id}`} className={styles.editButton}>
           Edit
         </Link>

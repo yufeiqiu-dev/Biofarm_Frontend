@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import {
@@ -14,6 +14,7 @@ import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
 import { useReminder } from "../../context/ReminderContext";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
 
 type AdminVariantForm = {
@@ -50,48 +51,40 @@ const createEmptyForm = (): AdminProductForm => ({
   variants: [],
 });
 
-function validateForm(form: AdminProductForm): string[] {
-  const errors: string[] = [];
+function validateForm(form: AdminProductForm): Record<string, string> {
+  const errors: Record<string, string> = {};
 
   if (!form.cat_id.trim()) {
-    errors.push("Product catalog ID is required.");
+    errors.cat_id = "Product catalog ID is required.";
   }
-
   if (!form.name.trim()) {
-    errors.push("Product name is required.");
+    errors.name = "Product name is required.";
   }
-
   if (!form.description.trim()) {
-    errors.push("Product description is required.");
+    errors.description = "Product description is required.";
   }
 
   form.variants.forEach((variant, index) => {
-    const label = `Variant ${index + 1}`;
-
     if (!variant.catalog_id.trim()) {
-      errors.push(`${label}: catalog ID is required.`);
+      errors[`variant_${index}_catalog_id`] = "Catalog ID is required.";
     }
-
     if (!variant.size_value.trim()) {
-      errors.push(`${label}: size value is required.`);
+      errors[`variant_${index}_size_value`] = "Size value is required.";
     } else if (Number(variant.size_value) <= 0) {
-      errors.push(`${label}: size value must be greater than 0.`);
+      errors[`variant_${index}_size_value`] = "Size value must be greater than 0.";
     }
-
     if (!variant.size_unit.trim()) {
-      errors.push(`${label}: size unit is required.`);
+      errors[`variant_${index}_size_unit`] = "Size unit is required.";
     }
-
     if (!variant.price.trim()) {
-      errors.push(`${label}: price is required.`);
+      errors[`variant_${index}_price`] = "Price is required.";
     } else if (Number(variant.price) < 0) {
-      errors.push(`${label}: price cannot be negative.`);
+      errors[`variant_${index}_price`] = "Price cannot be negative.";
     }
-
     if (!variant.stock.trim()) {
-      errors.push(`${label}: stock is required.`);
+      errors[`variant_${index}_stock`] = "Stock is required.";
     } else if (Number(variant.stock) < 0) {
-      errors.push(`${label}: stock cannot be negative.`);
+      errors[`variant_${index}_stock`] = "Stock cannot be negative.";
     }
   });
 
@@ -125,8 +118,9 @@ export function AdminProductDetailPage() {
   // Stores the product ID after a successful createProduct call, so a retry after
   // a partial upload failure reuses the same product instead of creating a duplicate.
   const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
-  const [formErrors, setFormErrors] = useState<string[]>([]);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   // Keep a ref to pendingFiles so the unmount cleanup can revoke all blob URLs
   // even when the user navigates away without saving.
@@ -180,16 +174,12 @@ export function AdminProductDetailPage() {
     void loadProduct();
   }, [isEditMode, productId]);
 
-  const clearErrors = () => {
-    if (formErrors.length > 0) setFormErrors([]);
-    if (saveError) setSaveError(null);
-  };
-
   const handleFieldChange = (
     field: keyof AdminProductForm,
     value: string
   ) => {
-    clearErrors();
+    if (formErrors[field]) setFormErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
+    if (saveError) setSaveError(null);
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -198,7 +188,9 @@ export function AdminProductDetailPage() {
     field: keyof AdminVariantForm,
     value: string
   ) => {
-    clearErrors();
+    const key = `variant_${index}_${field}` as string;
+    if (formErrors[key]) setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    if (saveError) setSaveError(null);
     setForm((prev) => ({
       ...prev,
       variants: prev.variants.map((variant, i) =>
@@ -208,16 +200,29 @@ export function AdminProductDetailPage() {
   };
 
   const handleAddVariant = () => {
-    clearErrors();
     setForm((prev) => ({ ...prev, variants: [...prev.variants, createEmptyVariant()] }));
   };
 
   const handleRemoveVariant = (index: number) => {
-    clearErrors();
     setForm((prev) => ({
       ...prev,
       variants: prev.variants.filter((_, i) => i !== index),
     }));
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        const m = key.match(/^variant_(\d+)_/);
+        if (!m) return;
+        const vi = parseInt(m[1], 10);
+        if (vi === index) {
+          delete next[key];
+        } else if (vi > index) {
+          next[key.replace(`variant_${vi}_`, `variant_${vi - 1}_`)] = next[key];
+          delete next[key];
+        }
+      });
+      return next;
+    });
   };
 
   const handleToggleTag = (tagId: string) => {
@@ -264,7 +269,7 @@ export function AdminProductDetailPage() {
     e.preventDefault();
 
     const errors = validateForm(form);
-    if (errors.length > 0) {
+    if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       showReminder({ message: "Please fix errors in the form!" });
       return;
@@ -354,9 +359,6 @@ export function AdminProductDetailPage() {
   const handleDelete = async () => {
     if (!isEditMode || !productId) return;
 
-    const confirmed = window.confirm("Delete this product?");
-    if (!confirmed) return;
-
     try {
       setDeleting(true);
       setSaveError(null);
@@ -397,7 +399,7 @@ export function AdminProductDetailPage() {
             <button
               type="button"
               className={styles.deleteButton}
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
             >
               Delete Product
             </button>
@@ -406,7 +408,7 @@ export function AdminProductDetailPage() {
       </div>
 
       <form className={styles.form} onSubmit={handleSave}>
-        {(formErrors.length > 0 || saveError) && (
+        {saveError && (
           <div
             style={{
               marginBottom: 16,
@@ -416,21 +418,7 @@ export function AdminProductDetailPage() {
               borderRadius: 8,
             }}
           >
-            {saveError && (
-              <p style={{ color: "#b42318", margin: 0, marginBottom: formErrors.length ? 8 : 0 }}>
-                {saveError}
-              </p>
-            )}
-
-            {formErrors.length > 0 && (
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {formErrors.map((error) => (
-                  <li key={error} style={{ color: "#b42318" }}>
-                    {error}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p style={{ color: "#b42318", margin: 0 }}>{saveError}</p>
           </div>
         )}
 
@@ -441,34 +429,37 @@ export function AdminProductDetailPage() {
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Product Catalog ID</label>
               <input
-                className={styles.input}
+                className={`${styles.input} ${formErrors.cat_id ? styles.inputError : ""}`}
                 type="text"
                 value={form.cat_id}
                 onChange={(e) => handleFieldChange("cat_id", e.target.value)}
                 placeholder="Enter base product catalog ID"
               />
+              {formErrors.cat_id && <p className={styles.fieldError}>{formErrors.cat_id}</p>}
             </div>
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Product Name</label>
               <input
-                className={styles.input}
+                className={`${styles.input} ${formErrors.name ? styles.inputError : ""}`}
                 type="text"
                 value={form.name}
                 onChange={(e) => handleFieldChange("name", e.target.value)}
                 placeholder="Enter product name"
               />
+              {formErrors.name && <p className={styles.fieldError}>{formErrors.name}</p>}
             </div>
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Description</label>
               <textarea
-                className={styles.textarea}
+                className={`${styles.textarea} ${formErrors.description ? styles.inputError : ""}`}
                 value={form.description}
                 onChange={(e) => handleFieldChange("description", e.target.value)}
                 placeholder="Enter product description"
                 rows={6}
               />
+              {formErrors.description && <p className={styles.fieldError}>{formErrors.description}</p>}
             </div>
 
             <div className={styles.fieldGroup}>
@@ -640,7 +631,7 @@ export function AdminProductDetailPage() {
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Catalog ID</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_catalog_id`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.catalog_id}
                         onChange={(e) =>
@@ -648,12 +639,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="Enter catalog ID"
                       />
+                      {formErrors[`variant_${index}_catalog_id`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_catalog_id`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Size Value</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_size_value`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.size_value}
                         onChange={(e) =>
@@ -661,12 +655,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="10"
                       />
+                      {formErrors[`variant_${index}_size_value`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_size_value`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Size Unit</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_size_unit`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.size_unit}
                         onChange={(e) =>
@@ -674,12 +671,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="mL"
                       />
+                      {formErrors[`variant_${index}_size_unit`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_size_unit`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Price</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_price`] ? styles.inputError : ""}`}
                         type="number"
                         step="0.01"
                         value={variant.price}
@@ -688,12 +688,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="99.99"
                       />
+                      {formErrors[`variant_${index}_price`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_price`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Stock</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.stock}
                         onChange={(e) =>
@@ -701,6 +704,9 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="100"
                       />
+                      {formErrors[`variant_${index}_stock`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_stock`]}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -723,6 +729,16 @@ export function AdminProductDetailPage() {
           </button>
         </div>
       </form>
+
+      <ConfirmDialog
+        isOpen={confirmDeleteOpen}
+        title="Delete product"
+        message="This will permanently delete the product and all its variants."
+        confirmLabel="Delete"
+        onConfirm={() => { setConfirmDeleteOpen(false); void handleDelete(); }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+        variant="danger"
+      />
     </div>
   );
 }

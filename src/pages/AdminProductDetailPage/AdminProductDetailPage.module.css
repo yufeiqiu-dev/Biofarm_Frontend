@@ -144,42 +144,96 @@
     gap: 16px;
   }
   
-  .addVariantButton,
-  .removeVariantButton,
-  .deleteButton,
-  .cancelButton,
-  .saveButton {
-    height: 40px;
-    padding: 0 16px;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: #ffffff;
-    font-size: 14px;
-    font-weight: 600;
-    cursor: pointer;
-  }
+.saveButton {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  border: none;
+  background: #22c55e;
+  color: white;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.saveButton:hover {
+  background: #16a34a;
+}
+
+.cancelButton {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.cancelButton:hover {
+  background: #f9fafb;
+}
+
+.deleteButton {
+  height: 40px;
+  padding: 0 16px;
+  border-radius: 8px;
+  border: 1px solid #fca5a5;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.deleteButton:hover {
+  background: #fecaca;
+}
+
+.addVariantButton {
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #d1d5db;
+  background: white;
+  color: #374151;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.addVariantButton:hover {
+  background: #f9fafb;
+}
+
+.removeVariantButton {
+  height: 32px;
+  padding: 0 12px;
+  border-radius: 6px;
+  border: 1px solid #fca5a5;
+  background: #fee2e2;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.removeVariantButton:hover {
+  background: #fecaca;
+}
+
+.inputError {
+  border-color: #ef4444 !important;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+}
+
+.fieldError {
+  color: #b42318;
+  font-size: 13px;
+  margin: 4px 0 0;
+}
   
   .footerActions {
     display: flex;
     justify-content: flex-end;
     gap: 12px;
-  }
-  
-  .errorBox {
-    margin-bottom: 16px;
-    padding: 12px 16px;
-    border: 1px solid #f3b4b4;
-    background: #fff3f3;
-    border-radius: 8px;
-  }
-  
-  .errorList {
-    margin: 0;
-    padding-left: 20px;
-  }
-  
-  .errorText {
-    color: #b42318;
   }
   
   .emptyVariants {

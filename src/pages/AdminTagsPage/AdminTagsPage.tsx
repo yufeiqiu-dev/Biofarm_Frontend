@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getAdminTags, createTag, deleteTag } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminTagsPage.module.css";
 
 export function AdminTagsPage() {
@@ -9,6 +10,7 @@ export function AdminTagsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [confirmTag, setConfirmTag] = useState<Tag | null>(null);
 
   useEffect(() => {
     void getAdminTags()
@@ -36,7 +38,6 @@ export function AdminTagsPage() {
   };
 
   const handleDelete = async (tag: Tag) => {
-    if (!window.confirm(`Delete tag "${tag.name}"? Products using it will lose this tag.`)) return;
     try {
       await deleteTag(tag.id);
       setTags((prev) => prev.filter((t) => t.id !== tag.id));
@@ -78,7 +79,7 @@ export function AdminTagsPage() {
               <button
                 type="button"
                 className={styles.deleteButton}
-                onClick={() => void handleDelete(tag)}
+                onClick={() => setConfirmTag(tag)}
               >
                 Delete
               </button>
@@ -86,6 +87,19 @@ export function AdminTagsPage() {
           ))}
         </ul>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmTag !== null}
+        title="Delete tag"
+        message={`Delete "${confirmTag?.name}"? Products using it will lose this tag.`}
+        confirmLabel="Delete"
+        onConfirm={() => {
+          if (confirmTag) void handleDelete(confirmTag);
+          setConfirmTag(null);
+        }}
+        onCancel={() => setConfirmTag(null)}
+        variant="danger"
+      />
     </div>
   );
 }

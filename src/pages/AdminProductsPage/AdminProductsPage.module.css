@@ -3,7 +3,7 @@
     margin: 0 auto;
     padding: 24px 16px 40px;
   }
-  
+
   .header {
     display: flex;
     justify-content: space-between;
@@ -28,14 +28,13 @@
     gap: 12px;
   }
   
-  .tagsButton,
-  .addButton,
-  .deleteButton {
+  .addButton {
     height: 40px;
     padding: 0 16px;
     border-radius: 8px;
-    border: 1px solid #d1d5db;
-    background: white;
+    border: none;
+    background: #22c55e;
+    color: white;
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -44,7 +43,46 @@
     align-items: center;
     justify-content: center;
   }
-  
+  .addButton:hover {
+    background: #16a34a;
+  }
+
+  .tagsButton {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    background: white;
+    color: #374151;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .tagsButton:hover {
+    background: #f9fafb;
+  }
+
+  .deleteButton {
+    height: 40px;
+    padding: 0 16px;
+    border-radius: 8px;
+    border: 1px solid #fca5a5;
+    background: #fee2e2;
+    color: #b91c1c;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .deleteButton:hover:not(:disabled) {
+    background: #fecaca;
+  }
   .deleteButton:disabled {
     opacity: 0.5;
     cursor: not-allowed;
@@ -83,6 +121,21 @@
     line-height: 1;
   }
   
+  .tableHeader {
+    display: grid;
+    grid-template-columns: 40px 68px 1fr 180px 80px 80px 80px;
+    gap: 12px;
+    padding: 8px 16px;
+    background: #f3f4f6;
+    border-radius: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 8px;
+  }
+
   .list {
     display: flex;
     flex-direction: column;
