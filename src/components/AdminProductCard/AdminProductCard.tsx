@@ -25,12 +25,16 @@ export function AdminProductCard({ product, checked, onToggle }: Props) {
   const extraTagCount = Math.max(0, product.tags.length - 3);
 
   return (
-    <div className={styles.row}>
+    <div
+      className={`${styles.row} ${checked ? styles.rowSelected : ""}`}
+      onClick={() => onToggle(product.id)}
+    >
       <div className={styles.checkboxCell}>
         <input
           type="checkbox"
           checked={checked}
           onChange={() => onToggle(product.id)}
+          onClick={(e) => e.stopPropagation()}
         />
       </div>
 
@@ -76,7 +80,11 @@ export function AdminProductCard({ product, checked, onToggle }: Props) {
       </div>
 
       <div className={styles.editCell}>
-        <Link to={`/admin/products/${product.id}`} className={styles.editButton}>
+        <Link
+          to={`/admin/products/${product.id}`}
+          className={styles.editButton}
+          onClick={(e) => e.stopPropagation()}
+        >
           Edit
         </Link>
       </div>
