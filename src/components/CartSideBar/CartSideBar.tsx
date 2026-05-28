@@ -20,7 +20,7 @@ import { CartProductCard } from "../CartProductCard";
             <p className={styles.empty}>Your cart is empty.</p>
           ) : (
             cartItems.map((item) => (
-              <CartProductCard key={item.id} item={item} onIncrease={increaseQuantity} onDecrease={decreaseQuantity} onRemove={removeFromCart} />
+              <CartProductCard key={item.id} item={item} onIncrease={increaseQuantity} onDecrease={decreaseQuantity} onRemove={removeFromCart} onNavigate={closeCartSideBar} />
             ))
           )}
         </aside>

@@ -8,13 +8,28 @@
   box-sizing: border-box;
 }
 
+.imageLink {
+  display: block;
+  flex-shrink: 0;
+}
+
 .image {
   width: 72px;
   height: 72px;
   object-fit: cover;
   border-radius: 0.75rem;
   background: #f8fafc;
-  flex-shrink: 0;
+  display: block;
+}
+
+.nameLink {
+  text-decoration: none;
+  color: inherit;
+}
+
+.nameLink:hover .name {
+  text-decoration: underline;
+  color: #16a34a;
 }
 
 .content {
