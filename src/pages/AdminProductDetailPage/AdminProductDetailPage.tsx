@@ -122,8 +122,19 @@ export function AdminProductDetailPage() {
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // Stores the product ID after a successful createProduct call, so a retry after
+  // a partial upload failure reuses the same product instead of creating a duplicate.
+  const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  // Keep a ref to pendingFiles so the unmount cleanup can revoke all blob URLs
+  // even when the user navigates away without saving.
+  const pendingFilesRef = useRef<{ file: File; previewUrl: string }[]>([]);
+  pendingFilesRef.current = pendingFiles;
+  useEffect(() => {
+    return () => pendingFilesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
+  }, []);
 
   useEffect(() => {
     void getAdminTags().then(setAvailableTags).catch(() => {});
@@ -235,15 +246,18 @@ export function AdminProductDetailPage() {
   };
 
   const handleRemovePendingFile = (index: number) => {
-    setPendingFiles((prev) => {
-      URL.revokeObjectURL(prev[index].previewUrl);
-      return prev.filter((_, i) => i !== index);
-    });
+    const url = pendingFiles[index]?.previewUrl;
+    if (url) URL.revokeObjectURL(url);
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleDeleteImage = (index: number) => {
     // Stage the deletion — the API call happens on save
     setDisplayedUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSetPrimary = (index: number) => {
+    setDisplayedUrls((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -275,37 +289,54 @@ export function AdminProductDetailPage() {
         })),
       };
 
-      let targetId = productId;
+      // In create mode, reuse the ID from a prior attempt so a retry after a
+      // partial upload failure does not create a second product.
+      let targetId = productId ?? pendingProductId;
 
       if (isEditMode && productId) {
-        // Flush staged deletions (reverse-index order to keep positions stable)
+        // Flush staged deletions by URL — no index bookkeeping needed.
         const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
-        if (toDelete.length > 0) {
-          const indices = toDelete
-            .map((url) => savedUrls.indexOf(url) + 1)
-            .sort((a, b) => b - a);
-          for (const idx of indices) {
-            await deleteImage(productId, idx);
-          }
+        for (const url of toDelete) {
+          await deleteImage(productId, url);
         }
-        await updateProduct(productId, payload);
+        if (toDelete.length > 0) {
+          // Sync savedUrls so a retry doesn't re-send already-deleted URLs.
+          setSavedUrls(displayedUrls);
+        }
+        // Include the current display order so reordering is persisted.
+        await updateProduct(productId, { ...payload, image_urls: displayedUrls });
+      } else if (pendingProductId) {
+        // Product was created in a previous attempt — just update it.
+        await updateProduct(pendingProductId, payload);
       } else {
         const created = await createProduct(payload);
+        setPendingProductId(created.id);
         targetId = created.id;
       }
 
-      // Upload pending files now that we have a product ID
+      // Upload pending files now that we have a product ID.
+      // Track how many succeed so a retry doesn't re-upload confirmed files.
       if (pendingFiles.length > 0 && targetId) {
-        for (const { file, previewUrl } of pendingFiles) {
-          const ext = getExtension(file.name);
-          const { upload_url, image_url } = await getImagePresignedUrl(targetId, ext);
-          await fetch(upload_url, {
-            method: "PUT",
-            body: file,
-            headers: { "Content-Type": file.type },
-          });
-          await confirmImageUpload(targetId, image_url);
-          URL.revokeObjectURL(previewUrl);
+        let uploadedCount = 0;
+        try {
+          for (const { file, previewUrl } of pendingFiles) {
+            const ext = getExtension(file.name);
+            const { upload_url, image_url } = await getImagePresignedUrl(targetId, ext);
+            const uploadRes = await fetch(upload_url, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type },
+            });
+            if (!uploadRes.ok) throw new Error(`Image upload failed (HTTP ${uploadRes.status})`);
+            await confirmImageUpload(targetId, image_url);
+            URL.revokeObjectURL(previewUrl);
+            uploadedCount++;
+          }
+        } finally {
+          // Prune successfully uploaded files so a retry only re-sends the rest.
+          if (uploadedCount > 0) {
+            setPendingFiles((prev) => prev.slice(uploadedCount));
+          }
         }
       }
 
@@ -344,6 +375,8 @@ export function AdminProductDetailPage() {
   if (loading || saving || deleting) {
     return <LoadingOverlay visible={true} />;
   }
+
+  const pendingDeletionCount = savedUrls.filter((u) => !displayedUrls.includes(u)).length;
 
   return (
     <div className={styles.page}>
@@ -470,9 +503,9 @@ export function AdminProductDetailPage() {
               <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
                 ({displayedUrls.length + pendingFiles.length}/{MAX_IMAGES})
               </span>
-              {savedUrls.filter((u) => !displayedUrls.includes(u)).length > 0 && (
+              {pendingDeletionCount > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 400, color: "#b45309", marginLeft: 8 }}>
-                  {savedUrls.filter((u) => !displayedUrls.includes(u)).length} pending deletion
+                  {pendingDeletionCount} pending deletion
                 </span>
               )}
             </h2>
@@ -499,8 +532,17 @@ export function AdminProductDetailPage() {
                     alt={`Product image ${i + 1}`}
                     className={styles.imageThumb}
                   />
-                  {i === 0 && (
+                  {i === 0 ? (
                     <span className={styles.primaryBadge}>Primary</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.setPrimaryButton}
+                      onClick={() => handleSetPrimary(i)}
+                      title="Set as primary"
+                    >
+                      ★
+                    </button>
                   )}
                   <button
                     type="button"

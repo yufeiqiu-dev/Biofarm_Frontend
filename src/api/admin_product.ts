@@ -27,6 +27,7 @@ export interface UpdateProductPayload {
   name?: string;
   description?: string;
   tag_ids?: string[];
+  image_urls?: string[];
   variants?: ProductVariantInput[];
 }
 
@@ -96,10 +97,11 @@ export async function confirmImageUpload(
 
 export async function deleteImage(
   productId: string,
-  index: number
+  imageUrl: string
 ): Promise<void> {
-  return apiRequest<void>(`/admin/products/${productId}/images/${index}`, {
+  return apiRequest<void>(`/admin/products/${productId}/images/`, {
     method: "DELETE",
     auth: true,
+    body: JSON.stringify({ image_url: imageUrl }),
   });
 }
