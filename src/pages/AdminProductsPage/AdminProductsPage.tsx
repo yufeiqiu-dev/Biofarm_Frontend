@@ -4,8 +4,7 @@ import type { Product } from "../../types/product_type";
 import { AdminProductCard } from "../../components/AdminProductCard";
 import { SearchBar } from "../../components/SearchBar";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
-import { getProducts } from "../../api/product";
-import { deleteProduct } from "../../api/admin_product";
+import { getAdminProducts, deleteProduct } from "../../api/admin_product";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./AdminProductsPage.module.css";
 
@@ -24,7 +23,7 @@ export function AdminProductsPage() {
     const loadProducts = async () => {
       try {
         setLoading(true);
-        const data = await getProducts();
+        const data = await getAdminProducts();
         const defaultData = data.map((d) => ({
             ...d,
             image_url: DEFAULT_PRODUCT_IMAGE,

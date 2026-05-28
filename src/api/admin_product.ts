@@ -1,6 +1,10 @@
 import { apiRequest } from "./client";
 import type { Product } from "../types/product_type";
 
+export async function getAdminProducts(): Promise<Product[]> {
+  return apiRequest<Product[]>("/admin/products", { auth: true });
+}
+
 export interface ProductVariantInput {
   id?: string;
   catalog_id: string;
