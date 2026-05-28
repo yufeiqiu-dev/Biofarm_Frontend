@@ -288,27 +288,28 @@
 }
 
 .tagChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 10px;
-  background: #f0fdf4;
-  border: 1px solid #bbf7d0;
+  padding: 4px 12px;
+  background: white;
+  border: 1px solid #d1d5db;
   border-radius: 999px;
-  font-size: 0.8rem;
-  color: #166534;
-}
-
-.tagChipRemove {
-  background: none;
-  border: none;
+  font-size: 0.82rem;
+  color: #374151;
   cursor: pointer;
-  color: #166534;
-  font-size: 1rem;
-  line-height: 1;
-  padding: 0;
+  transition: all 0.15s ease;
 }
 
-.tagChipRemove:hover {
-  color: #dc2626;
+.tagChip:hover {
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.tagChipSelected {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.tagChipSelected:hover {
+  background: #16a34a;
+  color: white;
 }

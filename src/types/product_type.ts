@@ -1,9 +1,11 @@
+import type { Tag } from "./tag_type";
+
 export interface Product {
   id: string;
   cat_id: string;
   name: string;
   description: string;
-  tags: string[];
+  tags: Tag[];
   image_urls: string[];
   variants: ProductVariant[];
 }

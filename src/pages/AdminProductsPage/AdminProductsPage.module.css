@@ -28,6 +28,7 @@
     gap: 12px;
   }
   
+  .tagsButton,
   .addButton,
   .deleteButton {
     height: 40px;

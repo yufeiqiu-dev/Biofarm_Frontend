@@ -10,6 +10,8 @@ import {
   deleteImage,
 } from "../../api/admin_product";
 import { getProductById } from "../../api/product";
+import { getAdminTags } from "../../api/admin_tag";
+import type { Tag } from "../../types/tag_type";
 import { useReminder } from "../../context/ReminderContext";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./AdminProductDetailPage.module.css";
@@ -27,7 +29,7 @@ type AdminProductForm = {
   cat_id: string;
   name: string;
   description: string;
-  tags: string[];
+  tag_ids: string[];
   variants: AdminVariantForm[];
 };
 
@@ -44,7 +46,7 @@ const createEmptyForm = (): AdminProductForm => ({
   cat_id: "",
   name: "",
   description: "",
-  tags: [],
+  tag_ids: [],
   variants: [],
 });
 
@@ -111,7 +113,7 @@ export function AdminProductDetailPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
-  const [tagInput, setTagInput] = useState("");
+  const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const [imageUrls, setImageUrls] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
@@ -119,6 +121,10 @@ export function AdminProductDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [formErrors, setFormErrors] = useState<string[]>([]);
   const [saveError, setSaveError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getAdminTags().then(setAvailableTags).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (!isEditMode || !productId) return;
@@ -134,7 +140,7 @@ export function AdminProductDetailPage() {
           cat_id: product.cat_id,
           name: product.name,
           description: product.description,
-          tags: product.tags ?? [],
+          tag_ids: (product.tags ?? []).map((t) => t.id),
           variants: (product.variants ?? []).map((variant) => ({
             id: variant.id,
             catalog_id: variant.catalog_id,
@@ -198,20 +204,13 @@ export function AdminProductDetailPage() {
     }));
   };
 
-  const handleAddTag = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    if (e.key !== "Enter") return;
-    e.preventDefault();
-    const tag = tagInput.trim().toLowerCase();
-    if (!tag || form.tags.includes(tag)) {
-      setTagInput("");
-      return;
-    }
-    setForm((prev) => ({ ...prev, tags: [...prev.tags, tag] }));
-    setTagInput("");
-  };
-
-  const handleRemoveTag = (tag: string) => {
-    setForm((prev) => ({ ...prev, tags: prev.tags.filter((t) => t !== tag) }));
+  const handleToggleTag = (tagId: string) => {
+    setForm((prev) => ({
+      ...prev,
+      tag_ids: prev.tag_ids.includes(tagId)
+        ? prev.tag_ids.filter((id) => id !== tagId)
+        : [...prev.tag_ids, tagId],
+    }));
   };
 
   const handleImageUpload = async (file: File) => {
@@ -283,7 +282,7 @@ export function AdminProductDetailPage() {
         cat_id: form.cat_id.trim(),
         name: form.name.trim(),
         description: form.description.trim(),
-        tags: form.tags,
+        tag_ids: form.tag_ids,
         variants: form.variants.map((variant) => ({
           ...(variant.id ? { id: variant.id } : {}),
           catalog_id: variant.catalog_id.trim(),
@@ -431,28 +430,25 @@ export function AdminProductDetailPage() {
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Tags</label>
-              <input
-                className={styles.input}
-                type="text"
-                value={tagInput}
-                onChange={(e) => setTagInput(e.target.value)}
-                onKeyDown={handleAddTag}
-                placeholder="Type a tag and press Enter"
-              />
-              {form.tags.length > 0 && (
+              {availableTags.length === 0 ? (
+                <p style={{ fontSize: 13, color: "#9ca3af" }}>
+                  No tags available. <a href="/admin/tags" style={{ color: "#16a34a" }}>Manage tags →</a>
+                </p>
+              ) : (
                 <div className={styles.tagChips}>
-                  {form.tags.map((tag) => (
-                    <span key={tag} className={styles.tagChip}>
-                      {tag}
+                  {availableTags.map((tag) => {
+                    const selected = form.tag_ids.includes(tag.id);
+                    return (
                       <button
+                        key={tag.id}
                         type="button"
-                        className={styles.tagChipRemove}
-                        onClick={() => handleRemoveTag(tag)}
+                        className={`${styles.tagChip} ${selected ? styles.tagChipSelected : ""}`}
+                        onClick={() => handleToggleTag(tag.id)}
                       >
-                        ×
+                        {tag.name}
                       </button>
-                    </span>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>

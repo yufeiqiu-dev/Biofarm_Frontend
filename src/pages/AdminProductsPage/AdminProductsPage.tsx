@@ -133,6 +133,10 @@ export function AdminProductsPage() {
         </div>
 
         <div className={styles.topActions}>
+          <Link to="/admin/tags" className={styles.tagsButton}>
+            Manage Tags
+          </Link>
+
           <Link to="/admin/products/new" className={styles.addButton}>
             Add Product
           </Link>

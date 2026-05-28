@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { getProducts } from "../../api/product";
+import { getTags } from "../../api/tag";
 import type { Product } from "../../types/product_type";
+import type { Tag } from "../../types/tag_type";
 import { ProductCard } from "../../components/ProductCard";
-import { SearchBar } from "../../components/SearchBar";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductsPage.module.css";
@@ -14,8 +15,13 @@ export function ProductsPage() {
   const activeTag = searchParams.get("tag") ?? "";
 
   const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [allTags, setAllTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void getTags().then(setAllTags).catch(() => {});
+  }, []);
 
   useEffect(() => {
     const load = async () => {
@@ -33,15 +39,9 @@ export function ProductsPage() {
     void load();
   }, [search]);
 
-  const allTags = useMemo(() => {
-    const tags = new Set<string>();
-    allProducts.forEach((p) => (p.tags ?? []).forEach((t) => tags.add(t)));
-    return [...tags].sort();
-  }, [allProducts]);
-
   const displayedProducts = useMemo(() => {
     if (!activeTag) return allProducts;
-    return allProducts.filter((p) => (p.tags ?? []).includes(activeTag));
+    return allProducts.filter((p) => (p.tags ?? []).some((t) => t.name === activeTag));
   }, [allProducts, activeTag]);
 
   const handleTagClick = (tag: string) => {
@@ -71,19 +71,15 @@ export function ProductsPage() {
     <div className={shared.page}>
       <h1 className={styles.title}>All Products</h1>
 
-      <div className={styles.controls}>
-        <SearchBar basePath="/products" />
-      </div>
-
       {allTags.length > 0 && (
         <div className={styles.tagList}>
           {allTags.map((tag) => (
             <button
-              key={tag}
-              className={`${styles.tagPill} ${activeTag === tag ? styles.tagPillActive : ""}`}
-              onClick={() => handleTagClick(tag)}
+              key={tag.id}
+              className={`${styles.tagPill} ${activeTag === tag.name ? styles.tagPillActive : ""}`}
+              onClick={() => handleTagClick(tag.name)}
             >
-              {tag}
+              {tag.name}
             </button>
           ))}
         </div>

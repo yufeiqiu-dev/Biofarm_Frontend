@@ -1,0 +1,105 @@
+.page {
+  max-width: 600px;
+  margin: 0 auto;
+  padding: 24px 16px 40px;
+}
+
+.title {
+  margin: 0 0 4px;
+  font-size: 26px;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0 0 24px;
+  color: #667085;
+  font-size: 0.95rem;
+}
+
+.addForm {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+
+.input {
+  flex: 1;
+  padding: 9px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.addButton {
+  padding: 9px 18px;
+  background: #22c55e;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.addButton:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.addButton:not(:disabled):hover {
+  background: #16a34a;
+}
+
+.error {
+  color: #b42318;
+  font-size: 0.9rem;
+  margin-bottom: 12px;
+}
+
+.hint {
+  color: #9ca3af;
+  font-size: 0.9rem;
+}
+
+.tagList {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.tagRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: white;
+}
+
+.tagName {
+  font-size: 0.95rem;
+  color: #111827;
+}
+
+.deleteButton {
+  padding: 4px 10px;
+  border: 1px solid #fca5a5;
+  background: #fff5f5;
+  color: #b42318;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
+.deleteButton:hover {
+  background: #fee2e2;
+}
