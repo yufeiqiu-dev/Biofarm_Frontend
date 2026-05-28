@@ -114,7 +114,9 @@ export function AdminProductDetailPage() {
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
+  // displayedUrls = what the user sees; savedUrls = what's committed in DB
+  const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
+  const [savedUrls, setSavedUrls] = useState<string[]>([]);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
@@ -150,7 +152,9 @@ export function AdminProductDetailPage() {
             stock: String(variant.stock),
           })),
         });
-        setImageUrls(product.image_urls ?? []);
+        const urls = product.image_urls ?? [];
+        setDisplayedUrls(urls);
+        setSavedUrls(urls);
       } catch (error) {
         console.error("Failed to load product", error);
         setSaveError(
@@ -225,7 +229,7 @@ export function AdminProductDetailPage() {
       return;
     }
 
-    if (imageUrls.length >= MAX_IMAGES) {
+    if (displayedUrls.length >= MAX_IMAGES) {
       showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
       return;
     }
@@ -242,7 +246,9 @@ export function AdminProductDetailPage() {
       });
 
       const result = await confirmImageUpload(productId, image_url);
-      setImageUrls(result.image_urls);
+      // Upload is committed immediately so both states stay in sync
+      setDisplayedUrls(result.image_urls);
+      setSavedUrls(result.image_urls);
     } catch (error) {
       console.error("Image upload failed", error);
       showReminder({ message: error instanceof Error ? error.message : "Image upload failed." });
@@ -252,16 +258,9 @@ export function AdminProductDetailPage() {
     }
   };
 
-  const handleDeleteImage = async (index: number) => {
-    if (!productId) return;
-
-    try {
-      await deleteImage(productId, index + 1); // API uses 1-based index
-      setImageUrls((prev) => prev.filter((_, i) => i !== index));
-    } catch (error) {
-      console.error("Failed to delete image", error);
-      showReminder({ message: "Failed to delete image." });
-    }
+  const handleDeleteImage = (index: number) => {
+    // Stage the deletion — the API call happens on save
+    setDisplayedUrls((prev) => prev.filter((_, i) => i !== index));
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -277,6 +276,21 @@ export function AdminProductDetailPage() {
     try {
       setSaving(true);
       setSaveError(null);
+
+      // Flush staged image deletions before saving the product
+      if (isEditMode && productId) {
+        const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
+        if (toDelete.length > 0) {
+          // Delete in reverse index order so earlier indices stay stable
+          const indices = toDelete
+            .map((url) => savedUrls.indexOf(url) + 1)
+            .sort((a, b) => b - a);
+          for (const idx of indices) {
+            await deleteImage(productId, idx);
+          }
+          setSavedUrls(displayedUrls);
+        }
+      }
 
       const payload = {
         cat_id: form.cat_id.trim(),
@@ -458,8 +472,13 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>
               Product Images
               <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
-                ({imageUrls.length}/{MAX_IMAGES})
+                ({displayedUrls.length}/{MAX_IMAGES})
               </span>
+              {savedUrls.filter((u) => !displayedUrls.includes(u)).length > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 400, color: "#b45309", marginLeft: 8 }}>
+                  {savedUrls.filter((u) => !displayedUrls.includes(u)).length} pending deletion
+                </span>
+              )}
             </h2>
 
             {!isEditMode && (
@@ -476,7 +495,7 @@ export function AdminProductDetailPage() {
                     className={styles.input}
                     type="file"
                     accept=".jpg,.jpeg,.png,.webp"
-                    disabled={uploadingImage || imageUrls.length >= MAX_IMAGES}
+                    disabled={uploadingImage || displayedUrls.length >= MAX_IMAGES}
                     onChange={(e) => {
                       const file = e.target.files?.[0];
                       if (file) void handleImageUpload(file);
@@ -490,7 +509,7 @@ export function AdminProductDetailPage() {
                 </div>
 
                 <div className={styles.imageGrid}>
-                  {imageUrls.map((url, i) => (
+                  {displayedUrls.map((url, i) => (
                     <div key={i} className={styles.imageItem}>
                       <img
                         src={url}
@@ -510,7 +529,7 @@ export function AdminProductDetailPage() {
                     </div>
                   ))}
 
-                  {imageUrls.length === 0 && (
+                  {displayedUrls.length === 0 && (
                     <div className={styles.imagePlaceholder}>
                       <img
                         src={DEFAULT_PRODUCT_IMAGE}
