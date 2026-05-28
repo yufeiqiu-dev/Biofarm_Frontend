@@ -5,6 +5,14 @@ import { SearchBar } from "../SearchBar";
 import { useCartSideBar } from "../../context/CartSideBarContext";
 import styles from "./Navbar.module.css";
 
+function getInitials(name: string): string {
+  return name
+    .split(/[\s@.]+/)
+    .slice(0, 2)
+    .map((s) => s[0]?.toUpperCase() ?? "")
+    .join("");
+}
+
 export function Navbar() {
   const navigate = useNavigate();
   const { user, signIn, signOut } = useAuth();
@@ -32,6 +40,11 @@ export function Navbar() {
   const handleOrdersClick = () => {
     setMenuOpen(false);
     navigate("/orders");
+  };
+
+  const handleAdminClick = () => {
+    setMenuOpen(false);
+    navigate("/admin/products");
   };
 
   const handleSignOutClick = () => {
@@ -74,7 +87,11 @@ export function Navbar() {
                 className={styles.accountButton}
                 onClick={handleAccountClick}
               >
-                {user.name} ▾
+                <span className={styles.accountAvatar}>
+                  {getInitials(user.name)}
+                </span>
+                <span className={styles.accountName}>{user.name}</span>
+                <span className={styles.accountChevron}>▾</span>
               </button>
 
               {menuOpen && (
@@ -86,9 +103,20 @@ export function Navbar() {
                   >
                     <span className={styles.menuLink}>Orders</span>
                   </button>
+
+                  {user.roles?.includes("Admin") && (
+                    <button
+                      type="button"
+                      className={styles.menuItem}
+                      onClick={handleAdminClick}
+                    >
+                      <span className={styles.menuLink}>Admin</span>
+                    </button>
+                  )}
+
                   <button
                     type="button"
-                    className={styles.menuItem}
+                    className={`${styles.menuItem} ${styles.menuItemDanger}`}
                     onClick={handleSignOutClick}
                   >
                     <span className={styles.menuLink}>Sign out</span>

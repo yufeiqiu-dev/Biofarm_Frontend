@@ -19,7 +19,7 @@ import {
     hideReminder: () => void;
   };
   
-  const ReminderContext = createContext<ReminderContextValue | undefined>(undefined);
+  export const ReminderContext = createContext<ReminderContextValue | undefined>(undefined);
   
   export function ReminderProvider({ children }: { children: ReactNode }) {
     const [message, setMessage] = useState<string | null>(null);

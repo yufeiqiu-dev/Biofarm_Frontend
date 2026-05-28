@@ -82,8 +82,7 @@
   color: #22c55e;
 }
 
-.signInButton,
-.accountButton {
+.signInButton {
   padding: 0.4rem 0.95rem;
   border-radius: 999px;
   border: 1px solid #22c55e;
@@ -94,8 +93,7 @@
   cursor: pointer;
 }
 
-.signInButton:hover,
-.accountButton:hover {
+.signInButton:hover {
   background: #ecfdf3;
 }
 
@@ -104,10 +102,50 @@
 }
 
 .accountButton {
-  max-width: 160px;
-  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 0.3rem 0.7rem 0.3rem 0.35rem;
+  border-radius: 999px;
+  border: 1px solid #e2e8f0;
+  background: white;
+  cursor: pointer;
+  max-width: 200px;
+}
+
+.accountButton:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+.accountAvatar {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #22c55e;
+  color: white;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.accountName {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: #374151;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 110px;
+}
+
+.accountChevron {
+  font-size: 0.65rem;
+  color: #9ca3af;
+  flex-shrink: 0;
 }
 
 .menu {
@@ -144,6 +182,15 @@
   color: inherit;
   text-decoration: none;
   flex: 1;
+}
+
+.menuItemDanger {
+  color: #b91c1c;
+}
+
+.menuItemDanger:hover {
+  background: #fff5f5;
+  color: #b91c1c;
 }
 
 .cartButton {
@@ -233,10 +280,13 @@
     gap: 0.5rem;
   }
 
-  .signInButton,
-  .accountButton {
+  .signInButton {
     padding: 0.35rem 0.75rem;
     font-size: 0.8rem;
+  }
+
+  .accountName {
+    display: none;
   }
 
   .bottomRow {

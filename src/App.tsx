@@ -1,5 +1,6 @@
 import { Routes, Route } from "react-router-dom";
 import { Layout } from "./layout/Layout";
+import { AdminLayout } from "./layout/AdminLayout";
 import { HomePage } from "./pages/HomePage";
 import { ProductsPage } from "./pages/ProductsPage";
 import { CartPage } from "./pages/CartPage";
@@ -15,6 +16,7 @@ import { AdminTagsPage } from "./pages/AdminTagsPage";
 export default function App() {
   return (
     <Routes>
+      {/* Public routes */}
       <Route element={<Layout />}>
         <Route path="/" element={<HomePage />} />
         <Route path="/products" element={<ProductsPage />} />
@@ -23,34 +25,14 @@ export default function App() {
         <Route path="/orders" element={<OrdersPage />} />
         <Route path="/products/:productId" element={<ProductDetailPage />} />
         <Route path="/auth/callback" element={<AuthCallBackPage />} />
-        <Route path="/admin/products" element={<AdminRoute><AdminProductsPage /></AdminRoute>} />
+      </Route>
 
-        <Route
-          path="/admin/products/:productId"
-          element={
-            <AdminRoute>
-              <AdminProductDetailPage />
-            </AdminRoute>
-          }
-        />
-
-      <Route
-        path="/admin/products/new"
-        element={
-          <AdminRoute>
-            <AdminProductDetailPage />
-          </AdminRoute>
-        }
-      />
-
-      <Route
-        path="/admin/tags"
-        element={
-          <AdminRoute>
-            <AdminTagsPage />
-          </AdminRoute>
-        }
-      />
+      {/* Admin routes — new AdminLayout shell */}
+      <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
+        <Route path="/admin/products" element={<AdminProductsPage />} />
+        <Route path="/admin/products/new" element={<AdminProductDetailPage />} />
+        <Route path="/admin/products/:productId" element={<AdminProductDetailPage />} />
+        <Route path="/admin/tags" element={<AdminTagsPage />} />
       </Route>
     </Routes>
   );

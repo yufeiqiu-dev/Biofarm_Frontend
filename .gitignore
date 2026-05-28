@@ -25,3 +25,6 @@ dist-ssr
 
 # environment file
 .env
+
+# planning docs
+docs/

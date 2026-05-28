@@ -4,17 +4,21 @@ import type { Product } from "../../types/product_type";
 import { AdminProductCard } from "../../components/AdminProductCard";
 import { SearchBar } from "../../components/SearchBar";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { getAdminProducts, deleteProduct } from "../../api/admin_product";
+import { useReminder } from "../../context/ReminderContext";
 import styles from "./AdminProductsPage.module.css";
 
 
 
 export function AdminProductsPage() {
+  const { showReminder } = useReminder();
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProductIds, setSelectedProductIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [searchParams] = useSearchParams();
 
   const searchTerm = searchParams.get("search")?.trim().toLowerCase() ?? "";
@@ -79,26 +83,24 @@ export function AdminProductsPage() {
     });
   };
 
-  const handleDeleteSelected = async () => {
+  const handleDeleteSelected = () => {
     if (selectedProductIds.length === 0) return;
+    setConfirmOpen(true);
+  };
 
-    const confirmed = window.confirm(
-      `Delete ${selectedProductIds.length} selected product(s)?`
-    );
-
-    if (!confirmed) return;
-
+  const handleConfirmDelete = async () => {
+    setConfirmOpen(false);
+    const idsToDelete = [...selectedProductIds];
     try {
       setDeleting(true);
-
-      await Promise.all(selectedProductIds.map((id) => deleteProduct(id)));
-
+      await Promise.all(idsToDelete.map((id) => deleteProduct(id)));
       setProducts((prev) =>
-        prev.filter((product) => !selectedProductIds.includes(product.id))
+        prev.filter((product) => !idsToDelete.includes(product.id))
       );
       setSelectedProductIds([]);
     } catch (error) {
       console.error("Failed to delete selected products", error);
+      showReminder({ message: "Failed to delete some products. Please try again." });
     } finally {
       setDeleting(false);
     }
@@ -126,6 +128,16 @@ export function AdminProductsPage() {
 
   return (
     <div className={styles.page}>
+      <ConfirmDialog
+        isOpen={confirmOpen}
+        title="Delete products"
+        message={`Delete ${selectedCount} selected product(s)? This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setConfirmOpen(false)}
+        variant="danger"
+      />
+
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>Manage Products</h1>
@@ -173,6 +185,16 @@ export function AdminProductsPage() {
             {selectedCount} selected
           </span>
         </div>
+      </div>
+
+      <div className={styles.tableHeader}>
+        <div /> {/* checkbox column */}
+        <div /> {/* image column */}
+        <div>PRODUCT</div>
+        <div>TAGS</div>
+        <div>PRICE</div>
+        <div>STOCK</div>
+        <div /> {/* edit button column */}
       </div>
 
       <div className={styles.list}>

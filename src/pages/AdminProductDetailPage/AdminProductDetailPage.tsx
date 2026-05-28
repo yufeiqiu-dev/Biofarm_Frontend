@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import {
@@ -14,6 +14,7 @@ import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
 import { useReminder } from "../../context/ReminderContext";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
+import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
 
 type AdminVariantForm = {
@@ -50,48 +51,40 @@ const createEmptyForm = (): AdminProductForm => ({
   variants: [],
 });
 
-function validateForm(form: AdminProductForm): string[] {
-  const errors: string[] = [];
+function validateForm(form: AdminProductForm): Record<string, string> {
+  const errors: Record<string, string> = {};
 
   if (!form.cat_id.trim()) {
-    errors.push("Product catalog ID is required.");
+    errors.cat_id = "Product catalog ID is required.";
   }
-
   if (!form.name.trim()) {
-    errors.push("Product name is required.");
+    errors.name = "Product name is required.";
   }
-
   if (!form.description.trim()) {
-    errors.push("Product description is required.");
+    errors.description = "Product description is required.";
   }
 
   form.variants.forEach((variant, index) => {
-    const label = `Variant ${index + 1}`;
-
     if (!variant.catalog_id.trim()) {
-      errors.push(`${label}: catalog ID is required.`);
+      errors[`variant_${index}_catalog_id`] = "Catalog ID is required.";
     }
-
     if (!variant.size_value.trim()) {
-      errors.push(`${label}: size value is required.`);
+      errors[`variant_${index}_size_value`] = "Size value is required.";
     } else if (Number(variant.size_value) <= 0) {
-      errors.push(`${label}: size value must be greater than 0.`);
+      errors[`variant_${index}_size_value`] = "Size value must be greater than 0.";
     }
-
     if (!variant.size_unit.trim()) {
-      errors.push(`${label}: size unit is required.`);
+      errors[`variant_${index}_size_unit`] = "Size unit is required.";
     }
-
     if (!variant.price.trim()) {
-      errors.push(`${label}: price is required.`);
+      errors[`variant_${index}_price`] = "Price is required.";
     } else if (Number(variant.price) < 0) {
-      errors.push(`${label}: price cannot be negative.`);
+      errors[`variant_${index}_price`] = "Price cannot be negative.";
     }
-
     if (!variant.stock.trim()) {
-      errors.push(`${label}: stock is required.`);
+      errors[`variant_${index}_stock`] = "Stock is required.";
     } else if (Number(variant.stock) < 0) {
-      errors.push(`${label}: stock cannot be negative.`);
+      errors[`variant_${index}_stock`] = "Stock cannot be negative.";
     }
   });
 
@@ -114,13 +107,28 @@ export function AdminProductDetailPage() {
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  const [imageUrls, setImageUrls] = useState<string[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  // displayedUrls = confirmed in DB; savedUrls = DB state at last load/save
+  const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
+  const [savedUrls, setSavedUrls] = useState<string[]>([]);
+  // pendingFiles = selected but not yet uploaded; previewUrl is a local blob URL
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string }[]>([]);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
-  const [formErrors, setFormErrors] = useState<string[]>([]);
+  // Stores the product ID after a successful createProduct call, so a retry after
+  // a partial upload failure reuses the same product instead of creating a duplicate.
+  const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [saveError, setSaveError] = useState<string | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+
+  // Keep a ref to pendingFiles so the unmount cleanup can revoke all blob URLs
+  // even when the user navigates away without saving.
+  const pendingFilesRef = useRef<{ file: File; previewUrl: string }[]>([]);
+  pendingFilesRef.current = pendingFiles;
+  useEffect(() => {
+    return () => pendingFilesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
+  }, []);
 
   useEffect(() => {
     void getAdminTags().then(setAvailableTags).catch(() => {});
@@ -150,7 +158,9 @@ export function AdminProductDetailPage() {
             stock: String(variant.stock),
           })),
         });
-        setImageUrls(product.image_urls ?? []);
+        const urls = product.image_urls ?? [];
+        setDisplayedUrls(urls);
+        setSavedUrls(urls);
       } catch (error) {
         console.error("Failed to load product", error);
         setSaveError(
@@ -164,16 +174,12 @@ export function AdminProductDetailPage() {
     void loadProduct();
   }, [isEditMode, productId]);
 
-  const clearErrors = () => {
-    if (formErrors.length > 0) setFormErrors([]);
-    if (saveError) setSaveError(null);
-  };
-
   const handleFieldChange = (
     field: keyof AdminProductForm,
     value: string
   ) => {
-    clearErrors();
+    if (formErrors[field]) setFormErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
+    if (saveError) setSaveError(null);
     setForm((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -182,7 +188,9 @@ export function AdminProductDetailPage() {
     field: keyof AdminVariantForm,
     value: string
   ) => {
-    clearErrors();
+    const key = `variant_${index}_${field}` as string;
+    if (formErrors[key]) setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
+    if (saveError) setSaveError(null);
     setForm((prev) => ({
       ...prev,
       variants: prev.variants.map((variant, i) =>
@@ -192,16 +200,29 @@ export function AdminProductDetailPage() {
   };
 
   const handleAddVariant = () => {
-    clearErrors();
     setForm((prev) => ({ ...prev, variants: [...prev.variants, createEmptyVariant()] }));
   };
 
   const handleRemoveVariant = (index: number) => {
-    clearErrors();
     setForm((prev) => ({
       ...prev,
       variants: prev.variants.filter((_, i) => i !== index),
     }));
+    setFormErrors((prev) => {
+      const next = { ...prev };
+      Object.keys(next).forEach((key) => {
+        const m = key.match(/^variant_(\d+)_/);
+        if (!m) return;
+        const vi = parseInt(m[1], 10);
+        if (vi === index) {
+          delete next[key];
+        } else if (vi > index) {
+          next[key.replace(`variant_${vi}_`, `variant_${vi - 1}_`)] = next[key];
+          delete next[key];
+        }
+      });
+      return next;
+    });
   };
 
   const handleToggleTag = (tagId: string) => {
@@ -213,62 +234,42 @@ export function AdminProductDetailPage() {
     }));
   };
 
-  const handleImageUpload = async (file: File) => {
-    if (!productId) {
-      showReminder({ message: "Save the product first before uploading images." });
-      return;
-    }
-
+  const handleFileSelect = (file: File) => {
     const ext = getExtension(file.name);
     if (!ALLOWED_EXTENSIONS.has(ext)) {
       showReminder({ message: "Only jpg, jpeg, png, and webp files are allowed." });
-      return;
-    }
-
-    if (imageUrls.length >= MAX_IMAGES) {
-      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
-      return;
-    }
-
-    try {
-      setUploadingImage(true);
-
-      const { upload_url, image_url } = await getImagePresignedUrl(productId, ext);
-
-      await fetch(upload_url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-
-      const result = await confirmImageUpload(productId, image_url);
-      setImageUrls(result.image_urls);
-    } catch (error) {
-      console.error("Image upload failed", error);
-      showReminder({ message: error instanceof Error ? error.message : "Image upload failed." });
-    } finally {
-      setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
+    if (displayedUrls.length + pendingFiles.length >= MAX_IMAGES) {
+      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setPendingFiles((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleDeleteImage = async (index: number) => {
-    if (!productId) return;
+  const handleRemovePendingFile = (index: number) => {
+    const url = pendingFiles[index]?.previewUrl;
+    if (url) URL.revokeObjectURL(url);
+    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
+  };
 
-    try {
-      await deleteImage(productId, index + 1); // API uses 1-based index
-      setImageUrls((prev) => prev.filter((_, i) => i !== index));
-    } catch (error) {
-      console.error("Failed to delete image", error);
-      showReminder({ message: "Failed to delete image." });
-    }
+  const handleDeleteImage = (index: number) => {
+    // Stage the deletion — the API call happens on save
+    setDisplayedUrls((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSetPrimary = (index: number) => {
+    setDisplayedUrls((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     const errors = validateForm(form);
-    if (errors.length > 0) {
+    if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       showReminder({ message: "Please fix errors in the form!" });
       return;
@@ -293,10 +294,55 @@ export function AdminProductDetailPage() {
         })),
       };
 
+      // In create mode, reuse the ID from a prior attempt so a retry after a
+      // partial upload failure does not create a second product.
+      let targetId = productId ?? pendingProductId;
+
       if (isEditMode && productId) {
-        await updateProduct(productId, payload);
+        // Flush staged deletions by URL — no index bookkeeping needed.
+        const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
+        for (const url of toDelete) {
+          await deleteImage(productId, url);
+        }
+        if (toDelete.length > 0) {
+          // Sync savedUrls so a retry doesn't re-send already-deleted URLs.
+          setSavedUrls(displayedUrls);
+        }
+        // Include the current display order so reordering is persisted.
+        await updateProduct(productId, { ...payload, image_urls: displayedUrls });
+      } else if (pendingProductId) {
+        // Product was created in a previous attempt — just update it.
+        await updateProduct(pendingProductId, payload);
       } else {
-        await createProduct(payload);
+        const created = await createProduct(payload);
+        setPendingProductId(created.id);
+        targetId = created.id;
+      }
+
+      // Upload pending files now that we have a product ID.
+      // Track how many succeed so a retry doesn't re-upload confirmed files.
+      if (pendingFiles.length > 0 && targetId) {
+        let uploadedCount = 0;
+        try {
+          for (const { file, previewUrl } of pendingFiles) {
+            const ext = getExtension(file.name);
+            const { upload_url, image_url } = await getImagePresignedUrl(targetId, ext);
+            const uploadRes = await fetch(upload_url, {
+              method: "PUT",
+              body: file,
+              headers: { "Content-Type": file.type },
+            });
+            if (!uploadRes.ok) throw new Error(`Image upload failed (HTTP ${uploadRes.status})`);
+            await confirmImageUpload(targetId, image_url);
+            URL.revokeObjectURL(previewUrl);
+            uploadedCount++;
+          }
+        } finally {
+          // Prune successfully uploaded files so a retry only re-sends the rest.
+          if (uploadedCount > 0) {
+            setPendingFiles((prev) => prev.slice(uploadedCount));
+          }
+        }
       }
 
       navigate("/admin/products");
@@ -312,9 +358,6 @@ export function AdminProductDetailPage() {
 
   const handleDelete = async () => {
     if (!isEditMode || !productId) return;
-
-    const confirmed = window.confirm("Delete this product?");
-    if (!confirmed) return;
 
     try {
       setDeleting(true);
@@ -335,6 +378,8 @@ export function AdminProductDetailPage() {
     return <LoadingOverlay visible={true} />;
   }
 
+  const pendingDeletionCount = savedUrls.filter((u) => !displayedUrls.includes(u)).length;
+
   return (
     <div className={styles.page}>
       <div className={styles.header}>
@@ -354,7 +399,7 @@ export function AdminProductDetailPage() {
             <button
               type="button"
               className={styles.deleteButton}
-              onClick={handleDelete}
+              onClick={() => setConfirmDeleteOpen(true)}
             >
               Delete Product
             </button>
@@ -363,7 +408,7 @@ export function AdminProductDetailPage() {
       </div>
 
       <form className={styles.form} onSubmit={handleSave}>
-        {(formErrors.length > 0 || saveError) && (
+        {saveError && (
           <div
             style={{
               marginBottom: 16,
@@ -373,21 +418,7 @@ export function AdminProductDetailPage() {
               borderRadius: 8,
             }}
           >
-            {saveError && (
-              <p style={{ color: "#b42318", margin: 0, marginBottom: formErrors.length ? 8 : 0 }}>
-                {saveError}
-              </p>
-            )}
-
-            {formErrors.length > 0 && (
-              <ul style={{ margin: 0, paddingLeft: 20 }}>
-                {formErrors.map((error) => (
-                  <li key={error} style={{ color: "#b42318" }}>
-                    {error}
-                  </li>
-                ))}
-              </ul>
-            )}
+            <p style={{ color: "#b42318", margin: 0 }}>{saveError}</p>
           </div>
         )}
 
@@ -398,34 +429,37 @@ export function AdminProductDetailPage() {
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Product Catalog ID</label>
               <input
-                className={styles.input}
+                className={`${styles.input} ${formErrors.cat_id ? styles.inputError : ""}`}
                 type="text"
                 value={form.cat_id}
                 onChange={(e) => handleFieldChange("cat_id", e.target.value)}
                 placeholder="Enter base product catalog ID"
               />
+              {formErrors.cat_id && <p className={styles.fieldError}>{formErrors.cat_id}</p>}
             </div>
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Product Name</label>
               <input
-                className={styles.input}
+                className={`${styles.input} ${formErrors.name ? styles.inputError : ""}`}
                 type="text"
                 value={form.name}
                 onChange={(e) => handleFieldChange("name", e.target.value)}
                 placeholder="Enter product name"
               />
+              {formErrors.name && <p className={styles.fieldError}>{formErrors.name}</p>}
             </div>
 
             <div className={styles.fieldGroup}>
               <label className={styles.label}>Description</label>
               <textarea
-                className={styles.textarea}
+                className={`${styles.textarea} ${formErrors.description ? styles.inputError : ""}`}
                 value={form.description}
                 onChange={(e) => handleFieldChange("description", e.target.value)}
                 placeholder="Enter product description"
                 rows={6}
               />
+              {formErrors.description && <p className={styles.fieldError}>{formErrors.description}</p>}
             </div>
 
             <div className={styles.fieldGroup}>
@@ -458,72 +492,89 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>
               Product Images
               <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
-                ({imageUrls.length}/{MAX_IMAGES})
+                ({displayedUrls.length + pendingFiles.length}/{MAX_IMAGES})
               </span>
+              {pendingDeletionCount > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 400, color: "#b45309", marginLeft: 8 }}>
+                  {pendingDeletionCount} pending deletion
+                </span>
+              )}
             </h2>
 
-            {!isEditMode && (
-              <p style={{ fontSize: 13, color: "#667085", marginBottom: 12 }}>
-                Save the product first, then upload images.
-              </p>
-            )}
+            <div className={styles.fieldGroup}>
+              <input
+                ref={fileInputRef}
+                className={styles.input}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                disabled={displayedUrls.length + pendingFiles.length >= MAX_IMAGES}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+              />
+            </div>
 
-            {isEditMode && (
-              <>
-                <div className={styles.fieldGroup}>
-                  <input
-                    ref={fileInputRef}
-                    className={styles.input}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    disabled={uploadingImage || imageUrls.length >= MAX_IMAGES}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handleImageUpload(file);
-                    }}
+            <div className={styles.imageGrid}>
+              {displayedUrls.map((url, i) => (
+                <div key={url} className={styles.imageItem}>
+                  <img
+                    src={url}
+                    alt={`Product image ${i + 1}`}
+                    className={styles.imageThumb}
                   />
-                  {uploadingImage && (
-                    <p style={{ marginTop: 6, fontSize: 13, color: "#6366f1" }}>
-                      Uploading...
-                    </p>
+                  {i === 0 ? (
+                    <span className={styles.primaryBadge}>Primary</span>
+                  ) : (
+                    <button
+                      type="button"
+                      className={styles.setPrimaryButton}
+                      onClick={() => handleSetPrimary(i)}
+                      title="Set as primary"
+                    >
+                      ★
+                    </button>
                   )}
+                  <button
+                    type="button"
+                    className={styles.deleteImageButton}
+                    onClick={() => handleDeleteImage(i)}
+                  >
+                    ×
+                  </button>
                 </div>
+              ))}
 
-                <div className={styles.imageGrid}>
-                  {imageUrls.map((url, i) => (
-                    <div key={i} className={styles.imageItem}>
-                      <img
-                        src={url}
-                        alt={`Product image ${i + 1}`}
-                        className={styles.imageThumb}
-                      />
-                      {i === 0 && (
-                        <span className={styles.primaryBadge}>Primary</span>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.deleteImageButton}
-                        onClick={() => void handleDeleteImage(i)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-
-                  {imageUrls.length === 0 && (
-                    <div className={styles.imagePlaceholder}>
-                      <img
-                        src={DEFAULT_PRODUCT_IMAGE}
-                        alt="No image"
-                        className={styles.imageThumb}
-                        style={{ opacity: 0.4 }}
-                      />
-                      <span style={{ fontSize: 12, color: "#9ca3af" }}>No images yet</span>
-                    </div>
-                  )}
+              {pendingFiles.map(({ previewUrl }, i) => (
+                <div key={previewUrl} className={styles.imageItem}>
+                  <img
+                    src={previewUrl}
+                    alt={`Pending image ${i + 1}`}
+                    className={styles.imageThumb}
+                  />
+                  <span className={styles.pendingBadge}>Unsaved</span>
+                  <button
+                    type="button"
+                    className={styles.deleteImageButton}
+                    onClick={() => handleRemovePendingFile(i)}
+                  >
+                    ×
+                  </button>
                 </div>
-              </>
-            )}
+              ))}
+
+              {displayedUrls.length === 0 && pendingFiles.length === 0 && (
+                <div className={styles.imagePlaceholder}>
+                  <img
+                    src={DEFAULT_PRODUCT_IMAGE}
+                    alt="No image"
+                    className={styles.imageThumb}
+                    style={{ opacity: 0.4 }}
+                  />
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>No images yet</span>
+                </div>
+              )}
+            </div>
           </section>
         </div>
 
@@ -580,7 +631,7 @@ export function AdminProductDetailPage() {
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Catalog ID</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_catalog_id`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.catalog_id}
                         onChange={(e) =>
@@ -588,12 +639,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="Enter catalog ID"
                       />
+                      {formErrors[`variant_${index}_catalog_id`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_catalog_id`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Size Value</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_size_value`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.size_value}
                         onChange={(e) =>
@@ -601,12 +655,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="10"
                       />
+                      {formErrors[`variant_${index}_size_value`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_size_value`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Size Unit</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_size_unit`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.size_unit}
                         onChange={(e) =>
@@ -614,12 +671,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="mL"
                       />
+                      {formErrors[`variant_${index}_size_unit`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_size_unit`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Price</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_price`] ? styles.inputError : ""}`}
                         type="number"
                         step="0.01"
                         value={variant.price}
@@ -628,12 +688,15 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="99.99"
                       />
+                      {formErrors[`variant_${index}_price`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_price`]}</p>
+                      )}
                     </div>
 
                     <div className={styles.fieldGroup}>
                       <label className={styles.label}>Stock</label>
                       <input
-                        className={styles.input}
+                        className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.stock}
                         onChange={(e) =>
@@ -641,6 +704,9 @@ export function AdminProductDetailPage() {
                         }
                         placeholder="100"
                       />
+                      {formErrors[`variant_${index}_stock`] && (
+                        <p className={styles.fieldError}>{formErrors[`variant_${index}_stock`]}</p>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -663,6 +729,16 @@ export function AdminProductDetailPage() {
           </button>
         </div>
       </form>
+
+      <ConfirmDialog
+        isOpen={confirmDeleteOpen}
+        title="Delete product"
+        message="This will permanently delete the product and all its variants."
+        confirmLabel="Delete"
+        onConfirm={() => { setConfirmDeleteOpen(false); void handleDelete(); }}
+        onCancel={() => setConfirmDeleteOpen(false)}
+        variant="danger"
+      />
     </div>
   );
 }

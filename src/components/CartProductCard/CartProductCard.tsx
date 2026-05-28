@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import styles from "./CartProductCard.module.css";
 
 export interface CartItem {
@@ -17,6 +18,7 @@ type CartProductCardProps = {
   onIncrease: (itemId: string) => void;
   onDecrease: (itemId: string) => void;
   onRemove: (itemId: string) => void;
+  onNavigate: () => void;
 };
 
 export function CartProductCard({
@@ -24,21 +26,27 @@ export function CartProductCard({
   onIncrease,
   onDecrease,
   onRemove,
+  onNavigate,
 }: CartProductCardProps) {
   const subtotal = item.unitPrice * item.quantity;
+  const productPath = `/products/${item.productId}`;
 
   return (
     <article className={styles.card}>
-      <img
-        src={item.imageUrl}
-        alt={item.name}
-        className={styles.image}
-      />
+      <Link to={productPath} onClick={onNavigate} className={styles.imageLink}>
+        <img
+          src={item.imageUrl}
+          alt={item.name}
+          className={styles.image}
+        />
+      </Link>
 
       <div className={styles.content}>
         <div className={styles.topRow}>
           <div>
-            <h3 className={styles.name}>{item.name}</h3>
+            <Link to={productPath} onClick={onNavigate} className={styles.nameLink}>
+              <h3 className={styles.name}>{item.name}</h3>
+            </Link>
             <p className={styles.meta}>Cat. No: {item.catalogNumber}</p>
             <p className={styles.meta}>Size: {item.sizeLabel}</p>
           </div>
