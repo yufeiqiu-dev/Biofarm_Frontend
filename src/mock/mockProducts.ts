@@ -6,7 +6,7 @@ export const mockProducts: Product[] = [
     cat_id: "OOK",
     name: "Organic Lettuce",
     description: "Fresh hydroponic lettuce grown locally.",
-    imageUrl: "https://placehold.co/600x400",
+    image_urls: ["https://placehold.co/600x400"],
     variants: [
       {
         id: "99",
@@ -23,7 +23,7 @@ export const mockProducts: Product[] = [
     cat_id: "WAS",
     name: "Cherry Tomatoes",
     description: "Sweet cherry tomatoes, perfect for salads.",
-    imageUrl: "https://dummyimage.com/600x400/cccccc/000000&text=Test+Image",
+    image_urls: ["https://dummyimage.com/600x400/cccccc/000000&text=Test+Image"],
     variants: [
       {
         id: "29",
@@ -48,7 +48,7 @@ export const mockProducts: Product[] = [
     cat_id: "CSA",
     name: "Cucumbers",
     description: "Crisp cucumbers grown without pesticides.",
-    imageUrl: "https://dummyimage.com/600x400/cccccc/000000&text=Test+Image",
+    image_urls: ["https://dummyimage.com/600x400/cccccc/000000&text=Test+Image"],
     variants: [
       {
         id: "3",

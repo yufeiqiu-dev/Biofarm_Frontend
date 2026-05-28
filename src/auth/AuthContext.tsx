@@ -14,6 +14,7 @@ import {
   signInWithRedirect,
   signOut as amplifySignOut,
 } from "aws-amplify/auth";
+import { setAccessTokenGetter } from "../api/client";
 
 type AuthContextValue = {
   user: User | null;
@@ -60,7 +61,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const currentUser = await getCurrentUser();
       const session = await fetchAuthSession();
       const email = session.tokens?.idToken?.payload?.email?.toString();
-
       const groups =
         session.tokens?.accessToken?.payload["cognito:groups"] ??
         session.tokens?.idToken?.payload["cognito:groups"] ??
@@ -127,6 +127,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return [];
     }
   }, []);
+
+  useEffect(() => {
+    setAccessTokenGetter(getAccessToken);
+
+    return () => {
+      setAccessTokenGetter(null);
+    };
+  }, [getAccessToken]);
 
   const value = useMemo(
     () => ({

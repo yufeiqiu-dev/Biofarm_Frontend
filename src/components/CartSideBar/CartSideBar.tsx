@@ -16,9 +16,13 @@ import { CartProductCard } from "../CartProductCard";
           className={`${styles.cartSideBar} ${isOpen ? styles.open : styles.closed}`}
         >
           <h2>Cart</h2>
-          {cartItems.map((item) => (
-            <CartProductCard key={item.id} item={item} onIncrease={increaseQuantity} onDecrease={decreaseQuantity} onRemove={removeFromCart} />
-          ))}
+          {cartItems.length === 0 ? (
+            <p className={styles.empty}>Your cart is empty.</p>
+          ) : (
+            cartItems.map((item) => (
+              <CartProductCard key={item.id} item={item} onIncrease={increaseQuantity} onDecrease={decreaseQuantity} onRemove={removeFromCart} />
+            ))
+          )}
         </aside>
       </>
     );

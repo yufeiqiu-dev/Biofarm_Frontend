@@ -165,6 +165,30 @@
     gap: 12px;
   }
   
+  .errorBox {
+    margin-bottom: 16px;
+    padding: 12px 16px;
+    border: 1px solid #f3b4b4;
+    background: #fff3f3;
+    border-radius: 8px;
+  }
+  
+  .errorList {
+    margin: 0;
+    padding-left: 20px;
+  }
+  
+  .errorText {
+    color: #b42318;
+  }
+  
+  .emptyVariants {
+    padding: 16px;
+    border: 1px dashed #d0d5dd;
+    border-radius: 8px;
+    color: #667085;
+  }
+  
   @media (max-width: 900px) {
     .mainGrid {
       grid-template-columns: 1fr;
@@ -183,8 +207,109 @@
     .variantGrid {
       grid-template-columns: 1fr;
     }
-  
+
     .footerActions {
       flex-direction: column;
     }
   }
+
+.imageGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+.imageItem {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  border-radius: 8px;
+  overflow: visible;
+  border: 1px solid #e5e7eb;
+}
+
+.imageThumb {
+  width: 100px;
+  height: 100px;
+  object-fit: cover;
+  border-radius: 8px;
+  display: block;
+}
+
+.primaryBadge {
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #6366f1;
+  color: #fff;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.deleteImageButton {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: #ef4444;
+  color: #fff;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.deleteImageButton:hover {
+  background: #dc2626;
+}
+
+.imagePlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.tagChips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.tagChip {
+  padding: 4px 12px;
+  background: white;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  font-size: 0.82rem;
+  color: #374151;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.tagChip:hover {
+  border-color: #22c55e;
+  color: #16a34a;
+}
+
+.tagChipSelected {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.tagChipSelected:hover {
+  background: #16a34a;
+  color: white;
+}

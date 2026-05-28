@@ -10,6 +10,7 @@ import { AuthCallBackPage } from "./pages/AuthCallBackPage";
 import { AdminRoute } from "./components/AdminRoute.tsx";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
 import { AdminProductDetailPage } from "./pages/AdminProductDetailPage/AdminProductDetailPage.tsx";
+import { AdminTagsPage } from "./pages/AdminTagsPage";
 
 export default function App() {
   return (
@@ -38,6 +39,15 @@ export default function App() {
         element={
           <AdminRoute>
             <AdminProductDetailPage />
+          </AdminRoute>
+        }
+      />
+
+      <Route
+        path="/admin/tags"
+        element={
+          <AdminRoute>
+            <AdminTagsPage />
           </AdminRoute>
         }
       />
