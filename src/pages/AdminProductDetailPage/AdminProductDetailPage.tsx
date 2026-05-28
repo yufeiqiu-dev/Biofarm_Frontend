@@ -114,10 +114,11 @@ export function AdminProductDetailPage() {
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  // displayedUrls = what the user sees; savedUrls = what's committed in DB
+  // displayedUrls = confirmed in DB; savedUrls = DB state at last load/save
   const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
   const [savedUrls, setSavedUrls] = useState<string[]>([]);
-  const [uploadingImage, setUploadingImage] = useState(false);
+  // pendingFiles = selected but not yet uploaded; previewUrl is a local blob URL
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string }[]>([]);
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -217,45 +218,27 @@ export function AdminProductDetailPage() {
     }));
   };
 
-  const handleImageUpload = async (file: File) => {
-    if (!productId) {
-      showReminder({ message: "Save the product first before uploading images." });
-      return;
-    }
-
+  const handleFileSelect = (file: File) => {
     const ext = getExtension(file.name);
     if (!ALLOWED_EXTENSIONS.has(ext)) {
       showReminder({ message: "Only jpg, jpeg, png, and webp files are allowed." });
-      return;
-    }
-
-    if (displayedUrls.length >= MAX_IMAGES) {
-      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
-      return;
-    }
-
-    try {
-      setUploadingImage(true);
-
-      const { upload_url, image_url } = await getImagePresignedUrl(productId, ext);
-
-      await fetch(upload_url, {
-        method: "PUT",
-        body: file,
-        headers: { "Content-Type": file.type },
-      });
-
-      const result = await confirmImageUpload(productId, image_url);
-      // Upload is committed immediately so both states stay in sync
-      setDisplayedUrls(result.image_urls);
-      setSavedUrls(result.image_urls);
-    } catch (error) {
-      console.error("Image upload failed", error);
-      showReminder({ message: error instanceof Error ? error.message : "Image upload failed." });
-    } finally {
-      setUploadingImage(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
     }
+    if (displayedUrls.length + pendingFiles.length >= MAX_IMAGES) {
+      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+    setPendingFiles((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleRemovePendingFile = (index: number) => {
+    setPendingFiles((prev) => {
+      URL.revokeObjectURL(prev[index].previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
   };
 
   const handleDeleteImage = (index: number) => {
@@ -277,21 +260,6 @@ export function AdminProductDetailPage() {
       setSaving(true);
       setSaveError(null);
 
-      // Flush staged image deletions before saving the product
-      if (isEditMode && productId) {
-        const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
-        if (toDelete.length > 0) {
-          // Delete in reverse index order so earlier indices stay stable
-          const indices = toDelete
-            .map((url) => savedUrls.indexOf(url) + 1)
-            .sort((a, b) => b - a);
-          for (const idx of indices) {
-            await deleteImage(productId, idx);
-          }
-          setSavedUrls(displayedUrls);
-        }
-      }
-
       const payload = {
         cat_id: form.cat_id.trim(),
         name: form.name.trim(),
@@ -307,10 +275,38 @@ export function AdminProductDetailPage() {
         })),
       };
 
+      let targetId = productId;
+
       if (isEditMode && productId) {
+        // Flush staged deletions (reverse-index order to keep positions stable)
+        const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
+        if (toDelete.length > 0) {
+          const indices = toDelete
+            .map((url) => savedUrls.indexOf(url) + 1)
+            .sort((a, b) => b - a);
+          for (const idx of indices) {
+            await deleteImage(productId, idx);
+          }
+        }
         await updateProduct(productId, payload);
       } else {
-        await createProduct(payload);
+        const created = await createProduct(payload);
+        targetId = created.id;
+      }
+
+      // Upload pending files now that we have a product ID
+      if (pendingFiles.length > 0 && targetId) {
+        for (const { file, previewUrl } of pendingFiles) {
+          const ext = getExtension(file.name);
+          const { upload_url, image_url } = await getImagePresignedUrl(targetId, ext);
+          await fetch(upload_url, {
+            method: "PUT",
+            body: file,
+            headers: { "Content-Type": file.type },
+          });
+          await confirmImageUpload(targetId, image_url);
+          URL.revokeObjectURL(previewUrl);
+        }
       }
 
       navigate("/admin/products");
@@ -472,7 +468,7 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>
               Product Images
               <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
-                ({displayedUrls.length}/{MAX_IMAGES})
+                ({displayedUrls.length + pendingFiles.length}/{MAX_IMAGES})
               </span>
               {savedUrls.filter((u) => !displayedUrls.includes(u)).length > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 400, color: "#b45309", marginLeft: 8 }}>
@@ -481,68 +477,71 @@ export function AdminProductDetailPage() {
               )}
             </h2>
 
-            {!isEditMode && (
-              <p style={{ fontSize: 13, color: "#667085", marginBottom: 12 }}>
-                Save the product first, then upload images.
-              </p>
-            )}
+            <div className={styles.fieldGroup}>
+              <input
+                ref={fileInputRef}
+                className={styles.input}
+                type="file"
+                accept=".jpg,.jpeg,.png,.webp"
+                disabled={displayedUrls.length + pendingFiles.length >= MAX_IMAGES}
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileSelect(file);
+                }}
+              />
+            </div>
 
-            {isEditMode && (
-              <>
-                <div className={styles.fieldGroup}>
-                  <input
-                    ref={fileInputRef}
-                    className={styles.input}
-                    type="file"
-                    accept=".jpg,.jpeg,.png,.webp"
-                    disabled={uploadingImage || displayedUrls.length >= MAX_IMAGES}
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) void handleImageUpload(file);
-                    }}
+            <div className={styles.imageGrid}>
+              {displayedUrls.map((url, i) => (
+                <div key={url} className={styles.imageItem}>
+                  <img
+                    src={url}
+                    alt={`Product image ${i + 1}`}
+                    className={styles.imageThumb}
                   />
-                  {uploadingImage && (
-                    <p style={{ marginTop: 6, fontSize: 13, color: "#6366f1" }}>
-                      Uploading...
-                    </p>
+                  {i === 0 && (
+                    <span className={styles.primaryBadge}>Primary</span>
                   )}
+                  <button
+                    type="button"
+                    className={styles.deleteImageButton}
+                    onClick={() => handleDeleteImage(i)}
+                  >
+                    ×
+                  </button>
                 </div>
+              ))}
 
-                <div className={styles.imageGrid}>
-                  {displayedUrls.map((url, i) => (
-                    <div key={i} className={styles.imageItem}>
-                      <img
-                        src={url}
-                        alt={`Product image ${i + 1}`}
-                        className={styles.imageThumb}
-                      />
-                      {i === 0 && (
-                        <span className={styles.primaryBadge}>Primary</span>
-                      )}
-                      <button
-                        type="button"
-                        className={styles.deleteImageButton}
-                        onClick={() => void handleDeleteImage(i)}
-                      >
-                        ×
-                      </button>
-                    </div>
-                  ))}
-
-                  {displayedUrls.length === 0 && (
-                    <div className={styles.imagePlaceholder}>
-                      <img
-                        src={DEFAULT_PRODUCT_IMAGE}
-                        alt="No image"
-                        className={styles.imageThumb}
-                        style={{ opacity: 0.4 }}
-                      />
-                      <span style={{ fontSize: 12, color: "#9ca3af" }}>No images yet</span>
-                    </div>
-                  )}
+              {pendingFiles.map(({ previewUrl }, i) => (
+                <div key={previewUrl} className={styles.imageItem}>
+                  <img
+                    src={previewUrl}
+                    alt={`Pending image ${i + 1}`}
+                    className={styles.imageThumb}
+                  />
+                  <span className={styles.pendingBadge}>Unsaved</span>
+                  <button
+                    type="button"
+                    className={styles.deleteImageButton}
+                    onClick={() => handleRemovePendingFile(i)}
+                  >
+                    ×
+                  </button>
                 </div>
-              </>
-            )}
+              ))}
+
+              {displayedUrls.length === 0 && pendingFiles.length === 0 && (
+                <div className={styles.imagePlaceholder}>
+                  <img
+                    src={DEFAULT_PRODUCT_IMAGE}
+                    alt="No image"
+                    className={styles.imageThumb}
+                    style={{ opacity: 0.4 }}
+                  />
+                  <span style={{ fontSize: 12, color: "#9ca3af" }}>No images yet</span>
+                </div>
+              )}
+            </div>
           </section>
         </div>
 
