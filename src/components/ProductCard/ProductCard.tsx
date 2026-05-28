@@ -30,12 +30,14 @@ export function ProductCard({ product }: Props) {
   return (
     <div className={styles.card}>
       <Link to={`/products/${product.id}`} className={styles.imageLink}>
-        <img
-          src={primaryImage}
-          alt={product.name}
-          className={styles.image}
-          onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
-        />
+        <div className={styles.imageWrapper}>
+          <img
+            src={primaryImage}
+            alt={product.name}
+            className={styles.image}
+            onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
+          />
+        </div>
       </Link>
 
       <div className={styles.body}>
