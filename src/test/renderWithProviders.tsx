@@ -26,22 +26,25 @@ export function createMockAuthValue(user: User | null) {
   };
 }
 
-export const mockReminderValue = {
-  message: null as string | null,
-  visible: false,
-  showReminder: vi.fn(),
-  hideReminder: vi.fn(),
-};
+function createMockReminderValue() {
+  return {
+    message: null as string | null,
+    visible: false,
+    showReminder: vi.fn(),
+    hideReminder: vi.fn(),
+  };
+}
 
 export function createProviderWrapper(options: RenderOptions = {}) {
   const { user = createMockUser(), initialEntries = ['/'] } = options;
   const authValue = createMockAuthValue(user);
+  const reminderValue = createMockReminderValue();
 
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
       <MemoryRouter initialEntries={initialEntries}>
         <AuthContext.Provider value={authValue}>
-          <ReminderContext.Provider value={mockReminderValue}>
+          <ReminderContext.Provider value={reminderValue}>
             <CartSideBarProvider>
               {children}
             </CartSideBarProvider>

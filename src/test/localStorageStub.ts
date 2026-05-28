@@ -2,7 +2,7 @@ import { beforeEach, afterEach } from 'vitest';
 
 export function setupLocalStorageStub(): Map<string, string> {
   const store = new Map<string, string>();
-  let originalDescriptor: PropertyDescriptor | undefined;
+  const originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
 
   const mock = {
     getItem: (key: string) => store.get(key) ?? null,
@@ -15,7 +15,6 @@ export function setupLocalStorageStub(): Map<string, string> {
 
   beforeEach(() => {
     store.clear();
-    originalDescriptor = Object.getOwnPropertyDescriptor(window, 'localStorage');
     Object.defineProperty(window, 'localStorage', {
       value: mock,
       writable: true,
