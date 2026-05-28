@@ -27,7 +27,7 @@ type AuthContextValue = {
   getUserGroups: () => Promise<string[]>;
 };
 
-const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 const REDIRECT_PATH_KEY = "RedirectPath";
 
