@@ -378,7 +378,7 @@ export function CheckoutPage() {
       );
 
       if (STRIPE_BYPASS) {
-        window.location.href = `/checkout/success?payment_intent=${order_id}&redirect_status=succeeded`;
+        window.location.href = `/checkout/success?payment_intent=${order_id ?? "bypass"}&redirect_status=succeeded`;
         return;
       }
 

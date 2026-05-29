@@ -45,7 +45,7 @@ export interface AdminOrder extends Order {
 
 export interface PaymentIntentResponse {
   client_secret: string;
-  order_id: string;
+  order_id?: string; // only set in bypass mode; real flow creates order on webhook
 }
 
 export interface CheckoutShipping {
