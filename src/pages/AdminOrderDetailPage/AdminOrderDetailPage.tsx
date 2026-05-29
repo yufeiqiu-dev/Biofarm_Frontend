@@ -7,6 +7,7 @@ import {
   adminShipOrder,
   adminDeliverOrder,
   adminCancelOrder,
+  adminUpdateTracking,
 } from "../../api/admin_order";
 import type { AdminOrder } from "../../types/order_types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -110,6 +111,11 @@ export function AdminOrderDetailPage() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [confirmConfirm, setConfirmConfirm] = useState(false);
   const [shipModalOpen, setShipModalOpen] = useState(false);
+  const [editingTracking, setEditingTracking] = useState(false);
+  const [trackingDraft, setTrackingDraft] = useState("");
+  const [trackingLoading, setTrackingLoading] = useState(false);
+  const [trackingError, setTrackingError] = useState<string | null>(null);
+  const trackingInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!orderId) return;
@@ -130,6 +136,33 @@ export function AdminOrderDetailPage() {
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const startEditTracking = () => {
+    setTrackingDraft(order?.tracking_number ?? "");
+    setTrackingError(null);
+    setEditingTracking(true);
+    setTimeout(() => trackingInputRef.current?.focus(), 30);
+  };
+
+  const saveTracking = async () => {
+    if (!order) return;
+    setTrackingLoading(true);
+    setTrackingError(null);
+    try {
+      const updated = await adminUpdateTracking(order.id, trackingDraft.trim());
+      setOrder(updated);
+      setEditingTracking(false);
+    } catch (e) {
+      setTrackingError(e instanceof Error ? e.message : "Failed to save tracking.");
+    } finally {
+      setTrackingLoading(false);
+    }
+  };
+
+  const cancelEditTracking = () => {
+    setEditingTracking(false);
+    setTrackingError(null);
   };
 
   if (loading) return <div className={styles.page}><p>Loading...</p></div>;
@@ -231,11 +264,52 @@ export function AdminOrderDetailPage() {
           {order.shipping_city}, {order.shipping_state} {order.shipping_zip}
         </p>
         {order.notes && <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Note: {order.notes}</p>}
-        {order.tracking_number && (
-          <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
-            <span style={{ color: "#6b7280" }}>Tracking: </span>
-            <strong>{order.tracking_number}</strong>
-          </p>
+
+        {(order.status === "shipped" || order.status === "delivered") && (
+          <div className={styles.trackingRow}>
+            <span className={styles.trackingLabel}>Tracking</span>
+            {editingTracking ? (
+              <div className={styles.trackingEdit}>
+                <input
+                  ref={trackingInputRef}
+                  className={styles.trackingInput}
+                  type="text"
+                  value={trackingDraft}
+                  placeholder="Enter tracking number"
+                  onChange={(e) => setTrackingDraft(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") void saveTracking();
+                    if (e.key === "Escape") cancelEditTracking();
+                  }}
+                  disabled={trackingLoading}
+                />
+                <button
+                  className={styles.trackingBtnSave}
+                  onClick={() => void saveTracking()}
+                  disabled={trackingLoading}
+                >
+                  {trackingLoading ? "Saving…" : "Save"}
+                </button>
+                <button
+                  className={styles.trackingBtnCancel}
+                  onClick={cancelEditTracking}
+                  disabled={trackingLoading}
+                >
+                  Cancel
+                </button>
+                {trackingError && <span className={styles.trackingErr}>{trackingError}</span>}
+              </div>
+            ) : (
+              <div className={styles.trackingDisplay}>
+                <span className={styles.trackingValue}>
+                  {order.tracking_number || <span className={styles.trackingNone}>Not set</span>}
+                </span>
+                <button className={styles.trackingBtnEdit} onClick={startEditTracking}>
+                  {order.tracking_number ? "Edit" : "Add"}
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

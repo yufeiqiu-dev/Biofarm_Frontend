@@ -109,6 +109,118 @@
   color: #111827;
 }
 
+/* Inline tracking editor */
+.trackingRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-top: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.trackingLabel {
+  flex-shrink: 0;
+  color: #6b7280;
+  padding-top: 0.35rem;
+  min-width: 5rem;
+}
+
+.trackingDisplay {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  flex-wrap: wrap;
+}
+
+.trackingValue {
+  font-weight: 600;
+  color: #111827;
+  font-family: monospace;
+  font-size: 0.875rem;
+}
+
+.trackingNone {
+  font-style: italic;
+  color: #9ca3af;
+  font-weight: 400;
+  font-family: inherit;
+}
+
+.trackingBtnEdit {
+  background: none;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  padding: 0.2rem 0.625rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #374151;
+  cursor: pointer;
+}
+
+.trackingBtnEdit:hover { background: #f3f4f6; }
+
+.trackingEdit {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.trackingInput {
+  flex: 1;
+  min-width: 180px;
+  padding: 0.375rem 0.625rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  color: #111827;
+  outline: none;
+}
+
+.trackingInput:focus {
+  border-color: #065f46;
+  box-shadow: 0 0 0 2px rgba(6, 95, 70, 0.12);
+}
+
+.trackingInput:disabled { opacity: 0.6; }
+
+.trackingBtnSave {
+  background: #065f46;
+  color: #fff;
+  border: none;
+  border-radius: 5px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.trackingBtnSave:hover:not(:disabled) { background: #047857; }
+.trackingBtnSave:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.trackingBtnCancel {
+  background: #fff;
+  color: #6b7280;
+  border: 1px solid #d1d5db;
+  border-radius: 5px;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.trackingBtnCancel:hover:not(:disabled) { background: #f9fafb; }
+.trackingBtnCancel:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.trackingErr {
+  font-size: 0.75rem;
+  color: #dc2626;
+  width: 100%;
+}
+
 /* Ship modal */
 .modalBackdrop {
   position: fixed;

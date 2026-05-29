@@ -34,6 +34,14 @@ export function adminDeliverOrder(orderId: string): Promise<AdminOrder> {
   });
 }
 
+export function adminUpdateTracking(orderId: string, trackingNumber: string): Promise<AdminOrder> {
+  return apiRequest(`/admin/orders/${orderId}/tracking`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ tracking_number: trackingNumber }),
+  });
+}
+
 export function adminCancelOrder(orderId: string): Promise<AdminOrder> {
   return apiRequest(`/admin/orders/${orderId}/cancel`, {
     method: "POST",
