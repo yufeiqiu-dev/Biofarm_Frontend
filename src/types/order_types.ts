@@ -35,6 +35,7 @@ export interface Order {
   shipping_state: string;
   shipping_zip: string;
   notes: string | null;
+  tracking_number: string | null;
   created_at: string;
   updated_at: string;
   items: OrderItem[];

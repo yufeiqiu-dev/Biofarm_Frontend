@@ -11,6 +11,7 @@ import { ProductDetailPage } from "./pages/ProductDetailPage";
 import { AuthCallBackPage } from "./pages/AuthCallBackPage";
 import { CheckoutPage } from "./pages/CheckoutPage";
 import { OrderSuccessPage } from "./pages/OrderSuccessPage";
+import { NotFoundPage } from "./pages/NotFoundPage";
 import { AdminRoute } from "./components/AdminRoute.tsx";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
@@ -45,6 +46,9 @@ export default function App() {
         <Route path="/admin/orders" element={<AdminOrdersPage />} />
         <Route path="/admin/orders/:orderId" element={<AdminOrderDetailPage />} />
       </Route>
+
+      {/* Catch-all 404 */}
+      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

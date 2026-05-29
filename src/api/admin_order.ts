@@ -18,11 +18,11 @@ export function adminConfirmOrder(orderId: string): Promise<AdminOrder> {
   });
 }
 
-export function adminShipOrder(orderId: string): Promise<AdminOrder> {
+export function adminShipOrder(orderId: string, trackingNumber?: string): Promise<AdminOrder> {
   return apiRequest(`/admin/orders/${orderId}/status`, {
     method: "PATCH",
     auth: true,
-    body: JSON.stringify({ status: "shipped" }),
+    body: JSON.stringify({ status: "shipped", tracking_number: trackingNumber || undefined }),
   });
 }
 

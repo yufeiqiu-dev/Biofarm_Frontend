@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+import ReactDOM from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import {
   adminGetOrder,
@@ -30,6 +31,76 @@ function CardBadge({ brand, last4 }: { brand: string; last4: string }) {
   );
 }
 
+interface ShipModalProps {
+  isOpen: boolean;
+  loading: boolean;
+  onConfirm: (trackingNumber: string) => void;
+  onCancel: () => void;
+}
+
+function ShipModal({ isOpen, loading, onConfirm, onCancel }: ShipModalProps) {
+  const [tracking, setTracking] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTracking("");
+    setTimeout(() => inputRef.current?.focus(), 50);
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
+    document.addEventListener("keydown", handler);
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.removeEventListener("keydown", handler);
+      document.body.style.overflow = "";
+    };
+  }, [isOpen, onCancel]);
+
+  if (!isOpen) return null;
+
+  return ReactDOM.createPortal(
+    <div className={styles.modalBackdrop} onClick={onCancel}>
+      <div
+        className={styles.modal}
+        onClick={(e) => e.stopPropagation()}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="ship-modal-title"
+      >
+        <h2 id="ship-modal-title" className={styles.modalTitle}>Mark as Shipped</h2>
+        <p className={styles.modalDesc}>
+          Enter a tracking number so the customer can follow their shipment. This will capture payment.
+        </p>
+        <label className={styles.modalLabel} htmlFor="tracking-input">
+          Tracking Number <span className={styles.modalOptional}>(optional)</span>
+        </label>
+        <input
+          id="tracking-input"
+          ref={inputRef}
+          className={styles.modalInput}
+          type="text"
+          placeholder="e.g. 1Z999AA10123456784"
+          value={tracking}
+          onChange={(e) => setTracking(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") onConfirm(tracking.trim()); }}
+        />
+        <div className={styles.modalButtons}>
+          <button className={styles.modalCancel} onClick={onCancel} disabled={loading}>
+            Cancel
+          </button>
+          <button
+            className={styles.modalConfirm}
+            onClick={() => onConfirm(tracking.trim())}
+            disabled={loading}
+          >
+            {loading ? "Shipping…" : "Mark Shipped"}
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 export function AdminOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<AdminOrder | null>(null);
@@ -37,6 +108,8 @@ export function AdminOrderDetailPage() {
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const [confirmConfirm, setConfirmConfirm] = useState(false);
+  const [shipModalOpen, setShipModalOpen] = useState(false);
 
   useEffect(() => {
     if (!orderId) return;
@@ -158,6 +231,12 @@ export function AdminOrderDetailPage() {
           {order.shipping_city}, {order.shipping_state} {order.shipping_zip}
         </p>
         {order.notes && <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Note: {order.notes}</p>}
+        {order.tracking_number && (
+          <p style={{ fontSize: "0.875rem", marginTop: "0.5rem" }}>
+            <span style={{ color: "#6b7280" }}>Tracking: </span>
+            <strong>{order.tracking_number}</strong>
+          </p>
+        )}
       </div>
 
       {/* Actions */}
@@ -170,7 +249,7 @@ export function AdminOrderDetailPage() {
               <button
                 className={styles.btnShip}
                 disabled={actionLoading}
-                onClick={() => handleAction(() => adminConfirmOrder(order.id))}
+                onClick={() => setConfirmConfirm(true)}
               >
                 Confirm Order
               </button>
@@ -179,7 +258,7 @@ export function AdminOrderDetailPage() {
               <button
                 className={styles.btnShip}
                 disabled={actionLoading}
-                onClick={() => handleAction(() => adminShipOrder(order.id))}
+                onClick={() => setShipModalOpen(true)}
               >
                 Mark Shipped
               </button>
@@ -205,6 +284,28 @@ export function AdminOrderDetailPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        isOpen={confirmConfirm}
+        title="Confirm Order"
+        message="Confirm this order and reserve stock? The customer will be notified that their order is being prepared."
+        confirmLabel="Confirm Order"
+        onConfirm={() => {
+          setConfirmConfirm(false);
+          void handleAction(() => adminConfirmOrder(order.id));
+        }}
+        onCancel={() => setConfirmConfirm(false)}
+      />
+
+      <ShipModal
+        isOpen={shipModalOpen}
+        loading={actionLoading}
+        onConfirm={(trackingNumber) => {
+          setShipModalOpen(false);
+          void handleAction(() => adminShipOrder(order.id, trackingNumber || undefined));
+        }}
+        onCancel={() => setShipModalOpen(false)}
+      />
 
       <ConfirmDialog
         isOpen={confirmCancel}

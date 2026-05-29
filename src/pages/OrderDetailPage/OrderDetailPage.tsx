@@ -175,6 +175,13 @@ export function OrderDetailPage() {
         {order.notes && <p className={styles.notes}>Note: {order.notes}</p>}
       </div>
 
+      {order.tracking_number && (
+        <div className={styles.card}>
+          <h3>Tracking</h3>
+          <p className={styles.shippingText}>{order.tracking_number}</p>
+        </div>
+      )}
+
       {order.card_last4 && (
         <div className={styles.card}>
           <h3>Payment</h3>
