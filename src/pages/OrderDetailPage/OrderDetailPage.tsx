@@ -94,7 +94,7 @@ export function OrderDetailPage() {
   if (error && !order) return <div className={styles.page}><p>Error: {error}</p></div>;
   if (!order) return <div className={styles.page}><p>Order not found.</p></div>;
 
-  const canCancel = order.status === "awaiting_fulfillment";
+  const canCancel = order.status === "pending" || order.status === "awaiting_fulfillment";
 
   return (
     <div className={styles.page}>

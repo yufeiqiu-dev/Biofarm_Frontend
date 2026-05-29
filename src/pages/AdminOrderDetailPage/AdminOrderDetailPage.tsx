@@ -55,7 +55,7 @@ export function AdminOrderDetailPage() {
   const canConfirm = order.status === "awaiting_fulfillment";
   const canShip = order.status === "confirmed";
   const canDeliver = order.status === "shipped";
-  const canCancel = order.status === "awaiting_fulfillment" || order.status === "confirmed" || order.status === "shipped";
+  const canCancel = order.status === "pending" || order.status === "awaiting_fulfillment" || order.status === "confirmed" || order.status === "shipped";
   const cancelNeedsRefund = order.status === "confirmed" || order.status === "shipped";
 
   return (
