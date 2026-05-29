@@ -81,7 +81,7 @@ function ContactStep({
         <label className={styles.label}>Email</label>
         <input
           className={styles.input}
-          value={user?.email ?? user?.name ?? ""}
+          value={user?.email ?? ""}
           disabled
         />
       </div>
