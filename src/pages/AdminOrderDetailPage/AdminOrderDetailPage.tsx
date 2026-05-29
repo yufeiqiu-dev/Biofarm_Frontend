@@ -55,8 +55,10 @@ export function AdminOrderDetailPage() {
   const canConfirm = order.status === "awaiting_fulfillment";
   const canShip = order.status === "confirmed";
   const canDeliver = order.status === "shipped";
-  const canCancel = order.status === "pending" || order.status === "awaiting_fulfillment" || order.status === "confirmed" || order.status === "shipped";
-  const cancelNeedsRefund = order.status === "confirmed" || order.status === "shipped";
+  const canCancel = order.status !== "cancelled";
+  // Capture happens at ship time — anything before shipped has no charge (void auth).
+  // shipped/delivered means money was captured, so cancel = refund.
+  const cancelNeedsRefund = order.status === "shipped" || order.status === "delivered";
 
   return (
     <div className={styles.page}>
