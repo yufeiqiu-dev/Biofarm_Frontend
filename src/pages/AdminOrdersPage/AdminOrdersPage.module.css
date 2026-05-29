@@ -2,6 +2,39 @@
   padding: 2rem;
 }
 
+.pageHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  margin-bottom: 1.25rem;
+  flex-wrap: wrap;
+}
+
+.pageHeader h1 {
+  margin: 0;
+}
+
+.searchInput {
+  padding: 0.5rem 0.875rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  width: 300px;
+  outline: none;
+}
+
+.searchInput:focus {
+  border-color: #2d6a4f;
+  box-shadow: 0 0 0 2px rgba(45, 106, 79, 0.15);
+}
+
+.userId {
+  font-family: monospace;
+  font-size: 0.75rem;
+  color: #9ca3af;
+}
+
 .tabs {
   display: flex;
   gap: 0.5rem;

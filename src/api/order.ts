@@ -28,3 +28,7 @@ export function getMyOrder(orderId: string): Promise<Order> {
 export function cancelMyOrder(orderId: string): Promise<Order> {
   return apiRequest(`/orders/${orderId}/cancel`, { method: "POST", auth: true });
 }
+
+export function getMyOrderByPaymentIntent(piId: string): Promise<Order> {
+  return apiRequest(`/orders/by-payment-intent/${piId}`, { auth: true });
+}

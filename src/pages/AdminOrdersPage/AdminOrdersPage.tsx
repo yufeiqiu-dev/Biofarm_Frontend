@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminListOrders } from "../../api/admin_order";
 import type { AdminOrder, OrderStatus } from "../../types/order_types";
@@ -37,6 +37,7 @@ export function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     setLoading(true);
@@ -47,9 +48,32 @@ export function AdminOrdersPage() {
       .finally(() => setLoading(false));
   }, [activeTab]);
 
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return orders;
+    return orders.filter((o) => {
+      if (String(o.order_number).includes(q)) return true;
+      if (o.customer_email.toLowerCase().includes(q)) return true;
+      if (o.shipping_name.toLowerCase().includes(q)) return true;
+      if (o.user_id.toLowerCase().includes(q)) return true;
+      if (o.id.toLowerCase().includes(q)) return true;
+      return false;
+    });
+  }, [orders, search]);
+
   return (
     <div className={styles.page}>
-      <h1>Orders</h1>
+      <div className={styles.pageHeader}>
+        <h1>Orders</h1>
+        <input
+          className={styles.searchInput}
+          type="search"
+          placeholder="Search by order #, email, or customer ID…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
       <div className={styles.tabs}>
         {TABS.map((tab) => (
           <button
@@ -66,8 +90,8 @@ export function AdminOrdersPage() {
 
       {loading ? (
         <p>Loading...</p>
-      ) : orders.length === 0 ? (
-        <p>No orders found.</p>
+      ) : filtered.length === 0 ? (
+        <p>{search ? "No orders match your search." : "No orders found."}</p>
       ) : (
         <table className={styles.table}>
           <thead>
@@ -81,15 +105,19 @@ export function AdminOrdersPage() {
             </tr>
           </thead>
           <tbody>
-            {orders.map((order) => (
+            {filtered.map((order) => (
               <tr key={order.id} onClick={() => navigate(`/admin/orders/${order.id}`)}>
                 <td>#{order.order_number}</td>
-                <td style={{ fontFamily: "monospace", fontSize: "0.75rem" }}>
-                  {order.user_id.substring(0, 12)}…
+                <td>
+                  {order.customer_email ? (
+                    <span>{order.customer_email}</span>
+                  ) : (
+                    <span title={order.user_id}>{order.shipping_name}</span>
+                  )}
                 </td>
                 <td>{new Date(order.created_at).toLocaleDateString()}</td>
                 <td>{order.items.length}</td>
-                <td>${Number(order.total_amount).toFixed(2)}</td>
+                <td>${(Number(order.total_amount) + Number(order.tax_amount)).toFixed(2)}</td>
                 <td>
                   <span className={`${styles.badge} ${STATUS_BADGE_CLASS[order.status]}`}>
                     {STATUS_LABELS[order.status]}

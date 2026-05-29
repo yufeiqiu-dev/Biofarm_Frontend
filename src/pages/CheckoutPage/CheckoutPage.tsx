@@ -224,14 +224,16 @@ function ReviewStep({
   shipping,
   onBack,
   onNext,
+  loading,
 }: {
   contact: ContactForm;
   shipping: ShippingForm;
   onBack: () => void;
   onNext: () => void;
+  loading: boolean;
 }) {
   const { cartItems } = useCartSideBar();
-  const total = cartItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
+  const subtotal = cartItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
 
   return (
     <div className={styles.card}>
@@ -245,9 +247,17 @@ function ReviewStep({
           <span>${(item.unitPrice * item.quantity).toFixed(2)}</span>
         </div>
       ))}
+      <div className={styles.summaryRow} style={{ color: "#6b7280", marginTop: "0.5rem" }}>
+        <span>Subtotal</span>
+        <span>${subtotal.toFixed(2)}</span>
+      </div>
+      <div className={styles.summaryRow} style={{ color: "#6b7280" }}>
+        <span>Tax</span>
+        <span>Calculated at payment</span>
+      </div>
       <div className={styles.summaryTotal}>
-        <span>Total</span>
-        <span>${total.toFixed(2)}</span>
+        <span>Estimated Total</span>
+        <span>~${subtotal.toFixed(2)}+</span>
       </div>
       <h3 style={{ marginTop: "1.5rem" }}>Shipping To</h3>
       <p style={{ fontSize: "0.875rem", color: "#374151" }}>
@@ -264,11 +274,11 @@ function ReviewStep({
         </p>
       )}
       <div className={styles.actions}>
-        <button className={styles.btnSecondary} onClick={onBack}>
+        <button className={styles.btnSecondary} onClick={onBack} disabled={loading}>
           ← Back
         </button>
-        <button className={styles.btnPrimary} onClick={onNext}>
-          Proceed to Payment →
+        <button className={styles.btnPrimary} onClick={onNext} disabled={loading}>
+          {loading ? "Calculating tax…" : "Proceed to Payment →"}
         </button>
       </div>
     </div>
@@ -277,11 +287,13 @@ function ReviewStep({
 
 function PaymentForm({
   onBack,
-  total,
+  subtotalCents,
+  taxAmountCents,
 }: {
   clientSecret: string;
   onBack: () => void;
-  total: number;
+  subtotalCents: number;
+  taxAmountCents: number;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -306,10 +318,29 @@ function PaymentForm({
     }
   };
 
+  const subtotal = subtotalCents / 100;
+  const tax = taxAmountCents / 100;
+  const total = subtotal + tax;
+  const taxPct = subtotalCents > 0
+    ? parseFloat((taxAmountCents / subtotalCents * 100).toFixed(2))
+    : 0;
+
   return (
     <div className={styles.card}>
       <h2>Payment</h2>
       <PaymentElement />
+      <div className={styles.summaryRow} style={{ marginTop: "1.25rem", color: "#6b7280" }}>
+        <span>Subtotal</span>
+        <span>${subtotal.toFixed(2)}</span>
+      </div>
+      <div className={styles.summaryRow} style={{ color: "#6b7280" }}>
+        <span>Tax ({taxPct}%)</span>
+        <span>${tax.toFixed(2)}</span>
+      </div>
+      <div className={styles.summaryTotal}>
+        <span>Total</span>
+        <span>${total.toFixed(2)}</span>
+      </div>
       {error && <p className={styles.error}>{error}</p>}
       <div className={styles.actions}>
         <button
@@ -346,6 +377,9 @@ export function CheckoutPage() {
     notes: "",
   });
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [subtotalCents, setSubtotalCents] = useState(0);
+  const [taxAmountCents, setTaxAmountCents] = useState(0);
+  const [piLoading, setPiLoading] = useState(false);
   const [piError, setPiError] = useState<string | null>(null);
 
   if (cartItems.length === 0) {
@@ -357,6 +391,7 @@ export function CheckoutPage() {
 
   const handleProceedToPayment = async () => {
     setPiError(null);
+    setPiLoading(true);
     try {
       const cartPayload = cartItems.map((i) => ({
         variant_id: i.variantId,
@@ -372,10 +407,13 @@ export function CheckoutPage() {
         zip: shipping.zip,
         notes: shipping.notes || undefined,
       };
-      const { client_secret, order_id } = await createPaymentIntent(
+      const { client_secret, order_id, subtotal_cents, tax_amount_cents } = await createPaymentIntent(
         cartPayload,
         shippingPayload
       );
+
+      setSubtotalCents(subtotal_cents);
+      setTaxAmountCents(tax_amount_cents);
 
       if (STRIPE_BYPASS) {
         window.location.href = `/checkout/success?payment_intent=${order_id ?? "bypass"}&redirect_status=succeeded`;
@@ -388,6 +426,8 @@ export function CheckoutPage() {
       setPiError(
         e instanceof Error ? e.message : "Failed to initiate payment."
       );
+    } finally {
+      setPiLoading(false);
     }
   };
 
@@ -417,6 +457,7 @@ export function CheckoutPage() {
             shipping={shipping}
             onBack={() => setStep(1)}
             onNext={handleProceedToPayment}
+            loading={piLoading}
           />
           {piError && <p className={styles.error}>{piError}</p>}
         </>
@@ -426,7 +467,8 @@ export function CheckoutPage() {
           <PaymentForm
             clientSecret={clientSecret}
             onBack={() => setStep(2)}
-            total={total}
+            subtotalCents={subtotalCents}
+            taxAmountCents={taxAmountCents}
           />
         </Elements>
       )}

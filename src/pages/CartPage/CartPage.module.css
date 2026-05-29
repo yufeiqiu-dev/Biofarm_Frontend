@@ -1,0 +1,144 @@
+.page {
+  max-width: 900px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.heading {
+  margin: 0 0 1.75rem;
+  font-size: 1.5rem;
+}
+
+/* ── Empty ── */
+
+.empty {
+  text-align: center;
+  padding: 5rem 1rem;
+  color: #6b7280;
+}
+
+.emptyIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty p {
+  margin: 0 0 1.25rem;
+}
+
+.shopLink {
+  display: inline-block;
+  padding: 0.625rem 1.5rem;
+  background: #15803d;
+  color: white;
+  border-radius: 9999px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.shopLink:hover {
+  background: #166534;
+}
+
+/* ── Layout ── */
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  gap: 2rem;
+  align-items: start;
+}
+
+/* ── Items panel ── */
+
+.itemsPanel {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 0 1.25rem;
+}
+
+/* ── Summary panel ── */
+
+.summary {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.5rem;
+  position: sticky;
+  top: 100px;
+}
+
+.summaryTitle {
+  margin: 0 0 1.25rem;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.summaryRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin-bottom: 0.625rem;
+}
+
+.summaryDivider {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 1rem 0;
+}
+
+.summaryTotal {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: 1rem;
+  color: #111827;
+  margin-bottom: 1.25rem;
+}
+
+.checkoutBtn {
+  display: block;
+  width: 100%;
+  padding: 0.8rem;
+  background: #15803d;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  text-align: center;
+  text-decoration: none;
+  border-radius: 0.5rem;
+  border: none;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+
+.checkoutBtn:hover {
+  background: #166534;
+}
+
+.checkoutBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.signInNote {
+  margin: 0.75rem 0 0;
+  font-size: 0.75rem;
+  color: #9ca3af;
+  text-align: center;
+}
+
+/* ── Responsive ── */
+
+@media (max-width: 680px) {
+  .layout {
+    grid-template-columns: 1fr;
+  }
+
+  .summary {
+    position: static;
+  }
+}

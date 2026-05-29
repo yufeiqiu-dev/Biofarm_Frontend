@@ -9,6 +9,7 @@ import {
 } from "../../api/admin_order";
 import type { AdminOrder } from "../../types/order_types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { formatCardDisplay } from "../../utils/card";
 import styles from "./AdminOrderDetailPage.module.css";
 
 const STATUS_LABELS: Record<string, string> = {
@@ -19,6 +20,15 @@ const STATUS_LABELS: Record<string, string> = {
   delivered: "Delivered",
   cancelled: "Cancelled",
 };
+
+function CardBadge({ brand, last4 }: { brand: string; last4: string }) {
+  if (!last4) return null;
+  return (
+    <span className={styles.cardChip}>
+      {formatCardDisplay(brand, last4)}
+    </span>
+  );
+}
 
 export function AdminOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
@@ -56,19 +66,52 @@ export function AdminOrderDetailPage() {
   const canShip = order.status === "confirmed";
   const canDeliver = order.status === "shipped";
   const canCancel = order.status !== "cancelled";
-  // Capture happens at ship time — anything before shipped has no charge (void auth).
-  // shipped/delivered means money was captured, so cancel = refund.
   const cancelNeedsRefund = order.status === "shipped" || order.status === "delivered";
+
+  const subtotal = order.items.reduce((s, i) => s + Number(i.unit_price) * i.quantity, 0);
+  const tax = Number(order.tax_amount);
+  const total = subtotal + tax;
 
   return (
     <div className={styles.page}>
       <Link to="/admin/orders">← Back to Orders</Link>
       <h1>Order #{order.order_number}</h1>
-      <p>
-        Status: <strong>{STATUS_LABELS[order.status] ?? order.status}</strong>
-        {" · "}Customer: <code style={{ fontSize: "0.8rem" }}>{order.user_id}</code>
-      </p>
 
+      {/* Customer + payment meta */}
+      <div className={styles.card}>
+        <h3>Customer</h3>
+        <div className={styles.metaGrid}>
+          <div>
+            <div className={styles.metaLabel}>Email</div>
+            <div className={styles.metaValue}>
+              {order.customer_email || (
+                <code style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{order.user_id}</code>
+              )}
+            </div>
+          </div>
+          <div>
+            <div className={styles.metaLabel}>Status</div>
+            <div className={styles.metaValue}>{STATUS_LABELS[order.status] ?? order.status}</div>
+          </div>
+          <div>
+            <div className={styles.metaLabel}>Payment</div>
+            <div className={styles.metaValue}>
+              <CardBadge brand={order.card_brand} last4={order.card_last4} />
+              {!order.card_last4 && <span style={{ color: "#9ca3af", fontSize: "0.8125rem" }}>—</span>}
+            </div>
+          </div>
+          <div>
+            <div className={styles.metaLabel}>Order Date</div>
+            <div className={styles.metaValue}>
+              {new Date(order.created_at).toLocaleDateString("en-US", {
+                month: "short", day: "numeric", year: "numeric",
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Items */}
       <div className={styles.card}>
         <h3>Items</h3>
         {order.items.map((item) => {
@@ -88,12 +131,25 @@ export function AdminOrderDetailPage() {
             </div>
           );
         })}
+        <div style={{ marginTop: "0.5rem" }}>
+          <div className={styles.totalRow}>
+            <span>Subtotal</span>
+            <span>${subtotal.toFixed(2)}</span>
+          </div>
+          {tax > 0 && (
+            <div className={styles.totalRow}>
+              <span>Tax</span>
+              <span>${tax.toFixed(2)}</span>
+            </div>
+          )}
+        </div>
         <div className={styles.total}>
           <span>Total</span>
-          <span>${Number(order.total_amount).toFixed(2)}</span>
+          <span>${total.toFixed(2)}</span>
         </div>
       </div>
 
+      {/* Shipping */}
       <div className={styles.card}>
         <h3>Shipping Address</h3>
         <p style={{ fontSize: "0.875rem" }}>
@@ -104,6 +160,7 @@ export function AdminOrderDetailPage() {
         {order.notes && <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Note: {order.notes}</p>}
       </div>
 
+      {/* Actions */}
       {(canConfirm || canShip || canDeliver || canCancel) && (
         <div className={styles.card}>
           <h3>Actions</h3>

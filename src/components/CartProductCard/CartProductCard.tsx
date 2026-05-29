@@ -55,8 +55,9 @@ export function CartProductCard({
             type="button"
             className={styles.removeButton}
             onClick={() => onRemove(item.id)}
+            aria-label="Remove item"
           >
-            Remove
+            🗑
           </button>
         </div>
 

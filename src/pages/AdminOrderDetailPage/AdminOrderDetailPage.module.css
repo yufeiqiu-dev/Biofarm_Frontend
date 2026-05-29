@@ -73,9 +73,52 @@
   cursor: not-allowed;
 }
 
+.totalRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 0.8125rem;
+  color: #6b7280;
+  padding: 0.25rem 0;
+}
+
 .total {
   display: flex;
   justify-content: space-between;
   font-weight: 700;
-  padding-top: 0.75rem;
+  padding-top: 0.5rem;
+  margin-top: 0.25rem;
+  border-top: 1px solid #e5e7eb;
+}
+
+.metaGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 2rem;
+  font-size: 0.875rem;
+}
+
+.metaLabel {
+  color: #6b7280;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.125rem;
+}
+
+.metaValue {
+  color: #111827;
+}
+
+.cardChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  background: #f3f4f6;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+  font-family: monospace;
+  color: #374151;
+  font-weight: 500;
 }

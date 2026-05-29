@@ -1,9 +1,36 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getMyOrder, cancelMyOrder } from "../../api/order";
-import type { Order } from "../../types/order_types";
+import { formatCardDisplay } from "../../utils/card";
+import type { Order, OrderStatus } from "../../types/order_types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./OrderDetailPage.module.css";
+
+const STATUS_LABELS: Record<OrderStatus, string> = {
+  pending: "Pending",
+  awaiting_fulfillment: "Processing",
+  confirmed: "Processing",
+  shipped: "Shipped",
+  delivered: "Delivered",
+  cancelled: "Cancelled",
+};
+
+const STATUS_BADGE: Record<OrderStatus, string> = {
+  pending: styles.badgePending,
+  awaiting_fulfillment: styles.badgeProcessing,
+  confirmed: styles.badgeProcessing,
+  shipped: styles.badgeShipped,
+  delivered: styles.badgeDelivered,
+  cancelled: styles.badgeCancelled,
+};
+
+function formatDate(iso: string) {
+  return new Date(iso).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
 
 const STEPS = ["Pending", "Processing", "Shipped", "Delivered"];
 
@@ -99,7 +126,15 @@ export function OrderDetailPage() {
   return (
     <div className={styles.page}>
       <Link to="/orders" className={styles.back}>← Back to Orders</Link>
-      <h1 className={styles.heading}>Order #{order.order_number}</h1>
+      <div className={styles.pageHeader}>
+        <div>
+          <h1 className={styles.heading}>Order #{order.order_number}</h1>
+          <span className={styles.orderDate}>Placed {formatDate(order.created_at)}</span>
+        </div>
+        <span className={`${styles.badge} ${STATUS_BADGE[order.status]}`}>
+          {STATUS_LABELS[order.status]}
+        </span>
+      </div>
 
       <div className={styles.card}>
         <h3>Order Status</h3>
@@ -114,21 +149,40 @@ export function OrderDetailPage() {
             <span>${(Number(item.unit_price) * item.quantity).toFixed(2)}</span>
           </div>
         ))}
+        <div className={styles.itemRow} style={{ color: "#6b7280" }}>
+          <span>Subtotal</span>
+          <span>${Number(order.total_amount).toFixed(2)}</span>
+        </div>
+        {Number(order.tax_amount) > 0 && (
+          <div className={styles.itemRow} style={{ color: "#6b7280" }}>
+            <span>Tax ({parseFloat((Number(order.tax_amount) / Number(order.total_amount) * 100).toFixed(2))}%)</span>
+            <span>${Number(order.tax_amount).toFixed(2)}</span>
+          </div>
+        )}
         <div className={styles.total}>
           <span>Total</span>
-          <span>${Number(order.total_amount).toFixed(2)}</span>
+          <span>${(Number(order.total_amount) + Number(order.tax_amount)).toFixed(2)}</span>
         </div>
       </div>
 
       <div className={styles.card}>
         <h3>Shipping Address</h3>
         <p className={styles.shippingText}>
-          {order.shipping_name}<br />
+          {order.shipping_name} · {order.shipping_phone}<br />
           {order.shipping_address1}{order.shipping_address2 ? `, ${order.shipping_address2}` : ""}<br />
           {order.shipping_city}, {order.shipping_state} {order.shipping_zip}
         </p>
         {order.notes && <p className={styles.notes}>Note: {order.notes}</p>}
       </div>
+
+      {order.card_last4 && (
+        <div className={styles.card}>
+          <h3>Payment</h3>
+          <p className={styles.shippingText}>
+            {formatCardDisplay(order.card_brand, order.card_last4)}
+          </p>
+        </div>
+      )}
 
       {canCancel && (
         <div className={styles.card}>

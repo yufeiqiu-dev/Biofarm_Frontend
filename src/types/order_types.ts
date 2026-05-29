@@ -24,6 +24,9 @@ export interface Order {
   order_number: number;
   status: OrderStatus;
   total_amount: number;
+  tax_amount: number;
+  card_brand: string;
+  card_last4: string;
   shipping_name: string;
   shipping_phone: string;
   shipping_address1: string;
@@ -39,13 +42,16 @@ export interface Order {
 
 export interface AdminOrder extends Order {
   user_id: string;
+  customer_email: string;
   stripe_payment_intent_id: string;
   items: AdminOrderItem[];
 }
 
 export interface PaymentIntentResponse {
   client_secret: string;
-  order_id?: string; // only set in bypass mode; real flow creates order on webhook
+  order_id?: string;
+  subtotal_cents: number;
+  tax_amount_cents: number;
 }
 
 export interface CheckoutShipping {
