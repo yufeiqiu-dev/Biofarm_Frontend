@@ -7,6 +7,7 @@ import shared from "../../styles/shared.module.css";
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   awaiting_fulfillment: "Awaiting Fulfillment",
+  confirmed: "Confirmed",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",

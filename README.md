@@ -20,7 +20,34 @@ VITE_COGNITO_USER_POOL_CLIENT_ID=
 VITE_COGNITO_DOMAIN=
 VITE_COGNITO_REDIRECT_SIGN_IN=http://localhost:5174/auth/callback
 VITE_COGNITO_REDIRECT_SIGN_OUT=http://localhost:5174/auth/callback
+
+# Stripe — set BYPASS to true for local dev (no card required)
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_BYPASS=true
 ```
+
+> `VITE_STRIPE_BYPASS=true` skips the Stripe Payment Element — clicking "Pay" completes the order immediately without a real card. Set to `false` (with a real publishable key) only when testing the full payment flow. Must match `STRIPE_BYPASS` in the backend `.env`.
+
+---
+
+## Pages & Routes
+
+| Route | Auth | Description |
+|-------|------|-------------|
+| `/` | No | Home |
+| `/products` | No | Product catalogue |
+| `/products/:id` | No | Product detail |
+| `/cart` | No | Cart |
+| `/about` | No | About |
+| `/checkout` | User | Multi-step checkout wizard (Contact → Shipping → Review → Payment) |
+| `/checkout/success` | No | Post-payment confirmation, clears cart |
+| `/orders` | User | Order history list |
+| `/orders/:id` | User | Order detail + cancel button (while awaiting fulfillment) |
+| `/admin/products` | Admin | Product management |
+| `/admin/products/:id` | Admin | Product edit / create |
+| `/admin/tags` | Admin | Tag management |
+| `/admin/orders` | Admin | Order list with status filter tabs |
+| `/admin/orders/:id` | Admin | Order detail + Confirm / Ship / Deliver / Cancel actions |
 
 ---
 

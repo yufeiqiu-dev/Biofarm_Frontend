@@ -24,3 +24,7 @@ export function getMyOrders(): Promise<Order[]> {
 export function getMyOrder(orderId: string): Promise<Order> {
   return apiRequest(`/orders/${orderId}`, { auth: true });
 }
+
+export function cancelMyOrder(orderId: string): Promise<Order> {
+  return apiRequest(`/orders/${orderId}/cancel`, { method: "POST", auth: true });
+}

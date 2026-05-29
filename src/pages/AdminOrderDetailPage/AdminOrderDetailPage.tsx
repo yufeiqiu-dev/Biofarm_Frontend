@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   adminGetOrder,
+  adminConfirmOrder,
   adminShipOrder,
   adminDeliverOrder,
   adminCancelOrder,
@@ -13,6 +14,7 @@ import styles from "./AdminOrderDetailPage.module.css";
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   awaiting_fulfillment: "Awaiting Fulfillment",
+  confirmed: "Confirmed",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -50,9 +52,11 @@ export function AdminOrderDetailPage() {
   if (loading) return <div className={styles.page}><p>Loading...</p></div>;
   if (!order) return <div className={styles.page}><p>Order not found.</p></div>;
 
-  const canShip = order.status === "awaiting_fulfillment";
+  const canConfirm = order.status === "awaiting_fulfillment";
+  const canShip = order.status === "confirmed";
   const canDeliver = order.status === "shipped";
-  const canCancel = order.status === "awaiting_fulfillment" || order.status === "shipped";
+  const canCancel = order.status === "awaiting_fulfillment" || order.status === "confirmed" || order.status === "shipped";
+  const cancelNeedsRefund = order.status === "confirmed" || order.status === "shipped";
 
   return (
     <div className={styles.page}>
@@ -98,11 +102,20 @@ export function AdminOrderDetailPage() {
         {order.notes && <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Note: {order.notes}</p>}
       </div>
 
-      {(canShip || canDeliver || canCancel) && (
+      {(canConfirm || canShip || canDeliver || canCancel) && (
         <div className={styles.card}>
           <h3>Actions</h3>
           {error && <p style={{ color: "#dc2626", marginBottom: "0.75rem" }}>{error}</p>}
           <div className={styles.actions}>
+            {canConfirm && (
+              <button
+                className={styles.btnShip}
+                disabled={actionLoading}
+                onClick={() => handleAction(() => adminConfirmOrder(order.id))}
+              >
+                Confirm Order
+              </button>
+            )}
             {canShip && (
               <button
                 className={styles.btnShip}
@@ -127,7 +140,7 @@ export function AdminOrderDetailPage() {
                 disabled={actionLoading}
                 onClick={() => setConfirmCancel(true)}
               >
-                Cancel + Refund
+                {cancelNeedsRefund ? "Cancel + Refund" : "Cancel Order"}
               </button>
             )}
           </div>
@@ -137,8 +150,12 @@ export function AdminOrderDetailPage() {
       <ConfirmDialog
         isOpen={confirmCancel}
         title="Cancel Order"
-        message="Are you sure you want to cancel this order and issue a refund? This action cannot be undone."
-        confirmLabel="Cancel + Refund"
+        message={
+          cancelNeedsRefund
+            ? "Are you sure you want to cancel this order and issue a refund? This action cannot be undone."
+            : "Are you sure you want to cancel this order? No charge has been made."
+        }
+        confirmLabel={cancelNeedsRefund ? "Cancel + Refund" : "Cancel Order"}
         variant="danger"
         onConfirm={() => {
           setConfirmCancel(false);

@@ -7,6 +7,7 @@ import styles from "./AdminOrdersPage.module.css";
 const TABS: { label: string; value: string | null }[] = [
   { label: "All", value: null },
   { label: "Awaiting Fulfillment", value: "awaiting_fulfillment" },
+  { label: "Confirmed", value: "confirmed" },
   { label: "Shipped", value: "shipped" },
   { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
@@ -15,6 +16,7 @@ const TABS: { label: string; value: string | null }[] = [
 const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   pending: styles.badgePending,
   awaiting_fulfillment: styles.badgeAwaiting,
+  confirmed: styles.badgeConfirmed,
   shipped: styles.badgeShipped,
   delivered: styles.badgeDelivered,
   cancelled: styles.badgeCancelled,
@@ -23,6 +25,7 @@ const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Pending",
   awaiting_fulfillment: "Awaiting",
+  confirmed: "Confirmed",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",

@@ -10,6 +10,14 @@ export function adminGetOrder(orderId: string): Promise<AdminOrder> {
   return apiRequest(`/admin/orders/${orderId}`, { auth: true });
 }
 
+export function adminConfirmOrder(orderId: string): Promise<AdminOrder> {
+  return apiRequest(`/admin/orders/${orderId}/status`, {
+    method: "PATCH",
+    auth: true,
+    body: JSON.stringify({ status: "confirmed" }),
+  });
+}
+
 export function adminShipOrder(orderId: string): Promise<AdminOrder> {
   return apiRequest(`/admin/orders/${orderId}/status`, {
     method: "PATCH",

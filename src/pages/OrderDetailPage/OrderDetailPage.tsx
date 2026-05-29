@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { getMyOrder } from "../../api/order";
+import { getMyOrder, cancelMyOrder } from "../../api/order";
 import type { Order } from "../../types/order_types";
 import styles from "./OrderDetailPage.module.css";
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
   awaiting_fulfillment: "Awaiting Fulfillment",
+  confirmed: "Confirmed",
   shipped: "Shipped",
   delivered: "Delivered",
   cancelled: "Cancelled",
@@ -17,6 +18,7 @@ export function OrderDetailPage() {
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     if (!orderId) { setLoading(false); return; }
@@ -25,6 +27,19 @@ export function OrderDetailPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [orderId]);
+
+  const handleCancel = async () => {
+    if (!orderId || !window.confirm("Cancel this order? No charge will be made.")) return;
+    setCancelLoading(true);
+    try {
+      const updated = await cancelMyOrder(orderId);
+      setOrder(updated);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Cancel failed.");
+    } finally {
+      setCancelLoading(false);
+    }
+  };
 
   if (loading) return <div className={styles.page}><p>Loading...</p></div>;
   if (error || !order) return <div className={styles.page}><p>Error: {error ?? "Not found"}</p></div>;
@@ -74,6 +89,26 @@ export function OrderDetailPage() {
         </p>
         {order.notes && <p style={{ fontSize: "0.875rem", color: "#6b7280" }}>Note: {order.notes}</p>}
       </div>
+
+      {order.status === "awaiting_fulfillment" && (
+        <div>
+          {error && <p style={{ color: "#dc2626", marginBottom: "0.5rem" }}>{error}</p>}
+          <button
+            onClick={handleCancel}
+            disabled={cancelLoading}
+            style={{
+              padding: "0.5rem 1rem",
+              background: "#fee2e2",
+              color: "#991b1b",
+              border: "1px solid #fca5a5",
+              borderRadius: "0.375rem",
+              cursor: "pointer",
+            }}
+          >
+            {cancelLoading ? "Cancelling..." : "Cancel Order"}
+          </button>
+        </div>
+      )}
     </div>
   );
 }
