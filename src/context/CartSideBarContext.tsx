@@ -15,6 +15,7 @@ type CartSideBarContextValue = {
   removeFromCart: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
   decreaseQuantity: (itemId: string) => void;
+  clearCart: () => void;
   toggleCartSideBar: () => void;
   openCartSideBar: () => void;
   closeCartSideBar: () => void;
@@ -106,6 +107,10 @@ useEffect(() => {
     );
   };
 
+  const clearCart = () => {
+    setCartItems([]);
+  };
+
   const decreaseQuantity = (itemId: string) => {
     setCartItems((prev) => {
       const targetItem = prev.find((item) => item.id === itemId);
@@ -133,6 +138,7 @@ useEffect(() => {
         removeFromCart,
         increaseQuantity,
         decreaseQuantity,
+        clearCart,
         toggleCartSideBar,
         openCartSideBar,
         closeCartSideBar,
