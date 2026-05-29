@@ -73,17 +73,23 @@ function ContactStep({
   onNext: () => void;
 }) {
   const { user } = useAuth();
+  const hasEmail = !!user?.email;
 
   return (
     <div className={styles.card}>
       <h2>Contact Information</h2>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Email</label>
+        <label className={styles.label}>Email *</label>
         <input
           className={styles.input}
           value={user?.email ?? ""}
           disabled
         />
+        {!hasEmail && (
+          <p className={styles.fieldError}>
+            No email is associated with your account. Please update your account email before checking out.
+          </p>
+        )}
       </div>
       <div className={styles.formGroup}>
         <label className={styles.label}>Full Name *</label>
@@ -107,7 +113,7 @@ function ContactStep({
         <button
           className={styles.btnPrimary}
           onClick={onNext}
-          disabled={!contact.name.trim() || !contact.phone.trim()}
+          disabled={!hasEmail || !contact.name.trim() || !contact.phone.trim()}
         >
           Continue →
         </button>

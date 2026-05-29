@@ -30,6 +30,66 @@ VITE_STRIPE_BYPASS=true
 
 ---
 
+## Stripe Sandbox Setup
+
+For day-to-day local development, keep `VITE_STRIPE_BYPASS=true` — no card needed, no Stripe CLI required.
+
+To test the real Stripe payment flow (card entry, webhook, full order lifecycle):
+
+### 1. Install the Stripe CLI
+
+```bash
+# macOS
+brew install stripe/stripe-cli/stripe
+
+# Other platforms: https://stripe.com/docs/stripe-cli
+```
+
+### 2. Log in to Stripe
+
+```bash
+stripe login
+```
+
+### 3. Forward webhooks to your local backend
+
+```bash
+stripe listen --forward-to localhost:8000/api/v1/stripe/webhook
+```
+
+The CLI prints a webhook signing secret like `whsec_...`. Copy it into the backend `.env`:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### 4. Set real keys in both `.env` files
+
+**Frontend** (`Biofarm_Frontend/.env`):
+```env
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_BYPASS=false
+```
+
+**Backend** (`Biofarm_Backend/.env`):
+```env
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # from stripe listen output above
+STRIPE_BYPASS=false
+```
+
+### 5. Test card numbers
+
+| Card | Result |
+|------|--------|
+| `4242 4242 4242 4242` | Success |
+| `4000 0000 0000 9995` | Decline — insufficient funds |
+| `4000 0025 0000 3155` | 3D Secure required |
+
+Use any future expiry, any 3-digit CVC, any ZIP.
+
+---
+
 ## Pages & Routes
 
 | Route | Auth | Description |

@@ -22,6 +22,9 @@ export function AdminLayout() {
         <div className={styles.logo}>Biofarm Admin</div>
 
         <nav className={styles.nav} aria-label="Admin navigation">
+          <NavLink to="/admin/orders" className={navLinkClass}>
+            Orders
+          </NavLink>
           <NavLink to="/admin/products" className={navLinkClass}>
             Products
           </NavLink>
