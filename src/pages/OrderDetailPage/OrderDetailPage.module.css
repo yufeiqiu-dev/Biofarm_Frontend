@@ -4,6 +4,21 @@
   padding: 2rem 1rem;
 }
 
+.back {
+  font-size: 0.875rem;
+  color: #6b7280;
+  text-decoration: none;
+}
+
+.back:hover {
+  color: #111827;
+}
+
+.heading {
+  margin: 0.75rem 0 1.5rem;
+  font-size: 1.5rem;
+}
+
 .card {
   background: white;
   border: 1px solid #e5e7eb;
@@ -12,10 +27,104 @@
   margin-bottom: 1.5rem;
 }
 
-.row {
+.card h3 {
+  margin: 0 0 1rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ── Status tracker ── */
+
+.tracker {
+  display: flex;
+  align-items: flex-start;
+}
+
+.trackerStep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.trackerStep:last-child {
+  flex: 0;
+}
+
+.trackerRow {
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.trackerDot {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.dotDone {
+  background: #15803d;
+  color: white;
+}
+
+.dotActive {
+  background: #15803d;
+  color: white;
+  box-shadow: 0 0 0 3px #bbf7d0;
+}
+
+.dotPending {
+  background: #e5e7eb;
+  color: #9ca3af;
+}
+
+.trackerLine {
+  flex: 1;
+  height: 2px;
+  background: #e5e7eb;
+}
+
+.lineDone {
+  background: #15803d;
+}
+
+.trackerLabel {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: 0.4rem;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.labelActive {
+  color: #15803d;
+  font-weight: 600;
+}
+
+.cancelledBadge {
+  display: inline-block;
+  padding: 0.375rem 0.875rem;
+  background: #fee2e2;
+  color: #991b1b;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+/* ── Items ── */
+
+.itemRow {
   display: flex;
   justify-content: space-between;
-  padding: 0.5rem 0;
+  align-items: center;
+  padding: 0.625rem 0;
   font-size: 0.875rem;
   border-bottom: 1px solid #f3f4f6;
 }
@@ -23,6 +132,51 @@
 .total {
   display: flex;
   justify-content: space-between;
-  padding: 0.75rem 0 0;
   font-weight: 700;
+  padding-top: 0.75rem;
+}
+
+/* ── Shipping ── */
+
+.shippingText {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #374151;
+  margin: 0;
+}
+
+.notes {
+  font-size: 0.875rem;
+  color: #6b7280;
+  margin: 0.75rem 0 0;
+}
+
+/* ── Actions ── */
+
+.actions {
+  display: flex;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.btnCancel {
+  padding: 0.625rem 1.25rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.btnCancel:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.errorText {
+  color: #dc2626;
+  font-size: 0.875rem;
+  margin: 0 0 0.75rem;
 }
