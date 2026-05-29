@@ -34,7 +34,7 @@
 .home {
   display: inline-block;
   padding: 0.625rem 1.5rem;
-  background: #22c55e;
+  background: #0d9488;
   color: white;
   border-radius: 9999px;
   font-weight: 600;
@@ -43,5 +43,5 @@
 }
 
 .home:hover {
-  background: #16a34a;
+  background: #0f766e;
 }

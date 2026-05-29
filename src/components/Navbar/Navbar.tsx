@@ -76,7 +76,7 @@ export function Navbar() {
     <header className={styles.navbar}>
       <div className={styles.topRow}>
         <Link to="/" className={styles.logo}>
-          Biofarm
+          Oasis Biofarm
         </Link>
 
         <div className={styles.searchArea}>
@@ -179,24 +179,6 @@ export function Navbar() {
           }
         >
           About Us
-        </NavLink>
-
-        <NavLink
-          to="/services"
-          className={({ isActive }) =>
-            isActive ? `${styles.link} ${styles.linkActive}` : styles.link
-          }
-        >
-          Services
-        </NavLink>
-
-        <NavLink
-          to="/resources"
-          className={({ isActive }) =>
-            isActive ? `${styles.link} ${styles.linkActive}` : styles.link
-          }
-        >
-          Resources
         </NavLink>
       </nav>
     </header>
