@@ -5,8 +5,8 @@ import type { AdminOrder, OrderStatus } from "../../types/order_types";
 import styles from "./AdminOrdersPage.module.css";
 
 const TABS: { label: string; value: string | null }[] = [
-  { label: "Awaiting", value: "awaiting_fulfillment" },
   { label: "All", value: null },
+  { label: "Awaiting Fulfillment", value: "awaiting_fulfillment" },
   { label: "Shipped", value: "shipped" },
   { label: "Delivered", value: "delivered" },
   { label: "Cancelled", value: "cancelled" },
@@ -33,12 +33,14 @@ export function AdminOrdersPage() {
   const [activeTab, setActiveTab] = useState<string | null>("awaiting_fulfillment");
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     adminListOrders(activeTab ?? undefined)
       .then(setOrders)
-      .catch(console.error)
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load orders."))
       .finally(() => setLoading(false));
   }, [activeTab]);
 
@@ -56,6 +58,8 @@ export function AdminOrdersPage() {
           </button>
         ))}
       </div>
+
+      {error && <p style={{ color: "#dc2626" }}>Error: {error}</p>}
 
       {loading ? (
         <p>Loading...</p>

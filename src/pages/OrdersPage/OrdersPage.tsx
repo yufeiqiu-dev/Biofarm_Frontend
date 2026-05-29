@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { getMyOrders } from "../../api/order";
 import type { Order } from "../../types/order_types";
 import shared from "../../styles/shared.module.css";
@@ -13,6 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
 };
 
 export function OrdersPage() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -45,9 +46,13 @@ export function OrdersPage() {
           </thead>
           <tbody>
             {orders.map((order) => (
-              <tr key={order.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+              <tr
+                key={order.id}
+                style={{ borderBottom: "1px solid #e5e7eb", cursor: "pointer" }}
+                onClick={() => navigate(`/orders/${order.id}`)}
+              >
                 <td style={{ padding: "0.75rem" }}>
-                  <Link to={`/orders/${order.id}`}>#{order.order_number}</Link>
+                  #{order.order_number}
                 </td>
                 <td style={{ padding: "0.75rem" }}>
                   {new Date(order.created_at).toLocaleDateString()}

@@ -52,7 +52,7 @@ export function AdminOrderDetailPage() {
 
   const canShip = order.status === "awaiting_fulfillment";
   const canDeliver = order.status === "shipped";
-  const canCancel = !["delivered", "cancelled"].includes(order.status);
+  const canCancel = order.status === "awaiting_fulfillment" || order.status === "shipped";
 
   return (
     <div className={styles.page}>

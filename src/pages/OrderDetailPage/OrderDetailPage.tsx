@@ -19,7 +19,7 @@ export function OrderDetailPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!orderId) return;
+    if (!orderId) { setLoading(false); return; }
     getMyOrder(orderId)
       .then(setOrder)
       .catch((e) => setError(e.message))
@@ -37,12 +37,28 @@ export function OrderDetailPage() {
 
       <div className={styles.card}>
         <h3>Items</h3>
-        {order.items.map((item) => (
-          <div key={item.id} className={styles.row}>
-            <span>{item.product_name} — {item.variant_label} × {item.quantity}</span>
-            <span>${(Number(item.unit_price) * item.quantity).toFixed(2)}</span>
-          </div>
-        ))}
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ background: "#f3f4f6", textAlign: "left" }}>
+              <th style={{ padding: "0.5rem" }}>Product</th>
+              <th style={{ padding: "0.5rem" }}>Variant</th>
+              <th style={{ padding: "0.5rem" }}>Qty</th>
+              <th style={{ padding: "0.5rem" }}>Unit Price</th>
+              <th style={{ padding: "0.5rem", textAlign: "right" }}>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            {order.items.map((item) => (
+              <tr key={item.id} style={{ borderBottom: "1px solid #f3f4f6" }}>
+                <td style={{ padding: "0.5rem" }}>{item.product_name}</td>
+                <td style={{ padding: "0.5rem" }}>{item.variant_label}</td>
+                <td style={{ padding: "0.5rem" }}>{item.quantity}</td>
+                <td style={{ padding: "0.5rem" }}>${Number(item.unit_price).toFixed(2)}</td>
+                <td style={{ padding: "0.5rem", textAlign: "right" }}>${(Number(item.unit_price) * item.quantity).toFixed(2)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
         <div className={styles.total}>
           <span>Total</span>
           <span>${Number(order.total_amount).toFixed(2)}</span>
