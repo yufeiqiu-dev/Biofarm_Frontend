@@ -40,6 +40,7 @@ function mapCognitoToUser(params: {
   return {
     user_id: params.userId,
     name: params.email ?? params.username,
+    email: params.email,
     roles: params.roles ?? [],
   };
 }
