@@ -387,8 +387,6 @@ export function CheckoutPage() {
     return null;
   }
 
-  const total = cartItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
-
   const handleProceedToPayment = async () => {
     setPiError(null);
     setPiLoading(true);
