@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
-import { useCartSideBar } from "../../context/CartSideBarContext";
+import { useAuth } from "../../auth/useAuth";
+import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../../components/CartProductCard";
 import styles from "./CartPage.module.css";
 

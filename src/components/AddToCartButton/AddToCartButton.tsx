@@ -1,6 +1,6 @@
-import { useCartSideBar } from "../../context/CartSideBarContext";
-import { useAuth } from "../../auth/AuthContext";
-import { useReminder } from "../../context/ReminderContext";
+import { useCartSideBar } from "../../context/useCartSideBar";
+import { useAuth } from "../../auth/useAuth";
+import { useReminder } from "../../context/useReminder";
 import type { AddToCartItem } from "../../types/cart_types";
 import shared from "../../styles/shared.module.css";
 

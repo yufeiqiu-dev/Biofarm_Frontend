@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import styles from "./CartSideBar.module.css";
-import { useCartSideBar } from "../../context/CartSideBarContext";
+import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../CartProductCard";
 
 export function CartSideBar() {

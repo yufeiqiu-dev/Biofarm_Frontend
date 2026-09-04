@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { LoadingOverlay} from "../../components/LoadingSpinner";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 
 export function AuthCallBackPage() {
   const navigate = useNavigate();

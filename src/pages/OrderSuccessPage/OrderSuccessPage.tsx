@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { useCartSideBar } from "../../context/CartSideBarContext";
+import { useCartSideBar } from "../../context/useCartSideBar";
 import { getMyOrderByPaymentIntent } from "../../api/order";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order } from "../../types/order_types";
@@ -75,8 +75,8 @@ export function OrderSuccessPage() {
   const subtotal = order
     ? order.items.reduce((s, i) => s + i.unit_price * i.quantity, 0)
     : null;
-  const tax = order ? Number(order.tax_amount) : null;
-  const total = order ? Number(order.total_amount) + Number(order.tax_amount) : null;
+  const tax = order ? order.tax_amount : null;
+  const total = order ? order.total_amount + order.tax_amount : null;
   const taxPct =
     subtotal && tax && subtotal > 0
       ? parseFloat(((tax / subtotal) * 100).toFixed(2))

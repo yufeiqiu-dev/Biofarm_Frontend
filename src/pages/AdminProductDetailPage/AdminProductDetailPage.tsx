@@ -12,7 +12,7 @@ import {
 import { getProductById } from "../../api/product";
 import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
-import { useReminder } from "../../context/ReminderContext";
+import { useReminder } from "../../context/useReminder";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";

@@ -2,8 +2,8 @@ import { render, type RenderOptions as RTLRenderOptions } from '@testing-library
 import { MemoryRouter } from 'react-router-dom';
 import { vi } from 'vitest';
 import type { ReactElement, ReactNode } from 'react';
-import { AuthContext } from '../auth/AuthContext';
-import { ReminderContext } from '../context/ReminderContext';
+import { AuthContext } from '../auth/useAuth';
+import { ReminderContext } from '../context/useReminder';
 import { CartSideBarProvider } from '../context/CartSideBarContext';
 import type { User } from '../types/user_type';
 import { createMockUser } from './mocks/mockUser';

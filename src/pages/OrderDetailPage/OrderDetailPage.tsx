@@ -146,22 +146,22 @@ export function OrderDetailPage() {
         {order.items.map((item) => (
           <div key={item.id} className={styles.itemRow}>
             <span>{item.product_name} — {item.variant_label} × {item.quantity}</span>
-            <span>${(Number(item.unit_price) * item.quantity).toFixed(2)}</span>
+            <span>${(item.unit_price * item.quantity).toFixed(2)}</span>
           </div>
         ))}
         <div className={styles.itemRow} style={{ color: "#6b7280" }}>
           <span>Subtotal</span>
-          <span>${Number(order.total_amount).toFixed(2)}</span>
+          <span>${order.total_amount.toFixed(2)}</span>
         </div>
-        {Number(order.tax_amount) > 0 && (
+        {order.tax_amount > 0 && (
           <div className={styles.itemRow} style={{ color: "#6b7280" }}>
-            <span>Tax ({parseFloat((Number(order.tax_amount) / Number(order.total_amount) * 100).toFixed(2))}%)</span>
-            <span>${Number(order.tax_amount).toFixed(2)}</span>
+            <span>Tax ({parseFloat(((order.tax_amount / order.total_amount) * 100).toFixed(2))}%)</span>
+            <span>${order.tax_amount.toFixed(2)}</span>
           </div>
         )}
         <div className={styles.total}>
           <span>Total</span>
-          <span>${(Number(order.total_amount) + Number(order.tax_amount)).toFixed(2)}</span>
+          <span>${(order.total_amount + order.tax_amount).toFixed(2)}</span>
         </div>
       </div>
 

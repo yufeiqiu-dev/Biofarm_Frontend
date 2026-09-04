@@ -22,6 +22,10 @@ const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   cancelled: styles.badgeCancelled,
 };
 
+// Module-level so the memo below is not handed a new array on the renders
+// where no result for the active tab has arrived yet.
+const EMPTY_ORDERS: AdminOrder[] = [];
+
 const STATUS_LABELS: Record<OrderStatus, string> = {
   pending: "Pending",
   awaiting_fulfillment: "Awaiting",
@@ -34,19 +38,49 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 export function AdminOrdersPage() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<string | null>("awaiting_fulfillment");
-  const [orders, setOrders] = useState<AdminOrder[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
 
+  // One piece of state carrying which tab it answers, rather than separate
+  // orders/loading/error. That fixes two things at once.
+  //
+  // The race: the previous version had no cleanup, so switching tabs quickly
+  // left two requests in flight and whichever answered last won. Click through
+  // Confirmed, Shipped, Delivered and you could be left looking at Confirmed's
+  // orders under the Delivered tab, with nothing to indicate it.
+  //
+  // The cascading render: it also called setLoading and setError synchronously
+  // in the effect body, so every tab change rendered twice before any request
+  // was even sent. Loading is derived here instead - there is nothing to store.
+  const [result, setResult] = useState<{
+    tab: string | null;
+    orders: AdminOrder[];
+    error: string | null;
+  } | null>(null);
+
   useEffect(() => {
-    setLoading(true);
-    setError(null);
+    let ignore = false;
     adminListOrders(activeTab ?? undefined)
-      .then(setOrders)
-      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load orders."))
-      .finally(() => setLoading(false));
+      .then((orders) => {
+        if (!ignore) setResult({ tab: activeTab, orders, error: null });
+      })
+      .catch((e) => {
+        if (!ignore) {
+          setResult({
+            tab: activeTab,
+            orders: [],
+            error: e instanceof Error ? e.message : "Failed to load orders.",
+          });
+        }
+      });
+    return () => {
+      ignore = true;
+    };
   }, [activeTab]);
+
+  const isCurrent = result !== null && result.tab === activeTab;
+  const loading = !isCurrent;
+  const orders = isCurrent ? result.orders : EMPTY_ORDERS;
+  const error = isCurrent ? result.error : null;
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -117,7 +151,7 @@ export function AdminOrdersPage() {
                 </td>
                 <td>{new Date(order.created_at).toLocaleDateString()}</td>
                 <td>{order.items.length}</td>
-                <td>${(Number(order.total_amount) + Number(order.tax_amount)).toFixed(2)}</td>
+                <td>${(order.total_amount + order.tax_amount).toFixed(2)}</td>
                 <td>
                   <span className={`${styles.badge} ${STATUS_BADGE_CLASS[order.status]}`}>
                     {STATUS_LABELS[order.status]}

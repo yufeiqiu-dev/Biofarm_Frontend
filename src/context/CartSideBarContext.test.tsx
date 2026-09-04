@@ -1,6 +1,6 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { renderHook, act, waitFor } from '@testing-library/react';
-import { useCartSideBar } from './CartSideBarContext';
+import { useCartSideBar } from './useCartSideBar';
 import { createProviderWrapper } from '../test/renderWithProviders';
 import { setupLocalStorageStub } from '../test/localStorageStub';
 import { createMockUser } from '../test/mocks/mockUser';
@@ -155,6 +155,51 @@ describe('CartSideBarContext', () => {
       });
 
       expect(result.current.cartItems).toHaveLength(0);
+    });
+  });
+
+  describe('clearCart', () => {
+    let unmountHook: () => void;
+    afterEach(() => unmountHook?.());
+
+    it('empties the cart and the saved copy together', () => {
+      // clearCart used to only empty memory and set a ref that was consulted on
+      // the next change of user. Nothing changed the user after a successful
+      // order, so the saved cart survived - reload the confirmation page and the
+      // items the customer had just paid for were back in the sidebar.
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
+        wrapper: createProviderWrapper({ user: mockUser }),
+      });
+      unmountHook = unmount;
+
+      act(() => { result.current.addToCart(makeItem()); });
+      expect(store.get('cart:user-1')).toBeTruthy();
+
+      act(() => { result.current.clearCart(); });
+
+      expect(result.current.cartItems).toEqual([]);
+      expect(JSON.parse(store.get('cart:user-1') ?? '[]')).toEqual([]);
+    });
+
+    it('survives a browser that denies storage access', () => {
+      // Private mode, or site data blocked. The cart must still work in memory.
+      const denied = () => { throw new DOMException('denied', 'SecurityError'); };
+      Object.defineProperty(window, 'localStorage', {
+        value: { getItem: denied, setItem: denied, removeItem: denied },
+        writable: true,
+        configurable: true,
+      });
+
+      const { result, unmount } = renderHook(() => useCartSideBar(), {
+        wrapper: createProviderWrapper({ user: mockUser }),
+      });
+      unmountHook = unmount;
+
+      act(() => { result.current.addToCart(makeItem()); });
+      expect(result.current.cartItems).toHaveLength(1);
+
+      act(() => { result.current.clearCart(); });
+      expect(result.current.cartItems).toEqual([]);
     });
   });
 

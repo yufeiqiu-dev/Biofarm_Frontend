@@ -64,7 +64,6 @@ export async function deleteProduct(productId: string): Promise<void> {
 export interface PresignedUrlResponse {
   upload_url: string;
   image_url: string;
-  index: number;
 }
 
 export async function getImagePresignedUrl(
@@ -99,7 +98,7 @@ export async function deleteImage(
   productId: string,
   imageUrl: string
 ): Promise<void> {
-  return apiRequest<void>(`/admin/products/${productId}/images/`, {
+  return apiRequest<void>(`/admin/products/${productId}/images`, {
     method: "DELETE",
     auth: true,
     body: JSON.stringify({ image_url: imageUrl }),

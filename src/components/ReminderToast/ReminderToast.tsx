@@ -1,4 +1,4 @@
-import { useReminder } from "../../context/ReminderContext";
+import { useReminder } from "../../context/useReminder";
 import styles from "./ReminderToast.module.css";
 
 export function ReminderToast() {
