@@ -4,12 +4,13 @@ type RequestOptions = RequestInit & {
   auth?: boolean;
 };
 
-type AccessTokenGetter = () => Promise<string | null>;
+type SessionTokens = { accessToken: string; idToken?: string };
+type SessionGetter = () => Promise<SessionTokens | null>;
 
-let accessTokenGetter: AccessTokenGetter | null = null;
+let sessionGetter: SessionGetter | null = null;
 
-export function setAccessTokenGetter(getter: AccessTokenGetter | null) {
-  accessTokenGetter = getter;
+export function setSessionGetter(getter: SessionGetter | null) {
+  sessionGetter = getter;
 }
 
 export async function apiRequest<T>(
@@ -17,37 +18,41 @@ export async function apiRequest<T>(
     options: RequestOptions = {}
   ): Promise<T> {
     const { auth = false, headers, ...rest } = options;
-  
+
     const finalHeaders = new Headers(headers);
     finalHeaders.set("Content-Type", "application/json");
-  
+
     if (auth) {
-      if (!accessTokenGetter) {
-        throw new Error("Access token getter is not configured");
+      if (!sessionGetter) {
+        throw new Error("Session getter is not configured");
       }
-  
-      const token = await accessTokenGetter();
-      
-      if (!token) {
+
+      const session = await sessionGetter();
+
+      if (!session) {
         throw new Error("User is not authenticated");
       }
-  
-      finalHeaders.set("Authorization", `Bearer ${token}`);
+
+      finalHeaders.set("Authorization", `Bearer ${session.accessToken}`);
+      if (session.idToken) {
+        finalHeaders.set("X-Id-Token", session.idToken);
+      }
     }
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
       ...rest,
       headers: finalHeaders,
     });
-  
+
     if (!response.ok) {
       let errorMessage = `Request failed with status ${response.status}`;
-  
+
       try {
         const errorData = await response.json();
         console.error("API error response:", errorData);
-  
+
         const detail = errorData?.detail;
-  
+
         if (typeof detail === "string") {
           errorMessage = detail;
         } else if (Array.isArray(detail)) {
@@ -68,13 +73,13 @@ export async function apiRequest<T>(
       } catch {
         // ignore JSON parse failure
       }
-  
+
       throw new Error(errorMessage);
     }
-  
+
     if (response.status === 204) {
       return undefined as T;
     }
-  
+
     return response.json() as Promise<T>;
   }

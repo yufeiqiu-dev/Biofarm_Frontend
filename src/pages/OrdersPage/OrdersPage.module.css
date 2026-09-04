@@ -1,0 +1,231 @@
+.page {
+  max-width: 700px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+}
+
+.heading {
+  margin: 0 0 1.5rem;
+  font-size: 1.5rem;
+}
+
+/* ── Search + filter controls ── */
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.25rem;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 0.625rem 1rem;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  font-size: 0.875rem;
+  outline: none;
+  box-sizing: border-box;
+  background: white;
+}
+
+.searchInput:focus {
+  border-color: #6b7280;
+  box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
+}
+
+.filterTabs {
+  display: flex;
+  gap: 0.375rem;
+  flex-wrap: wrap;
+}
+
+.filterTab {
+  padding: 0.375rem 0.875rem;
+  border-radius: 9999px;
+  border: 1px solid #e5e7eb;
+  background: white;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s, border-color 0.1s;
+}
+
+.filterTab:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.filterTabActive {
+  background: #111827;
+  color: white;
+  border-color: #111827;
+}
+
+/* ── Empty state ── */
+
+.empty {
+  text-align: center;
+  padding: 4rem 1rem;
+  color: #6b7280;
+}
+
+.emptyIcon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.empty p {
+  margin: 0 0 1.25rem;
+  font-size: 1rem;
+}
+
+.shopLink {
+  display: inline-block;
+  padding: 0.625rem 1.5rem;
+  background: #15803d;
+  color: white;
+  border-radius: 9999px;
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.shopLink:hover {
+  background: #166534;
+}
+
+.clearBtn {
+  display: inline-block;
+  padding: 0.5rem 1.25rem;
+  background: transparent;
+  border: 1px solid #d1d5db;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #6b7280;
+  cursor: pointer;
+}
+
+.clearBtn:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+/* ── Order card ── */
+
+.orderCard {
+  background: white;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  cursor: pointer;
+  transition: box-shadow 0.15s, border-color 0.15s;
+  text-decoration: none;
+  display: block;
+  color: inherit;
+}
+
+.orderCard:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  border-color: #d1d5db;
+}
+
+.cardTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 0.75rem;
+}
+
+.orderMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.orderNumber {
+  font-weight: 700;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.orderDate {
+  font-size: 0.8125rem;
+  color: #9ca3af;
+}
+
+/* ── Status badges ── */
+
+.badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badgePending {
+  background: #f3f4f6;
+  color: #6b7280;
+}
+
+.badgeProcessing {
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.badgeShipped {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badgeDelivered {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.badgeCancelled {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+/* ── Card bottom ── */
+
+.cardBottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.itemSummary {
+  font-size: 0.8125rem;
+  color: #6b7280;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding-right: 1rem;
+}
+
+.totalRow {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.total {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.arrow {
+  color: #9ca3af;
+  font-size: 1rem;
+}

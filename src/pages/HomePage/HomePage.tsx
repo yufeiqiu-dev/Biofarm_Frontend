@@ -78,13 +78,12 @@ export function HomePage() {
 
       <section className={styles.hero}>
         <div className={styles.heroContent}>
-          <p className={styles.eyebrow}>Biofarm for Research</p>
+          <p className={styles.eyebrow}>Research Antibodies &amp; Diagnostics</p>
           <h1 className={styles.heroTitle}>
-            Research-Grade Antibodies, Reagents, and Lab Essentials
+            Antibodies and diagnostic kits for neurological research
           </h1>
           <p className={styles.heroSubtitle}>
-            Source trusted biomedical products for molecular biology,
-            immunology, cell biology, and translational research.
+            Trusted by researchers worldwide. High-specificity antibodies, assay kits, and reagents for Alzheimer&apos;s, Parkinson&apos;s, and neuroscience applications.
           </p>
 
           <div className={styles.heroActions}>

@@ -14,7 +14,7 @@ import {
   signInWithRedirect,
   signOut as amplifySignOut,
 } from "aws-amplify/auth";
-import { setAccessTokenGetter } from "../api/client";
+import { setSessionGetter } from "../api/client";
 
 type AuthContextValue = {
   user: User | null;
@@ -40,6 +40,7 @@ function mapCognitoToUser(params: {
   return {
     user_id: params.userId,
     name: params.email ?? params.username,
+    email: params.email,
     roles: params.roles ?? [],
   };
 }
@@ -104,14 +105,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await amplifySignOut();
   }, []);
 
-  const getAccessToken = useCallback(async () => {
+  const getSessionTokens = useCallback(async () => {
     try {
       const session = await fetchAuthSession();
-      return session.tokens?.accessToken?.toString() ?? null;
+      const accessToken = session.tokens?.accessToken?.toString();
+      if (!accessToken) return null;
+      return {
+        accessToken,
+        idToken: session.tokens?.idToken?.toString() ?? undefined,
+      };
     } catch {
       return null;
     }
   }, []);
+
+  const getAccessToken = useCallback(async () => {
+    const session = await getSessionTokens();
+    return session?.accessToken ?? null;
+  }, [getSessionTokens]);
 
   const getUserGroups = useCallback(async () => {
     try {
@@ -129,12 +140,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    setAccessTokenGetter(getAccessToken);
-
-    return () => {
-      setAccessTokenGetter(null);
-    };
-  }, [getAccessToken]);
+    setSessionGetter(getSessionTokens);
+    return () => setSessionGetter(null);
+  }, [getSessionTokens]);
 
   const value = useMemo(
     () => ({

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/AuthContext";
 import { SearchBar } from "../SearchBar";
@@ -19,6 +19,7 @@ export function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [showBottomRow, setShowBottomRow] = useState(true);
   const { toggleCartSideBar } = useCartSideBar();
+  const accountWrapperRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -32,6 +33,17 @@ export function Navbar() {
       window.removeEventListener("scroll", handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (accountWrapperRef.current && !accountWrapperRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [menuOpen]);
 
   const handleAccountClick = () => {
     setMenuOpen((open) => !open);
@@ -64,7 +76,7 @@ export function Navbar() {
     <header className={styles.navbar}>
       <div className={styles.topRow}>
         <Link to="/" className={styles.logo}>
-          Biofarm
+          Oasis Biofarm
         </Link>
 
         <div className={styles.searchArea}>
@@ -81,7 +93,7 @@ export function Navbar() {
               Sign in
             </button>
           ) : (
-            <div className={styles.accountWrapper}>
+            <div className={styles.accountWrapper} ref={accountWrapperRef}>
               <button
                 type="button"
                 className={styles.accountButton}
@@ -167,24 +179,6 @@ export function Navbar() {
           }
         >
           About Us
-        </NavLink>
-
-        <NavLink
-          to="/services"
-          className={({ isActive }) =>
-            isActive ? `${styles.link} ${styles.linkActive}` : styles.link
-          }
-        >
-          Services
-        </NavLink>
-
-        <NavLink
-          to="/resources"
-          className={({ isActive }) =>
-            isActive ? `${styles.link} ${styles.linkActive}` : styles.link
-          }
-        >
-          Resources
         </NavLink>
       </nav>
     </header>

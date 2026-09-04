@@ -1,7 +1,9 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -15,6 +17,7 @@ type CartSideBarContextValue = {
   removeFromCart: (itemId: string) => void;
   increaseQuantity: (itemId: string) => void;
   decreaseQuantity: (itemId: string) => void;
+  clearCart: () => void;
   toggleCartSideBar: () => void;
   openCartSideBar: () => void;
   closeCartSideBar: () => void;
@@ -33,29 +36,39 @@ export function CartSideBarProvider({ children }: { children: ReactNode }) {
 
   const [isOpen, setIsOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-const [hasLoadedCart, setHasLoadedCart] = useState(false);
+  const [hasLoadedCart, setHasLoadedCart] = useState(false);
+  const clearPendingRef = useRef(false);
 
-useEffect(() => {
-  setHasLoadedCart(false);
+  useEffect(() => {
+    setHasLoadedCart(false);
 
-  if (!user) {
-    setCartItems([]);
+    if (!user) {
+      setCartItems([]);
+      setHasLoadedCart(true);
+      return;
+    }
+
+    const storageKey = getCartStorageKey(user.user_id);
+
+    if (clearPendingRef.current) {
+      clearPendingRef.current = false;
+      localStorage.removeItem(storageKey);
+      setCartItems([]);
+      setHasLoadedCart(true);
+      return;
+    }
+
+    const savedCart = localStorage.getItem(storageKey);
+
+    try {
+      const parsedCart = savedCart ? JSON.parse(savedCart) : [];
+      setCartItems(Array.isArray(parsedCart) ? parsedCart : []);
+    } catch {
+      setCartItems([]);
+    }
+
     setHasLoadedCart(true);
-    return;
-  }
-
-  const storageKey = getCartStorageKey(user.user_id);
-  const savedCart = localStorage.getItem(storageKey);
-
-  try {
-    const parsedCart = savedCart ? JSON.parse(savedCart) : [];
-    setCartItems(Array.isArray(parsedCart) ? parsedCart : []);
-  } catch {
-    setCartItems([]);
-  }
-
-  setHasLoadedCart(true);
-}, [user]);
+  }, [user]);
 
 useEffect(() => {
   if (!user || !hasLoadedCart) return;
@@ -106,6 +119,11 @@ useEffect(() => {
     );
   };
 
+  const clearCart = useCallback(() => {
+    setCartItems([]);
+    clearPendingRef.current = true;
+  }, []);
+
   const decreaseQuantity = (itemId: string) => {
     setCartItems((prev) => {
       const targetItem = prev.find((item) => item.id === itemId);
@@ -133,6 +151,7 @@ useEffect(() => {
         removeFromCart,
         increaseQuantity,
         decreaseQuantity,
+        clearCart,
         toggleCartSideBar,
         openCartSideBar,
         closeCartSideBar,

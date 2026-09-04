@@ -20,7 +20,94 @@ VITE_COGNITO_USER_POOL_CLIENT_ID=
 VITE_COGNITO_DOMAIN=
 VITE_COGNITO_REDIRECT_SIGN_IN=http://localhost:5174/auth/callback
 VITE_COGNITO_REDIRECT_SIGN_OUT=http://localhost:5174/auth/callback
+
+# Stripe — set BYPASS to true for local dev (no card required)
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_BYPASS=true
 ```
+
+> `VITE_STRIPE_BYPASS=true` skips the Stripe Payment Element — clicking "Pay" completes the order immediately without a real card. Set to `false` (with a real publishable key) only when testing the full payment flow. Must match `STRIPE_BYPASS` in the backend `.env`.
+
+---
+
+## Stripe Sandbox Setup
+
+For day-to-day local development, keep `VITE_STRIPE_BYPASS=true` — no card needed, no Stripe CLI required.
+
+To test the real Stripe payment flow (card entry, webhook, full order lifecycle):
+
+### 1. Install the Stripe CLI
+
+```bash
+# macOS
+brew install stripe/stripe-cli/stripe
+
+# Other platforms: https://stripe.com/docs/stripe-cli
+```
+
+### 2. Log in to Stripe
+
+```bash
+stripe login
+```
+
+### 3. Forward webhooks to your local backend
+
+```bash
+stripe listen --forward-to localhost:8000/api/v1/stripe/webhook
+```
+
+The CLI prints a webhook signing secret like `whsec_...`. Copy it into the backend `.env`:
+
+```env
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### 4. Set real keys in both `.env` files
+
+**Frontend** (`Biofarm_Frontend/.env`):
+```env
+VITE_STRIPE_PUBLISHABLE_KEY=pk_test_...
+VITE_STRIPE_BYPASS=false
+```
+
+**Backend** (`Biofarm_Backend/.env`):
+```env
+STRIPE_SECRET_KEY=sk_test_...
+STRIPE_WEBHOOK_SECRET=whsec_...   # from stripe listen output above
+STRIPE_BYPASS=false
+```
+
+### 5. Test card numbers
+
+| Card | Result |
+|------|--------|
+| `4242 4242 4242 4242` | Success |
+| `4000 0000 0000 9995` | Decline — insufficient funds |
+| `4000 0025 0000 3155` | 3D Secure required |
+
+Use any future expiry, any 3-digit CVC, any ZIP.
+
+---
+
+## Pages & Routes
+
+| Route | Auth | Description |
+|-------|------|-------------|
+| `/` | No | Home |
+| `/products` | No | Product catalogue |
+| `/products/:id` | No | Product detail |
+| `/cart` | No | Cart |
+| `/about` | No | About |
+| `/checkout` | User | Multi-step checkout wizard (Contact → Shipping → Review → Payment) |
+| `/checkout/success` | No | Post-payment confirmation, clears cart |
+| `/orders` | User | Order history list |
+| `/orders/:id` | User | Order detail + cancel button (while awaiting fulfillment) |
+| `/admin/products` | Admin | Product management |
+| `/admin/products/:id` | Admin | Product edit / create |
+| `/admin/tags` | Admin | Tag management |
+| `/admin/orders` | Admin | Order list with status filter tabs |
+| `/admin/orders/:id` | Admin | Order detail + Confirm / Ship / Deliver / Cancel actions |
 
 ---
 
