@@ -11,6 +11,14 @@
 .list {
   display: grid;
   grid-template-columns: 112px minmax(0, 1fr) 7rem 7.5rem 6rem auto;
+  /*
+   * The inset lives here, not on the rows. A row is a subgrid, and horizontal
+   * padding on a subgrid shifts its tracks off the parent's column lines - so
+   * padding the row moved every cell right while the column boundaries stayed
+   * put, and the product name was drawn 3px over the top of the thumbnail.
+   * Vertical padding on a row is fine; horizontal is not.
+   */
+  padding-inline: var(--space-4);
   background: var(--surface);
   border: var(--border);
   border-radius: var(--radius-container);
@@ -28,7 +36,7 @@
   grid-template-columns: subgrid;
   align-items: center;
   gap: var(--space-4);
-  padding: var(--space-4) var(--space-3);
+  padding-block: var(--space-4);
   border-bottom: var(--border);
 }
 
@@ -151,17 +159,18 @@
     background: none;
     border: none;
     border-radius: 0;
+    padding-inline: 0;
   }
 
   .row {
     display: grid;
+    padding-block: var(--space-4);
     grid-template-columns: auto 1fr auto;
     grid-template-areas:
       "thumb identity identity"
       "size  size     stock"
       "price price    action";
     row-gap: var(--space-3);
-    padding: var(--space-4) 0;
   }
 
   .thumbLink { grid-area: thumb; grid-column: unset; margin-right: var(--space-3); }
