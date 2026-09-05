@@ -4,6 +4,8 @@
 }
 
 .primaryButton {
+  /* A button label that wraps stops looking like a button. */
+  white-space: nowrap;
   padding: 0.5rem 1rem;
   border-radius: var(--radius-pill);
   border: none;
@@ -36,25 +38,4 @@
   color: var(--accent);
   text-decoration: none;
   font-size: 0.875rem;
-}
-
-/*
- * A catalogue index rather than a card grid. Rows let price, size and stock be
- * compared down a column, which is what someone choosing between five reagents
- * is actually doing - and with no product images a grid of cards is mostly
- * empty space.
- */
-.productList {
-  background: var(--surface);
-  border: var(--border);
-  border-radius: var(--radius-container);
-  overflow: hidden;
-}
-
-@media (max-width: 860px) {
-  .productList {
-    background: none;
-    border: none;
-    border-radius: 0;
-  }
 }

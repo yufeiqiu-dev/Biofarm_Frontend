@@ -156,3 +156,7 @@
     grid-template-columns: 1fr;
   }
 }
+
+.loadError {
+  color: var(--muted);
+}

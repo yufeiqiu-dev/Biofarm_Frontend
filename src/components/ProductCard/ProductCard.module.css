@@ -1,17 +1,35 @@
 /*
- * A catalogue row. Columns are fixed so that price, size and availability line
- * up down the page and can be compared at a glance - which is the actual task
- * on this screen. Below 860px it stacks, because five columns in 390px is not
- * a table, it is a mess.
+ * A catalogue index. The columns are defined once here and every row takes them
+ * with subgrid, because the entire point is that price, size and availability
+ * line up down the page and can be compared at a glance. Rows that each style
+ * themselves as their own grid do not do that: the tracks are computed per row,
+ * so a row with a thumbnail and one without end up different widths and the
+ * button wraps on some and not others.
+ *
+ * Below 860px it stacks - five columns in 390px is not a table, it is a mess.
  */
+.list {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) 7rem 7.5rem 6rem auto;
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-container);
+  overflow: hidden;
+}
+
+/* No pictures in view, so no gutter reserved for them. */
+.list[data-thumbs="no"] {
+  grid-template-columns: 0 minmax(0, 1fr) 7rem 7.5rem 6rem auto;
+}
+
 .row {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 7rem 7.5rem 6rem auto;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
   align-items: center;
   gap: var(--space-4);
   padding: var(--space-4) var(--space-3);
   border-bottom: var(--border);
-  background: var(--surface);
 }
 
 .row:last-child {
@@ -22,7 +40,29 @@
   background: var(--canvas);
 }
 
+/*
+ * Every cell names its own column. Without this, a row with no thumbnail has
+ * nothing in column 1, so the name auto-places into the 56px thumbnail track
+ * and wraps a character at a time - placement cannot depend on how many
+ * children a row happens to render.
+ */
+.thumbLink {
+  display: block;
+  line-height: 0;
+  grid-column: 1;
+}
+
+.thumb {
+  width: 56px;
+  height: 56px;
+  object-fit: cover;
+  border: var(--border);
+  border-radius: var(--radius-data);
+  background: var(--canvas);
+}
+
 .identity {
+  grid-column: 2;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -65,6 +105,11 @@
   color: var(--slate);
 }
 
+.size { grid-column: 3; }
+.price { grid-column: 4; }
+.stock { grid-column: 5; }
+.action { grid-column: 6; }
+
 .price {
   color: var(--ink);
   font-weight: 600;
@@ -86,31 +131,44 @@
 }
 
 @media (max-width: 860px) {
+  /* Stacked, so there are no shared columns left to inherit. */
+  .list,
+  .list[data-thumbs="no"] {
+    display: block;
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
+
   .row {
-    grid-template-columns: 1fr auto;
+    display: grid;
+    grid-template-columns: auto 1fr auto;
     grid-template-areas:
-      "identity identity"
-      "size     stock"
-      "price    action";
+      "thumb identity identity"
+      "size  size     stock"
+      "price price    action";
     row-gap: var(--space-3);
     padding: var(--space-4) 0;
   }
 
-  .identity { grid-area: identity; }
+  .thumbLink { grid-area: thumb; grid-column: unset; margin-right: var(--space-3); }
+  .identity { grid-area: identity; grid-column: unset; }
 
   .size {
     grid-area: size;
+    grid-column: unset;
     text-align: left;
     font-size: var(--text-sm);
   }
 
-  .stock { grid-area: stock; }
+  .stock { grid-area: stock; grid-column: unset; }
 
   .price {
     grid-area: price;
+    grid-column: unset;
     text-align: left;
     font-size: var(--text-md);
   }
 
-  .action { grid-area: action; }
+  .action { grid-area: action; grid-column: unset; }
 }

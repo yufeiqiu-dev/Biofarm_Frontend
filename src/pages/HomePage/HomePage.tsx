@@ -2,7 +2,7 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getProducts } from "../../api/product";
 import type { Product } from "../../types/product_type";
-import { ProductCard } from "../../components/ProductCard";
+import { ProductCard, ProductList } from "../../components/ProductCard";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./HomePage.module.css";
@@ -133,13 +133,13 @@ export function HomePage() {
         </div>
 
         {featuredError ? (
-          <p style={{ color: "#667085" }}>Unable to load products right now.</p>
+          <p className={styles.loadError}>Unable to load products right now.</p>
         ) : (
-          <div className={shared.productList}>
+          <ProductList products={featuredProducts}>
             {featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
-          </div>
+          </ProductList>
         )}
       </section>
     </div>

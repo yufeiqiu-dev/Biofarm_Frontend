@@ -2,6 +2,7 @@ import { Link } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import { AddToCartButton } from "../AddToCartButton";
+import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { formatPriceRange, formatSizeRange, stockSummary } from "./productSummary";
 import styles from "./ProductCard.module.css";
 
@@ -29,7 +30,9 @@ export function ProductCard({ product }: Props) {
         productId: product.id,
         variantId: cheapest.id,
         name: product.name,
-        imageUrl: product.image_urls[0] ?? "",
+        // The cart still shows a thumbnail, and an empty src makes the
+        // browser re-request the page and render a broken image.
+        imageUrl: product.image_urls[0] ?? DEFAULT_PRODUCT_IMAGE,
         catalogNumber: cheapest.catalog_id,
         sizeLabel: `${cheapest.size_value}${cheapest.size_unit}`,
         unitPrice: cheapest.price,
@@ -37,8 +40,22 @@ export function ProductCard({ product }: Props) {
       }
     : null;
 
+  const thumbnail = product.image_urls[0];
+
   return (
     <article className={styles.row}>
+      {/*
+        Rendered only when there is one. A placeholder here would put six
+        identical grey boxes down the page saying "Image Not Available", which
+        is worse than the row simply being narrower - the grid collapses the
+        column when every product in view is imageless.
+      */}
+      {thumbnail && (
+        <Link to={`/products/${product.id}`} className={styles.thumbLink} tabIndex={-1} aria-hidden="true">
+          <img src={thumbnail} alt="" className={styles.thumb} loading="lazy" />
+        </Link>
+      )}
+
       <Link to={`/products/${product.id}`} className={styles.identity}>
         <span className={styles.catId}>{product.cat_id}</span>
         <span className={styles.name}>{product.name}</span>

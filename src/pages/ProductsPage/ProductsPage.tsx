@@ -4,7 +4,7 @@ import { getProducts } from "../../api/product";
 import { getTags } from "../../api/tag";
 import type { Product } from "../../types/product_type";
 import type { Tag } from "../../types/tag_type";
-import { ProductCard } from "../../components/ProductCard";
+import { ProductCard, ProductList } from "../../components/ProductCard";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductsPage.module.css";
@@ -88,11 +88,11 @@ export function ProductsPage() {
       {displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
       ) : (
-        <div className={shared.productList}>
+        <ProductList products={displayedProducts}>
           {displayedProducts.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
-        </div>
+        </ProductList>
       )}
     </div>
   );
