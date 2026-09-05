@@ -10,7 +10,7 @@
  */
 .list {
   display: grid;
-  grid-template-columns: 56px minmax(0, 1fr) 7rem 7.5rem 6rem auto;
+  grid-template-columns: 112px minmax(0, 1fr) 7rem 7.5rem 6rem auto;
   background: var(--surface);
   border: var(--border);
   border-radius: var(--radius-container);
@@ -42,9 +42,9 @@
 
 /*
  * Every cell names its own column. Without this, a row with no thumbnail has
- * nothing in column 1, so the name auto-places into the 56px thumbnail track
- * and wraps a character at a time - placement cannot depend on how many
- * children a row happens to render.
+ * nothing in column 1, so the name auto-places into the thumbnail track and
+ * wraps a character at a time - placement cannot depend on how many children a
+ * row happens to render.
  */
 .thumbLink {
   display: block;
@@ -52,10 +52,23 @@
   grid-column: 1;
 }
 
+/*
+ * 112x84, which is the size this needs to be rather than the size that fits
+ * neatly. For an antibody the image is the validation data - a western blot
+ * with a band at the right molecular weight, or a stained section - and at 56px
+ * a blot is a few grey dashes: decoration where evidence was intended. Every
+ * reagent supplier that shows these at all shows them at roughly this size.
+ *
+ * 4:3 because that is the shape a blot is photographed in. Cropped rather than
+ * letterboxed, and left-aligned within the crop, since the lanes that matter
+ * are usually at the left.
+ */
 .thumb {
-  width: 56px;
-  height: 56px;
+  width: 112px;
+  aspect-ratio: 4 / 3;
   object-fit: cover;
+  object-position: left center;
+  display: block;
   border: var(--border);
   border-radius: var(--radius-data);
   background: var(--canvas);
@@ -152,6 +165,9 @@
   }
 
   .thumbLink { grid-area: thumb; grid-column: unset; margin-right: var(--space-3); }
+
+  /* Narrower on a phone, where 112px is a third of the screen. */
+  .thumb { width: 84px; }
   .identity { grid-area: identity; grid-column: unset; }
 
   .size {
