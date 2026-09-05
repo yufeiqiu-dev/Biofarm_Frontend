@@ -135,7 +135,7 @@ export function HomePage() {
         {featuredError ? (
           <p style={{ color: "#667085" }}>Unable to load products right now.</p>
         ) : (
-          <div className={shared.productGrid}>
+          <div className={shared.productList}>
             {featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}

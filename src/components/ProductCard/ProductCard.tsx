@@ -1,60 +1,63 @@
 import { Link } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
-import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
-import styles from "./ProductCard.module.css";
 import { AddToCartButton } from "../AddToCartButton";
+import { formatPriceRange, formatSizeRange, stockSummary } from "./productSummary";
+import styles from "./ProductCard.module.css";
 
 interface Props {
   product: Product;
 }
 
+/**
+ * A catalogue entry, not a shop card.
+ *
+ * Reads as a row on desktop and stacks on mobile. The reasoning: a researcher
+ * comparing five antibodies wants price, size and availability lined up down a
+ * column, which a grid of cards cannot do - and with no product images a card
+ * grid is mostly empty space with an apology in the middle of it.
+ *
+ * The catalog ID leads because it is the product's real name in this world: it
+ * is what gets searched, written down, and cited in a Methods section.
+ */
 export function ProductCard({ product }: Props) {
-  const primaryImage = product.image_urls[0] ?? DEFAULT_PRODUCT_IMAGE;
+  const cheapest = [...product.variants].sort((a, b) => a.price - b.price)[0];
+  const stock = stockSummary(product.variants);
 
-  const constructAddToCartItem = (): AddToCartItem => {
-    const defaultVariant = product.variants[0];
-
-    return {
-      productId: product.id,
-      variantId: defaultVariant.id,
-      name: product.name,
-      imageUrl: primaryImage,
-      catalogNumber: defaultVariant.catalog_id,
-      sizeLabel: `${defaultVariant.size_value}${defaultVariant.size_unit}`,
-      unitPrice: defaultVariant.price,
-      quantity: 1,
-    };
-  };
+  const item: AddToCartItem | null = cheapest
+    ? {
+        productId: product.id,
+        variantId: cheapest.id,
+        name: product.name,
+        imageUrl: product.image_urls[0] ?? "",
+        catalogNumber: cheapest.catalog_id,
+        sizeLabel: `${cheapest.size_value}${cheapest.size_unit}`,
+        unitPrice: cheapest.price,
+        quantity: 1,
+      }
+    : null;
 
   return (
-    <div className={styles.card}>
-      <Link to={`/products/${product.id}`} className={styles.imageLink}>
-        <div className={styles.imageWrapper}>
-          <img
-            src={primaryImage}
-            alt={product.name}
-            className={styles.image}
-            onError={(e) => { e.currentTarget.src = DEFAULT_PRODUCT_IMAGE; }}
-          />
-        </div>
+    <article className={styles.row}>
+      <Link to={`/products/${product.id}`} className={styles.identity}>
+        <span className={styles.catId}>{product.cat_id}</span>
+        <span className={styles.name}>{product.name}</span>
+        {product.tags.length > 0 && (
+          <span className={styles.tags}>
+            {product.tags.map((tag) => tag.name).join(", ")}
+          </span>
+        )}
       </Link>
 
-      <div className={styles.body}>
-        <Link to={`/products/${product.id}`} className={styles.nameLink}>
-          {product.name}
-        </Link>
+      <span className={styles.size}>{formatSizeRange(product.variants)}</span>
 
-        <p className={styles.description}>{product.description}</p>
+      <span className={styles.price}>{formatPriceRange(product.variants)}</span>
 
-        <div className={styles.footer}>
-          <span className={styles.price}>
-            ${product.variants[0].price.toFixed(2)}
-          </span>
+      <span className={`${styles.stock} ${styles[stock.tone]}`}>{stock.label}</span>
 
-          <AddToCartButton item={constructAddToCartItem()} />
-        </div>
-      </div>
-    </div>
+      <span className={styles.action}>
+        {item && <AddToCartButton item={item} available={stock.total} />}
+      </span>
+    </article>
   );
 }

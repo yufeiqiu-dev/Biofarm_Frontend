@@ -17,8 +17,19 @@
   justify-content: center;
 }
 
-.primaryButton:hover {
+.primaryButton:hover:not(:disabled) {
   background: var(--accent-press);
+}
+
+/*
+ * A disabled action still has to say something. Greying it out without a reason
+ * leaves the reader guessing, so the label carries the reason ("Out of stock")
+ * and not-allowed confirms it is deliberate rather than broken.
+ */
+.primaryButton:disabled {
+  background: var(--rule);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .link {
@@ -27,8 +38,23 @@
   font-size: 0.875rem;
 }
 
-.productGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
+/*
+ * A catalogue index rather than a card grid. Rows let price, size and stock be
+ * compared down a column, which is what someone choosing between five reagents
+ * is actually doing - and with no product images a grid of cards is mostly
+ * empty space.
+ */
+.productList {
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-container);
+  overflow: hidden;
+}
+
+@media (max-width: 860px) {
+  .productList {
+    background: none;
+    border: none;
+    border-radius: 0;
+  }
 }

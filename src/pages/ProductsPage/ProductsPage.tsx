@@ -88,7 +88,7 @@ export function ProductsPage() {
       {displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
       ) : (
-        <div className={shared.productGrid}>
+        <div className={shared.productList}>
           {displayedProducts.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
