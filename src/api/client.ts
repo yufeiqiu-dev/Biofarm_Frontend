@@ -21,6 +21,34 @@ type RequestOptions = RequestInit & {
   timeoutMs?: number;
 };
 
+/**
+ * Combine abort signals, falling back where `AbortSignal.any` is missing.
+ *
+ * `AbortSignal.any` landed in Chrome 116, Firefox 124 and Safari 17.4 - so on
+ * anything older than roughly early 2024 it is `undefined`, and calling it
+ * throws a TypeError. That would not degrade a request, it would break every
+ * one of them, on a browser old enough that the customer has no idea why the
+ * site does nothing. The fallback is small enough that guessing about who is
+ * still on Safari 17.3 is not worth it.
+ */
+function combineSignals(signals: AbortSignal[]): AbortSignal {
+  if (typeof AbortSignal.any === "function") {
+    return AbortSignal.any(signals);
+  }
+
+  const controller = new AbortController();
+  for (const signal of signals) {
+    if (signal.aborted) {
+      controller.abort(signal.reason);
+      break;
+    }
+    signal.addEventListener("abort", () => controller.abort(signal.reason), {
+      once: true,
+    });
+  }
+  return controller.signal;
+}
+
 type SessionTokens = { accessToken: string; idToken?: string };
 type SessionGetter = () => Promise<SessionTokens | null>;
 
@@ -61,7 +89,7 @@ export async function apiRequest<T>(
     const timeoutController = new AbortController();
     const timer = setTimeout(() => timeoutController.abort(), timeoutMs);
     const abortSignal = signal
-      ? AbortSignal.any([signal, timeoutController.signal])
+      ? combineSignals([signal, timeoutController.signal])
       : timeoutController.signal;
 
     let response: Response;

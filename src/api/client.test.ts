@@ -126,3 +126,59 @@ describe('apiRequest', () => {
     });
   });
 });
+
+describe('combining abort signals', () => {
+  // AbortSignal.any landed in Chrome 116, Firefox 124 and Safari 17.4. On
+  // anything older it is undefined, and calling it throws - which would not
+  // degrade a request but break every one of them.
+  /** A fetch that never resolves on its own, and rejects the way the real one
+   *  does - including immediately when handed a signal that is already
+   *  aborted, which fires no event to listen for. */
+  function hangingFetch() {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((_url: string, init: RequestInit) => new Promise((_resolve, reject) => {
+        const fail = () => reject(new DOMException('aborted', 'AbortError'));
+        if (init.signal?.aborted) return fail();
+        init.signal?.addEventListener('abort', fail, { once: true });
+      })),
+    );
+  }
+
+  it("aborts on the caller's signal without AbortSignal.any", async () => {
+    const original = AbortSignal.any;
+    // @ts-expect-error - simulating an older browser
+    AbortSignal.any = undefined;
+    try {
+      hangingFetch();
+      const controller = new AbortController();
+      const pending = apiRequest('/x', { signal: controller.signal });
+      controller.abort();
+      await expect(pending).rejects.toThrow();
+    } finally {
+      AbortSignal.any = original;
+    }
+  });
+
+  it('still times out without AbortSignal.any', async () => {
+    const original = AbortSignal.any;
+    // @ts-expect-error - simulating an older browser
+    AbortSignal.any = undefined;
+    try {
+      hangingFetch();
+      const controller = new AbortController();
+      await expect(
+        apiRequest('/x', { signal: controller.signal, timeoutMs: 10 }),
+      ).rejects.toThrow(/timed out/i);
+    } finally {
+      AbortSignal.any = original;
+    }
+  });
+
+  it('honours a signal that was already aborted before the call', async () => {
+    hangingFetch();
+    const controller = new AbortController();
+    controller.abort();
+    await expect(apiRequest('/x', { signal: controller.signal })).rejects.toThrow();
+  });
+});
