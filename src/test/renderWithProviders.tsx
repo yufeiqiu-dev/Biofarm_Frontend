@@ -9,6 +9,7 @@ import type { User } from '../types/user_type';
 import { createMockUser } from './mocks/mockUser';
 
 type MockAuthValue = ReturnType<typeof createMockAuthValue>;
+type MockReminderValue = ReturnType<typeof createMockReminderValue>;
 
 interface RenderOptions extends Omit<RTLRenderOptions, 'wrapper'> {
   user?: User | null;
@@ -16,6 +17,8 @@ interface RenderOptions extends Omit<RTLRenderOptions, 'wrapper'> {
   /** Override parts of the auth context - a spy on signIn, say. Merged over
    *  the value `user` would otherwise produce. */
   authValue?: Partial<MockAuthValue>;
+  /** Override parts of the reminder context, to assert on showReminder. */
+  reminderValue?: Partial<MockReminderValue>;
 }
 
 export function createMockAuthValue(user: User | null) {
@@ -31,7 +34,7 @@ export function createMockAuthValue(user: User | null) {
   };
 }
 
-function createMockReminderValue() {
+export function createMockReminderValue() {
   return {
     message: null as string | null,
     visible: false,
@@ -41,9 +44,14 @@ function createMockReminderValue() {
 }
 
 export function createProviderWrapper(options: RenderOptions = {}) {
-  const { user = createMockUser(), initialEntries = ['/'], authValue: overrides } = options;
-  const authValue = { ...createMockAuthValue(user), ...overrides };
-  const reminderValue = createMockReminderValue();
+  const {
+    user = createMockUser(),
+    initialEntries = ['/'],
+    authValue: authOverrides,
+    reminderValue: reminderOverrides,
+  } = options;
+  const authValue = { ...createMockAuthValue(user), ...authOverrides };
+  const reminderValue = { ...createMockReminderValue(), ...reminderOverrides };
 
   return function Wrapper({ children }: { children: ReactNode }) {
     return (
@@ -61,9 +69,9 @@ export function createProviderWrapper(options: RenderOptions = {}) {
 }
 
 export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}) {
-  const { user, initialEntries, authValue, ...renderOptions } = options;
+  const { user, initialEntries, authValue, reminderValue, ...renderOptions } = options;
   return render(ui, {
-    wrapper: createProviderWrapper({ user, initialEntries, authValue }),
+    wrapper: createProviderWrapper({ user, initialEntries, authValue, reminderValue }),
     ...renderOptions,
   });
 }
