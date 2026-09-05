@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { LoadingOverlay, PageLoading } from "../../components/LoadingSpinner";
 import {
   createProduct,
   deleteProduct,
@@ -374,14 +374,19 @@ export function AdminProductDetailPage() {
     }
   };
 
-  if (loading || saving || deleting) {
-    return <LoadingOverlay visible={true} />;
+  if (loading) {
+    return <PageLoading />;
   }
 
   const pendingDeletionCount = savedUrls.filter((u) => !displayedUrls.includes(u)).length;
 
   return (
     <div className={styles.page}>
+      <LoadingOverlay
+        visible={saving || deleting}
+        label={deleting ? "Deleting..." : "Saving..."}
+      />
+
       <div className={styles.header}>
         <div>
           <h1 className={styles.title}>

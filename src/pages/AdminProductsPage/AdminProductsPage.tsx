@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import { AdminProductCard } from "../../components/AdminProductCard";
 import { SearchBar } from "../../components/SearchBar";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { PageLoading } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { getAdminProducts, deleteProduct } from "../../api/admin_product";
 import { useReminder } from "../../context/useReminder";
@@ -112,7 +112,7 @@ export function AdminProductsPage() {
   );
 
   if (loading || deleting) {
-    return <LoadingOverlay visible={true} />;
+    return <PageLoading />;
   }
 
   if (loadError) {

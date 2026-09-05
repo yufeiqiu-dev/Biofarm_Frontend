@@ -1,0 +1,16 @@
+/*
+ * Height is reserved whether or not the spinner is showing. The layout is a
+ * column with the footer after the content, so an empty main lets the footer
+ * ride up the viewport and snap back down when the products arrive - a bigger
+ * visual disturbance than the thing this replaced.
+ */
+.region {
+  display: grid;
+  place-items: center;
+  min-height: 60vh;
+}
+
+/* Roughly one row of product cards, so the page below does not move. */
+.compact {
+  min-height: 320px;
+}

@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
-import { LoadingOverlay } from "../LoadingSpinner";
+import { PageLoading } from "../LoadingSpinner";
 import { useEffect, useState } from "react";
 import { useReminder } from "../../context/useReminder";
 
@@ -23,7 +23,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
   }, [refreshUser]);
 
   if (loading || checkingAccess) {
-    return <LoadingOverlay visible={true} />;
+    return <PageLoading label="Checking access..." />;
   }
 
   const isAdmin = user?.roles?.includes("Admin") ?? false;

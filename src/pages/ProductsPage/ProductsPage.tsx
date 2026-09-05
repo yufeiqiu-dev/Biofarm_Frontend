@@ -5,7 +5,7 @@ import { getTags } from "../../api/tag";
 import type { Product } from "../../types/product_type";
 import type { Tag } from "../../types/tag_type";
 import { ProductCard, ProductList } from "../../components/ProductCard";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { PageLoading } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductsPage.module.css";
 
@@ -56,7 +56,7 @@ export function ProductsPage() {
     });
   };
 
-  if (loading) return <LoadingOverlay visible={true} />;
+  if (loading) return <PageLoading label="Loading products..." />;
 
   if (error) {
     return (

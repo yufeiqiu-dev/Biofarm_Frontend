@@ -7,7 +7,7 @@ import { getProductById } from "../../api/product";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import { AddToCartButton } from "../../components/AddToCartButton";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { PageLoading } from "../../components/LoadingSpinner";
 
 
 export function ProductDetailPage() {
@@ -59,7 +59,7 @@ export function ProductDetailPage() {
   }
 
   if (loading) {
-    return <LoadingOverlay visible={true} />;
+    return <PageLoading />;
   }
 
   if (!product) {

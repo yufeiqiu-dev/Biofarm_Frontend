@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getProducts } from "../../api/product";
 import type { Product } from "../../types/product_type";
 import { ProductCard, ProductList } from "../../components/ProductCard";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { PageLoading } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./HomePage.module.css";
 
@@ -74,8 +74,6 @@ export function HomePage() {
 
   return (
     <div className={shared.page}>
-      {loading && <LoadingOverlay visible={true} />}
-
       <section className={styles.hero}>
         <div className={styles.heroContent}>
           <p className={styles.eyebrow}>Research Antibodies &amp; Diagnostics</p>
@@ -134,6 +132,8 @@ export function HomePage() {
 
         {featuredError ? (
           <p className={styles.loadError}>Unable to load products right now.</p>
+        ) : loading ? (
+          <PageLoading label="Loading products..." compact />
         ) : (
           <ProductList products={featuredProducts}>
             {featuredProducts.map((product) => (
