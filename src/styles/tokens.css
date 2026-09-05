@@ -27,6 +27,15 @@
   --accent-wash: #f0fdfa;  /* selected rows, quietly */
 
   /*
+   * The accent on a dark ground. --accent on --ink is about 3:1, which is not
+   * enough for small text, so the hero needs a lighter teal. It exists as a
+   * token because it was previously three rgba(94, 234, 212, x) literals in one
+   * rule - the same colour, spelled three ways, in a file that had no other
+   * mint in it.
+   */
+  --accent-on-dark: #5eead4;
+
+  /*
    * Availability is information, not decoration, so it gets real names rather
    * than being spelled as "green" and "red" at each call site.
    */
