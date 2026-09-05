@@ -57,3 +57,39 @@ export function stockSummary(variants: ProductVariant[]): {
 
   return { total, label: "In stock", tone: "inStock" };
 }
+
+/**
+ * Both ends of the range, for the product page.
+ *
+ * formatPriceRange says "from $285.00", which is the right summary when you are
+ * scanning a listing and comparing products. On a product page the variant
+ * table below lists every price anyway, so the header should say what the range
+ * actually is rather than only where it starts.
+ */
+export function formatPriceSpan(variants: ProductVariant[]): string {
+  if (variants.length === 0) return "—";
+
+  const prices = variants.map((v) => v.price);
+  const low = Math.min(...prices);
+  const high = Math.max(...prices);
+
+  if (low === high) return `$${low.toFixed(2)}`;
+  return `$${low.toFixed(2)} – $${high.toFixed(2)}`;
+}
+
+/**
+ * Availability for a single variant.
+ *
+ * stockSummary answers "can this product be bought at all", by summing every
+ * variant - the question a listing row asks. On the product page the question
+ * is "how many of this size are there", which is per row, and a product with
+ * 20 of one size and none of another must not report the second as in stock.
+ *
+ * Shares LOW_STOCK_THRESHOLD so the listing and the product page can never
+ * disagree about what counts as low.
+ */
+export function variantStock(stock: number): { label: string; tone: StockTone } {
+  if (stock <= 0) return { label: "Out of stock", tone: "outOfStock" };
+  if (stock <= LOW_STOCK_THRESHOLD) return { label: `${stock} left`, tone: "lowStock" };
+  return { label: "In stock", tone: "inStock" };
+}

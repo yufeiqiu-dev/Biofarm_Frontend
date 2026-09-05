@@ -2,8 +2,10 @@ import { describe, it, expect } from 'vitest';
 import {
   LOW_STOCK_THRESHOLD,
   formatPriceRange,
+  formatPriceSpan,
   formatSizeRange,
   stockSummary,
+  variantStock,
 } from './productSummary';
 import type { ProductVariant } from '../../types/product_type';
 
@@ -100,5 +102,53 @@ describe('stockSummary', () => {
     expect(stockSummary([]).label).toBe('Out of stock');
     expect(formatPriceRange([])).toBe('—');
     expect(formatSizeRange([])).toBe('—');
+  });
+});
+
+describe('formatPriceSpan', () => {
+  it('shows both ends, because the detail page is where you commit', () => {
+    // The listing says "from $285.00" - the right summary when you are
+    // scanning. On the product page the table below lists every price, so the
+    // header should say what the range actually is.
+    expect(
+      formatPriceSpan([variant({ price: 285 }), variant({ price: 495 })]),
+    ).toBe('$285.00 – $495.00');
+  });
+
+  it('shows one price when there is only one', () => {
+    expect(formatPriceSpan([variant({ price: 310 })])).toBe('$310.00');
+  });
+
+  it('shows one price when every variant costs the same', () => {
+    expect(
+      formatPriceSpan([variant({ price: 285 }), variant({ price: 285 })]),
+    ).toBe('$285.00');
+  });
+
+  it('handles a product with no variants', () => {
+    expect(formatPriceSpan([])).toBe('—');
+  });
+});
+
+describe('variantStock', () => {
+  it('gives the count for one variant rather than the total across them', () => {
+    // stockSummary answers "can I buy this product at all"; on the detail page
+    // the question is "how many of this size are there", which is per row.
+    expect(variantStock(3)).toEqual({ label: '3 left', tone: 'lowStock' });
+  });
+
+  it('is a plain reassurance when there is plenty', () => {
+    expect(variantStock(LOW_STOCK_THRESHOLD + 1)).toEqual({
+      label: 'In stock',
+      tone: 'inStock',
+    });
+  });
+
+  it('reports nothing available', () => {
+    expect(variantStock(0)).toEqual({ label: 'Out of stock', tone: 'outOfStock' });
+  });
+
+  it('uses the same threshold as the listing, so the two never disagree', () => {
+    expect(variantStock(LOW_STOCK_THRESHOLD).tone).toBe('lowStock');
   });
 });
