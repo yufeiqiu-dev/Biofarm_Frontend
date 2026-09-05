@@ -65,8 +65,12 @@ export function Navbar() {
   };
 
   const handleCartClick = () => {
+    // There is no /signin route and there never was - sign-in is Cognito's
+    // hosted UI, which signIn() redirects to. Navigating to a path the router
+    // does not know sent the shopper to the 404 page instead, from a click on
+    // the cart. signIn() also records the current path, so they come back here.
     if (!user) {
-      navigate("/signin");
+      void signIn();
       return;
     }
     toggleCartSideBar();

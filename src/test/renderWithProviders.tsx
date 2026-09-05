@@ -8,9 +8,14 @@ import { CartSideBarProvider } from '../context/CartSideBarContext';
 import type { User } from '../types/user_type';
 import { createMockUser } from './mocks/mockUser';
 
+type MockAuthValue = ReturnType<typeof createMockAuthValue>;
+
 interface RenderOptions extends Omit<RTLRenderOptions, 'wrapper'> {
   user?: User | null;
   initialEntries?: string[];
+  /** Override parts of the auth context - a spy on signIn, say. Merged over
+   *  the value `user` would otherwise produce. */
+  authValue?: Partial<MockAuthValue>;
 }
 
 export function createMockAuthValue(user: User | null) {
@@ -36,8 +41,8 @@ function createMockReminderValue() {
 }
 
 export function createProviderWrapper(options: RenderOptions = {}) {
-  const { user = createMockUser(), initialEntries = ['/'] } = options;
-  const authValue = createMockAuthValue(user);
+  const { user = createMockUser(), initialEntries = ['/'], authValue: overrides } = options;
+  const authValue = { ...createMockAuthValue(user), ...overrides };
   const reminderValue = createMockReminderValue();
 
   return function Wrapper({ children }: { children: ReactNode }) {
@@ -56,9 +61,9 @@ export function createProviderWrapper(options: RenderOptions = {}) {
 }
 
 export function renderWithProviders(ui: ReactElement, options: RenderOptions = {}) {
-  const { user, initialEntries, ...renderOptions } = options;
+  const { user, initialEntries, authValue, ...renderOptions } = options;
   return render(ui, {
-    wrapper: createProviderWrapper({ user, initialEntries }),
+    wrapper: createProviderWrapper({ user, initialEntries, authValue }),
     ...renderOptions,
   });
 }
