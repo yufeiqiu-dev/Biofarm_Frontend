@@ -21,7 +21,9 @@ export interface AdminOrderItem extends OrderItem {
 
 export interface Order {
   id: string;
-  order_number: number;
+  /** Customer-facing and deliberately not sequential, e.g. "OB-7K3M9QXZ".
+   *  Not an ordering key - sort by created_at. */
+  order_number: string;
   status: OrderStatus;
   total_amount: number;
   tax_amount: number;

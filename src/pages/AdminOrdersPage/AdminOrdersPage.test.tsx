@@ -12,7 +12,7 @@ const { adminListOrders } = await import('../../api/admin_order');
 function makeOrder(overrides: Partial<AdminOrder> = {}): AdminOrder {
   return {
     id: 'o1',
-    order_number: 1000,
+    order_number: 'OB-1000ABCD',
     status: 'confirmed',
     total_amount: 19.99,
     tax_amount: 1.75,
@@ -71,16 +71,16 @@ describe('AdminOrdersPage', () => {
 
     // The tab the user has since left answers last, and must be ignored.
     await act(async () => {
-      delivered.resolve([makeOrder({ id: 'o-new', order_number: 2222, status: 'delivered' })]);
+      delivered.resolve([makeOrder({ id: 'o-new', order_number: 'OB-2222WXYZ', status: 'delivered' })]);
     });
     await act(async () => {
       awaiting.resolve([
-        makeOrder({ id: 'o-stale', order_number: 1111, status: 'awaiting_fulfillment' }),
+        makeOrder({ id: 'o-stale', order_number: 'OB-1111MNOP', status: 'awaiting_fulfillment' }),
       ]);
     });
 
-    expect(screen.getByText('#2222')).toBeInTheDocument();
-    expect(screen.queryByText('#1111')).not.toBeInTheDocument();
+    expect(screen.getByText('OB-2222WXYZ')).toBeInTheDocument();
+    expect(screen.queryByText('OB-1111MNOP')).not.toBeInTheDocument();
   });
 
   it('shows loading until the response for the selected tab arrives', async () => {

@@ -190,7 +190,7 @@ export function AdminOrderDetailPage() {
   return (
     <div className={styles.page}>
       <Link to="/admin/orders">← Back to Orders</Link>
-      <h1>Order #{order.order_number}</h1>
+      <h1>Order {order.order_number}</h1>
 
       {/* Customer + payment meta */}
       <div className={styles.card}>

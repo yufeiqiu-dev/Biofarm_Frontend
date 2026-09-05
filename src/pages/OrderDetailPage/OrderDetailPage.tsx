@@ -128,7 +128,7 @@ export function OrderDetailPage() {
       <Link to="/orders" className={styles.back}>← Back to Orders</Link>
       <div className={styles.pageHeader}>
         <div>
-          <h1 className={styles.heading}>Order #{order.order_number}</h1>
+          <h1 className={styles.heading}>Order {order.order_number}</h1>
           <span className={styles.orderDate}>Placed {formatDate(order.created_at)}</span>
         </div>
         <span className={`${styles.badge} ${STATUS_BADGE[order.status]}`}>

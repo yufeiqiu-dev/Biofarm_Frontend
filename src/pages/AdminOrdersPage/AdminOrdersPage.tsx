@@ -86,7 +86,7 @@ export function AdminOrdersPage() {
     const q = search.trim().toLowerCase();
     if (!q) return orders;
     return orders.filter((o) => {
-      if (String(o.order_number).includes(q)) return true;
+      if (o.order_number.toLowerCase().includes(q)) return true;
       if (o.customer_email.toLowerCase().includes(q)) return true;
       if (o.shipping_name.toLowerCase().includes(q)) return true;
       if (o.user_id.toLowerCase().includes(q)) return true;
@@ -141,7 +141,7 @@ export function AdminOrdersPage() {
           <tbody>
             {filtered.map((order) => (
               <tr key={order.id} onClick={() => navigate(`/admin/orders/${order.id}`)}>
-                <td>#{order.order_number}</td>
+                <td>{order.order_number}</td>
                 <td>
                   {order.customer_email ? (
                     <span>{order.customer_email}</span>

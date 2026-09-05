@@ -47,7 +47,7 @@ function itemSummary(order: Order) {
 function matchesSearch(order: Order, query: string): boolean {
   const q = query.toLowerCase().trim();
   if (!q) return true;
-  if (String(order.order_number).includes(q)) return true;
+  if (order.order_number.toLowerCase().includes(q)) return true;
   return order.items.some((i) => i.product_name.toLowerCase().includes(q));
 }
 
@@ -135,7 +135,7 @@ export function OrdersPage() {
           >
             <div className={styles.cardTop}>
               <div className={styles.orderMeta}>
-                <span className={styles.orderNumber}>Order #{order.order_number}</span>
+                <span className={styles.orderNumber}>Order {order.order_number}</span>
                 <span className={styles.orderDate}>{formatDate(order.created_at)}</span>
               </div>
               <span className={`${styles.badge} ${STATUS_BADGE[order.status]}`}>
