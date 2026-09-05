@@ -24,7 +24,12 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: "24"
+          # From .nvmrc, which the Amplify build spec reads too. CI pinning a
+          # version Amplify does not use makes this gate meaningless: a green run
+          # here would say nothing about the build that actually deploys, which
+          # is the post-merge failure the job exists to catch. Vite requires
+          # ^20.19 || >=22.12.
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install dependencies
@@ -33,24 +38,39 @@ jobs:
         run: npm ci
 
       - name: Lint
-        # Zero errors and zero warnings today. Enforcing that is the whole point
-        # of the job - a warning that is allowed to accumulate stops being read.
+        # The npm script carries --max-warnings 0. Without it eslint exits 0 on
+        # warnings, and both reactRefresh and tseslint emit warning-severity
+        # rules - so the accumulation this step is meant to prevent would have
+        # passed silently. It lives in the script rather than only here so that a
+        # local run and CI agree on what "clean" means.
         run: npm run lint
 
       - name: Test
-        # passWithNoTests is on in the vitest config, so an empty or mis-globbed
-        # run exits 0. The count is asserted below rather than trusted.
-        run: npm run test
+        # One run, reported twice: readable output for whoever reads the log, and
+        # JSON on disk for the count check below. That count used to be a second
+        # full run of the same suite purely to read one number out of it.
+        run: npm run test -- --reporter=default --reporter=json --outputFile=vitest-results.json
 
       - name: Build
         run: npm run build
 
       - name: Confirm the tests actually ran
-        # Guards the passWithNoTests hole above: a broken glob would otherwise
-        # turn this whole job green while running nothing at all.
+        # passWithNoTests is on in the vitest config, so an empty or mis-globbed
+        # run exits 0 - the failure mode where CI is worse than none, because it
+        # reports confidence it does not have.
         run: |
-          COUNT=$(npx vitest run --reporter=json 2>/dev/null \
-            | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{try{console.log(JSON.parse(s).numTotalTests)}catch{console.log(0)}})")
+          COUNT=$(node -e "
+            const fs = require('fs');
+            try {
+              process.stdout.write(String(JSON.parse(fs.readFileSync('vitest-results.json','utf8')).numTotalTests));
+            } catch (error) {
+              // Reported rather than collapsed to zero. Swallowing this blamed
+              // the glob for what was really a crash or a config error, and
+              // threw away the only evidence of the actual cause.
+              console.error('Could not read the vitest report:', error.message);
+              process.exit(1);
+            }
+          ")
           echo "tests run: $COUNT"
           if [ "$COUNT" -lt 40 ]; then
             echo "Expected at least 40 tests, found $COUNT - has the glob broken?"
