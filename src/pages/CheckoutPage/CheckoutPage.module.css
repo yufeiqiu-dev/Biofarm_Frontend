@@ -16,16 +16,16 @@
   align-items: center;
   gap: 0.5rem;
   font-size: 0.875rem;
-  color: var(--color-text-muted, #6b7280);
+  color: var(--color-text-muted, var(--muted));
 }
 
 .step.active {
-  color: var(--color-primary, #2d6a4f);
+  color: var(--color-primary, var(--status-delivered-text));
   font-weight: 600;
 }
 
 .step.completed {
-  color: var(--color-primary, #2d6a4f);
+  color: var(--color-primary, var(--status-delivered-text));
 }
 
 .stepNumber {
@@ -37,27 +37,27 @@
   justify-content: center;
   font-size: 0.75rem;
   font-weight: 700;
-  background: #e5e7eb;
-  color: #6b7280;
+  background: var(--rule);
+  color: var(--muted);
 }
 
 .step.active .stepNumber,
 .step.completed .stepNumber {
-  background: var(--color-primary, #2d6a4f);
+  background: var(--color-primary, var(--status-delivered-text));
   color: white;
 }
 
 .stepDivider {
   flex: 1;
   height: 2px;
-  background: #e5e7eb;
+  background: var(--rule);
   margin: 0 0.5rem;
 }
 
 .card {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   padding: 2rem;
 }
 
@@ -77,20 +77,20 @@
 .label {
   font-size: 0.875rem;
   font-weight: 500;
-  color: #374151;
+  color: var(--slate);
 }
 
 .input {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   font-size: 0.875rem;
   outline: none;
   transition: border-color 0.15s;
 }
 
 .input:focus {
-  border-color: var(--color-primary, #2d6a4f);
+  border-color: var(--color-primary, var(--status-delivered-text));
 }
 
 .textarea {
@@ -111,10 +111,10 @@
 
 .btnPrimary {
   padding: 0.625rem 1.5rem;
-  background: var(--color-primary, #2d6a4f);
+  background: var(--color-primary, var(--status-delivered-text));
   color: white;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-container);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -127,10 +127,10 @@
 
 .btnSecondary {
   padding: 0.625rem 1.5rem;
-  background: #f3f4f6;
-  color: #374151;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  background: var(--canvas);
+  color: var(--slate);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -141,7 +141,7 @@
   justify-content: space-between;
   padding: 0.5rem 0;
   font-size: 0.875rem;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid var(--canvas);
 }
 
 .summaryTotal {
@@ -153,13 +153,13 @@
 }
 
 .error {
-  color: #dc2626;
+  color: var(--danger);
   font-size: 0.875rem;
   margin-top: 0.5rem;
 }
 
 .fieldError {
-  color: #dc2626;
+  color: var(--danger);
   font-size: 0.8rem;
   margin-top: 0.25rem;
 }

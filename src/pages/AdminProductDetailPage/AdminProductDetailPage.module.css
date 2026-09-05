@@ -20,7 +20,7 @@
   
   .subtitle {
     margin: 8px 0 0;
-    color: #6b7280;
+    color: var(--muted);
   }
   
   .headerActions {
@@ -42,9 +42,9 @@
   }
   
   .section {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
-    background: #ffffff;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
+    background: var(--surface);
     padding: 20px;
   }
   
@@ -64,14 +64,14 @@
   .label {
     font-size: 14px;
     font-weight: 600;
-    color: #374151;
+    color: var(--slate);
   }
   
   .input,
   .textarea {
     width: 100%;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     padding: 10px 12px;
     font-size: 14px;
     box-sizing: border-box;
@@ -83,24 +83,24 @@
   
   .previewBox {
     min-height: 260px;
-    border: 1px dashed #d1d5db;
-    border-radius: 12px;
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius-container);
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 16px;
-    background: #f9fafb;
+    background: var(--canvas);
   }
   
   .previewImage {
     max-width: 100%;
     max-height: 320px;
     object-fit: contain;
-    border-radius: 8px;
+    border-radius: var(--radius-container);
   }
   
   .previewPlaceholder {
-    color: #6b7280;
+    color: var(--muted);
     font-size: 14px;
   }
   
@@ -119,10 +119,10 @@
   }
   
   .variantCard {
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     padding: 16px;
-    background: #f9fafb;
+    background: var(--canvas);
   }
   
   .variantCardHeader {
@@ -147,85 +147,85 @@
 .saveButton {
   height: 40px;
   padding: 0 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   border: none;
-  background: #22c55e;
+  background: var(--in-stock);
   color: white;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .saveButton:hover {
-  background: #16a34a;
+  background: var(--in-stock);
 }
 
 .cancelButton {
   height: 40px;
   padding: 0 16px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border-radius: var(--radius-container);
+  border: 1px solid var(--rule);
   background: white;
-  color: #374151;
+  color: var(--slate);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .cancelButton:hover {
-  background: #f9fafb;
+  background: var(--canvas);
 }
 
 .deleteButton {
   height: 40px;
   padding: 0 16px;
-  border-radius: 8px;
-  border: 1px solid #fca5a5;
-  background: #fee2e2;
-  color: #b91c1c;
+  border-radius: var(--radius-container);
+  border: 1px solid var(--danger);
+  background: var(--status-cancelled-wash);
+  color: var(--out-of-stock);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .deleteButton:hover {
-  background: #fecaca;
+  background: var(--status-cancelled-wash);
 }
 
 .addVariantButton {
   height: 36px;
   padding: 0 14px;
-  border-radius: 8px;
-  border: 1px solid #d1d5db;
+  border-radius: var(--radius-container);
+  border: 1px solid var(--rule);
   background: white;
-  color: #374151;
+  color: var(--slate);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
 }
 .addVariantButton:hover {
-  background: #f9fafb;
+  background: var(--canvas);
 }
 
 .removeVariantButton {
   height: 32px;
   padding: 0 12px;
-  border-radius: 6px;
-  border: 1px solid #fca5a5;
-  background: #fee2e2;
-  color: #b91c1c;
+  border-radius: var(--radius-container);
+  border: 1px solid var(--danger);
+  background: var(--status-cancelled-wash);
+  color: var(--out-of-stock);
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
 }
 .removeVariantButton:hover {
-  background: #fecaca;
+  background: var(--status-cancelled-wash);
 }
 
 .inputError {
-  border-color: #ef4444 !important;
+  border-color: var(--danger) !important;
   box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
 }
 
 .fieldError {
-  color: #b42318;
+  color: var(--danger);
   font-size: 13px;
   margin: 4px 0 0;
 }
@@ -238,9 +238,9 @@
   
   .emptyVariants {
     padding: 16px;
-    border: 1px dashed #d0d5dd;
-    border-radius: 8px;
-    color: #667085;
+    border: 1px dashed var(--rule);
+    border-radius: var(--radius-container);
+    color: var(--muted);
   }
   
   @media (max-width: 900px) {
@@ -278,16 +278,16 @@
   position: relative;
   width: 100px;
   height: 100px;
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   overflow: visible;
-  border: 1px solid #e5e7eb;
+  border: 1px solid var(--rule);
 }
 
 .imageThumb {
   width: 100px;
   height: 100px;
   object-fit: cover;
-  border-radius: 8px;
+  border-radius: var(--radius-container);
   display: block;
 }
 
@@ -297,10 +297,10 @@
   left: 50%;
   transform: translateX(-50%);
   background: #6366f1;
-  color: #fff;
+  color: var(--surface);
   font-size: 10px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-data);
   white-space: nowrap;
 }
 
@@ -312,8 +312,8 @@
   height: 22px;
   border-radius: 50%;
   border: none;
-  background: #ef4444;
-  color: #fff;
+  background: var(--danger);
+  color: var(--surface);
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
@@ -324,7 +324,7 @@
 }
 
 .deleteImageButton:hover {
-  background: #dc2626;
+  background: var(--danger);
 }
 
 .imagePlaceholder {
@@ -344,27 +344,27 @@
 .tagChip {
   padding: 4px 12px;
   background: white;
-  border: 1px solid #d1d5db;
-  border-radius: 999px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
   font-size: 0.82rem;
-  color: #374151;
+  color: var(--slate);
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .tagChip:hover {
-  border-color: #22c55e;
-  color: #16a34a;
+  border-color: var(--in-stock);
+  color: var(--in-stock);
 }
 
 .tagChipSelected {
-  background: #22c55e;
-  border-color: #22c55e;
+  background: var(--in-stock);
+  border-color: var(--in-stock);
   color: white;
 }
 
 .tagChipSelected:hover {
-  background: #16a34a;
+  background: var(--in-stock);
   color: white;
 }
 
@@ -373,28 +373,28 @@
   bottom: -8px;
   left: 50%;
   transform: translateX(-50%);
-  background: #f59e0b;
+  background: var(--low-stock);
   color: white;
   font-size: 11px;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-data);
   border: none;
   cursor: pointer;
   white-space: nowrap;
 }
 
 .setPrimaryButton:hover {
-  background: #d97706;
+  background: var(--low-stock);
 }
 
 .pendingBadge {
   position: absolute;
   bottom: 4px;
   left: 4px;
-  background: #f59e0b;
+  background: var(--low-stock);
   color: white;
   font-size: 10px;
   font-weight: 700;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-data);
 }

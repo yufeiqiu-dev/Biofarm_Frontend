@@ -55,7 +55,7 @@ export function CartProductCard({
             type="button"
             className={styles.removeButton}
             onClick={() => onRemove(item.id)}
-            aria-label="Remove item"
+            aria-label={`Remove ${item.name} from cart`}
           >
             🗑
           </button>
@@ -63,21 +63,30 @@ export function CartProductCard({
 
         <div className={styles.bottomRow}>
           <div className={styles.quantityControls}>
+            {/*
+              Named after the line they act on. "+" and "-" are not labels, and
+              with several items in the cart a generic "Increase quantity" is
+              ambiguous - there is one per line and nothing to tell them apart.
+            */}
             <button
               type="button"
               className={styles.quantityButton}
               onClick={() => onDecrease(item.id)}
               disabled={item.quantity <= 1}
+              aria-label={`Decrease quantity of ${item.name}`}
             >
               -
             </button>
 
-            <span className={styles.quantityValue}>{item.quantity}</span>
+            <span className={styles.quantityValue} aria-live="polite">
+              {item.quantity}
+            </span>
 
             <button
               type="button"
               className={styles.quantityButton}
               onClick={() => onIncrease(item.id)}
+              aria-label={`Increase quantity of ${item.name}`}
             >
               +
             </button>

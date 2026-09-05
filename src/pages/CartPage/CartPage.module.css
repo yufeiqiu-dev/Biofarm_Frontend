@@ -14,7 +14,7 @@
 .empty {
   text-align: center;
   padding: 5rem 1rem;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .emptyIcon {
@@ -29,16 +29,16 @@
 .shopLink {
   display: inline-block;
   padding: 0.625rem 1.5rem;
-  background: #15803d;
+  background: var(--in-stock);
   color: white;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.875rem;
 }
 
 .shopLink:hover {
-  background: #166534;
+  background: var(--status-delivered-text);
 }
 
 /* ── Layout ── */
@@ -54,8 +54,8 @@
 
 .itemsPanel {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   padding: 0 1.25rem;
 }
 
@@ -63,8 +63,8 @@
 
 .summary {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   padding: 1.5rem;
   position: sticky;
   top: 100px;
@@ -80,13 +80,13 @@
   display: flex;
   justify-content: space-between;
   font-size: 0.875rem;
-  color: #6b7280;
+  color: var(--muted);
   margin-bottom: 0.625rem;
 }
 
 .summaryDivider {
   border: none;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid var(--rule);
   margin: 1rem 0;
 }
 
@@ -95,7 +95,7 @@
   justify-content: space-between;
   font-weight: 700;
   font-size: 1rem;
-  color: #111827;
+  color: var(--ink);
   margin-bottom: 1.25rem;
 }
 
@@ -103,7 +103,7 @@
   display: block;
   width: 100%;
   padding: 0.8rem;
-  background: #15803d;
+  background: var(--in-stock);
   color: white;
   font-size: 1rem;
   font-weight: 600;
@@ -116,7 +116,7 @@
 }
 
 .checkoutBtn:hover {
-  background: #166534;
+  background: var(--status-delivered-text);
 }
 
 .checkoutBtn:disabled {
@@ -127,7 +127,7 @@
 .signInNote {
   margin: 0.75rem 0 0;
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--muted);
   text-align: center;
 }
 

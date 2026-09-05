@@ -4,8 +4,8 @@ import { getProducts } from "../../api/product";
 import { getTags } from "../../api/tag";
 import type { Product } from "../../types/product_type";
 import type { Tag } from "../../types/tag_type";
-import { ProductCard } from "../../components/ProductCard";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { ProductCard, ProductList } from "../../components/ProductCard";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductsPage.module.css";
 
@@ -44,6 +44,8 @@ export function ProductsPage() {
     return allProducts.filter((p) => (p.tags ?? []).some((t) => t.name === activeTag));
   }, [allProducts, activeTag]);
 
+  const load = useLoadingState(loading);
+
   const handleTagClick = (tag: string) => {
     setSearchParams((prev) => {
       const next = new URLSearchParams(prev);
@@ -55,8 +57,6 @@ export function ProductsPage() {
       return next;
     });
   };
-
-  if (loading) return <LoadingOverlay visible={true} />;
 
   if (error) {
     return (
@@ -85,14 +85,22 @@ export function ProductsPage() {
         </div>
       )}
 
-      {displayedProducts.length === 0 ? (
+      {/*
+        Only the grid waits. The heading and the filters do not depend on the
+        products request, and returning the loading state instead of the page
+        made them disappear and come back on every load - which also collapsed
+        the page far enough to pull the dark footer up onto the screen.
+      */}
+      {load.pending ? (
+        <PageLoading label="Loading products..." visible={load.visible} />
+      ) : displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
       ) : (
-        <div className={shared.productGrid}>
+        <ProductList products={displayedProducts}>
           {displayedProducts.map((p) => (
             <ProductCard key={p.id} product={p} />
           ))}
-        </div>
+        </ProductList>
       )}
     </div>
   );

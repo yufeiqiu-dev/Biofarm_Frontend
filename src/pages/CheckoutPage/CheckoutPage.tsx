@@ -79,8 +79,9 @@ function ContactStep({
     <div className={styles.card}>
       <h2>Contact Information</h2>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Email *</label>
+        <label className={styles.label} htmlFor="checkout-email">Email *</label>
         <input
+          id="checkout-email"
           className={styles.input}
           value={user?.email ?? ""}
           disabled
@@ -92,8 +93,9 @@ function ContactStep({
         )}
       </div>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Full Name *</label>
+        <label className={styles.label} htmlFor="checkout-full-name">Full Name *</label>
         <input
+          id="checkout-full-name"
           className={styles.input}
           value={contact.name}
           onChange={(e) => onChange({ ...contact, name: e.target.value })}
@@ -101,8 +103,9 @@ function ContactStep({
         />
       </div>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Phone *</label>
+        <label className={styles.label} htmlFor="checkout-phone">Phone *</label>
         <input
+          id="checkout-phone"
           className={styles.input}
           value={contact.phone}
           onChange={(e) => onChange({ ...contact, phone: e.target.value })}
@@ -143,8 +146,9 @@ function ShippingStep({
     <div className={styles.card}>
       <h2>Shipping Address</h2>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Address Line 1 *</label>
+        <label className={styles.label} htmlFor="checkout-address-line-1">Address Line 1 *</label>
         <input
+          id="checkout-address-line-1"
           className={styles.input}
           value={shipping.address1}
           onChange={(e) => onChange({ ...shipping, address1: e.target.value })}
@@ -152,8 +156,9 @@ function ShippingStep({
         />
       </div>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Address Line 2</label>
+        <label className={styles.label} htmlFor="checkout-address-line-2">Address Line 2</label>
         <input
+          id="checkout-address-line-2"
           className={styles.input}
           value={shipping.address2}
           onChange={(e) => onChange({ ...shipping, address2: e.target.value })}
@@ -162,16 +167,18 @@ function ShippingStep({
       </div>
       <div className={styles.formRow}>
         <div className={styles.formGroup}>
-          <label className={styles.label}>City *</label>
+          <label className={styles.label} htmlFor="checkout-city">City *</label>
           <input
+            id="checkout-city"
             className={styles.input}
             value={shipping.city}
             onChange={(e) => onChange({ ...shipping, city: e.target.value })}
           />
         </div>
         <div className={styles.formGroup}>
-          <label className={styles.label}>State *</label>
+          <label className={styles.label} htmlFor="checkout-state">State *</label>
           <select
+            id="checkout-state"
             className={styles.select}
             value={shipping.state}
             onChange={(e) => onChange({ ...shipping, state: e.target.value })}
@@ -186,8 +193,9 @@ function ShippingStep({
         </div>
       </div>
       <div className={styles.formGroup}>
-        <label className={styles.label}>ZIP Code *</label>
+        <label className={styles.label} htmlFor="checkout-zip-code">ZIP Code *</label>
         <input
+          id="checkout-zip-code"
           className={styles.input}
           value={shipping.zip}
           onChange={(e) => onChange({ ...shipping, zip: e.target.value })}
@@ -195,8 +203,9 @@ function ShippingStep({
         />
       </div>
       <div className={styles.formGroup}>
-        <label className={styles.label}>Order Notes</label>
+        <label className={styles.label} htmlFor="checkout-order-notes">Order Notes</label>
         <textarea
+          id="checkout-order-notes"
           className={styles.textarea}
           value={shipping.notes}
           onChange={(e) => onChange({ ...shipping, notes: e.target.value })}
@@ -300,7 +309,14 @@ function PaymentForm({
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Stripe.js has loaded but the card form has not mounted. Returning silently
+  // here is what made a dead Pay button possible: the click did nothing, showed
+  // nothing, and left the buyer pressing it again.
+  const paymentFormReady = Boolean(stripe && elements);
+
   const handlePay = async () => {
+    // Narrowed explicitly rather than through paymentFormReady, which is a
+    // boolean and tells the compiler nothing about these two being non-null.
     if (!stripe || !elements) return;
     setLoading(true);
     setError(null);
@@ -341,6 +357,11 @@ function PaymentForm({
         <span>Total</span>
         <span>${total.toFixed(2)}</span>
       </div>
+      {!paymentFormReady && (
+        <p className={styles.error}>
+          The payment form could not be loaded. Refresh the page to try again.
+        </p>
+      )}
       {error && <p className={styles.error}>{error}</p>}
       <div className={styles.actions}>
         <button
@@ -353,7 +374,7 @@ function PaymentForm({
         <button
           className={styles.btnPrimary}
           onClick={handlePay}
-          disabled={loading || !stripe}
+          disabled={loading || !paymentFormReady}
         >
           {loading ? "Processing..." : `Pay $${total.toFixed(2)}`}
         </button>

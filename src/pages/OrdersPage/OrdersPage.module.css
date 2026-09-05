@@ -21,8 +21,8 @@
 .searchInput {
   width: 100%;
   padding: 0.625rem 1rem;
-  border: 1px solid #d1d5db;
-  border-radius: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   font-size: 0.875rem;
   outline: none;
   box-sizing: border-box;
@@ -30,7 +30,7 @@
 }
 
 .searchInput:focus {
-  border-color: #6b7280;
+  border-color: var(--muted);
   box-shadow: 0 0 0 3px rgba(107, 114, 128, 0.1);
 }
 
@@ -42,25 +42,25 @@
 
 .filterTab {
   padding: 0.375rem 0.875rem;
-  border-radius: 9999px;
-  border: 1px solid #e5e7eb;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule);
   background: white;
   font-size: 0.8125rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--muted);
   cursor: pointer;
   transition: background 0.1s, color 0.1s, border-color 0.1s;
 }
 
 .filterTab:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 .filterTabActive {
-  background: #111827;
+  background: var(--ink);
   color: white;
-  border-color: #111827;
+  border-color: var(--ink);
 }
 
 /* ── Empty state ── */
@@ -68,7 +68,7 @@
 .empty {
   text-align: center;
   padding: 4rem 1rem;
-  color: #6b7280;
+  color: var(--muted);
 }
 
 .emptyIcon {
@@ -84,41 +84,41 @@
 .shopLink {
   display: inline-block;
   padding: 0.625rem 1.5rem;
-  background: #15803d;
+  background: var(--in-stock);
   color: white;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   text-decoration: none;
   font-weight: 600;
   font-size: 0.875rem;
 }
 
 .shopLink:hover {
-  background: #166534;
+  background: var(--status-delivered-text);
 }
 
 .clearBtn {
   display: inline-block;
   padding: 0.5rem 1.25rem;
   background: transparent;
-  border: 1px solid #d1d5db;
-  border-radius: 9999px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
   font-size: 0.875rem;
   font-weight: 500;
-  color: #6b7280;
+  color: var(--muted);
   cursor: pointer;
 }
 
 .clearBtn:hover {
-  background: #f3f4f6;
-  color: #111827;
+  background: var(--canvas);
+  color: var(--ink);
 }
 
 /* ── Order card ── */
 
 .orderCard {
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
   cursor: pointer;
@@ -130,7 +130,7 @@
 
 .orderCard:hover {
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
-  border-color: #d1d5db;
+  border-color: var(--rule);
 }
 
 .cardTop {
@@ -149,12 +149,12 @@
 .orderNumber {
   font-weight: 700;
   font-size: 1rem;
-  color: #111827;
+  color: var(--ink);
 }
 
 .orderDate {
   font-size: 0.8125rem;
-  color: #9ca3af;
+  color: var(--muted);
 }
 
 /* ── Status badges ── */
@@ -162,35 +162,35 @@
 .badge {
   display: inline-block;
   padding: 0.25rem 0.75rem;
-  border-radius: 9999px;
+  border-radius: var(--radius-pill);
   font-size: 0.75rem;
   font-weight: 600;
   white-space: nowrap;
 }
 
 .badgePending {
-  background: #f3f4f6;
-  color: #6b7280;
+  background: var(--canvas);
+  color: var(--muted);
 }
 
 .badgeProcessing {
-  background: #fef3c7;
-  color: #92400e;
+  background: var(--status-awaiting-wash);
+  color: var(--status-awaiting-text);
 }
 
 .badgeShipped {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: var(--status-confirmed-wash);
+  color: var(--status-confirmed-text);
 }
 
 .badgeDelivered {
-  background: #dcfce7;
-  color: #15803d;
+  background: var(--status-delivered-wash);
+  color: var(--in-stock);
 }
 
 .badgeCancelled {
-  background: #fee2e2;
-  color: #991b1b;
+  background: var(--status-cancelled-wash);
+  color: var(--status-cancelled-text);
 }
 
 /* ── Card bottom ── */
@@ -203,7 +203,7 @@
 
 .itemSummary {
   font-size: 0.8125rem;
-  color: #6b7280;
+  color: var(--muted);
   flex: 1;
   min-width: 0;
   overflow: hidden;
@@ -222,10 +222,10 @@
 .total {
   font-size: 0.9375rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--ink);
 }
 
 .arrow {
-  color: #9ca3af;
+  color: var(--muted);
   font-size: 1rem;
 }
