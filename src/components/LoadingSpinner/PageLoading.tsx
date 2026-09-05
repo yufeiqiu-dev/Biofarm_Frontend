@@ -1,5 +1,4 @@
 import { LoadingSpinner } from "./LoadingSpinner";
-import { useDelayedVisible } from "./useDelayedVisible";
 import styles from "./PageLoading.module.css";
 
 type PageLoadingProps = {
@@ -22,19 +21,18 @@ type PageLoadingProps = {
  * not rendered yet. All the scrim did was paint the window dark for the
  * duration of the request.
  *
- * This sits in the page's own flow instead, reserves enough height that the
- * footer does not ride up and snap back when content lands, and stays empty
- * unless the load is slow enough to be worth reporting.
+ * Presentational only. When it is on screen is decided by useLoadingState,
+ * because that decision has to gate the content as well - a page that swaps in
+ * its cards the instant the request resolves would defeat the minimum hold no
+ * matter what this component did.
  */
 export function PageLoading({ label, compact = false }: PageLoadingProps) {
-  const visible = useDelayedVisible(true);
-
   return (
     <div
       className={compact ? `${styles.region} ${styles.compact}` : styles.region}
       aria-busy="true"
     >
-      {visible && <LoadingSpinner label={label} />}
+      <LoadingSpinner label={label} />
     </div>
   );
 }

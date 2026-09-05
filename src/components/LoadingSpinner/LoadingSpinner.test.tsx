@@ -1,72 +1,149 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, act } from '@testing-library/react';
+import { render, screen, act, renderHook } from '@testing-library/react';
 import { PageLoading } from './PageLoading';
 import { LoadingOverlay } from './LoadingOverlay';
-import { LOADING_INDICATOR_DELAY_MS } from './useDelayedVisible';
+import {
+  useLoadingState,
+  LOADING_INDICATOR_DELAY_MS,
+  LOADING_INDICATOR_MINIMUM_MS,
+} from './useLoadingState';
 
 /**
- * The bug these hold the line on: every page rendered its loading state as
- * LoadingOverlay - a fixed, full-viewport rgba(15,23,42,0.18) scrim at z-index
- * 2500, above the navbar. Against a local backend the fetch resolves in ~25ms,
- * so clicking any nav link painted the whole window dark for 25ms and then
- * showed the page. Measured in the browser, not inferred: one full-screen dark
- * element, visible for 25ms, on /products but not on /about.
+ * Two rules, pulling in opposite directions, and both were reported from the
+ * screen rather than theorised.
+ *
+ * A loading state that appears for 25ms is not information, it is a flash - the
+ * whole window went dark on every navigation because a blocking scrim was used
+ * as a page loading state. So nothing appears for the first quarter second.
+ *
+ * And once something has appeared, whipping it away a frame later is the same
+ * flash in the other direction. So it stays for a second before it can go.
  */
-describe('loading indicators', () => {
+describe('useLoadingState', () => {
   beforeEach(() => vi.useFakeTimers());
   afterEach(() => vi.useRealTimers());
 
-  describe('PageLoading', () => {
-    it('shows nothing at all when the load is faster than the delay', () => {
-      // The whole point. A spinner visible for 25ms is not information, it is
-      // a flash, and it is what made navigation feel broken.
-      render(<PageLoading />);
-
-      act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS - 1); });
-
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
-      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+  it('shows nothing for a load that finishes inside the delay', () => {
+    const { result, rerender } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
     });
 
-    it('shows the spinner once the load is slow enough to be worth reporting', () => {
-      render(<PageLoading />);
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS - 50); });
+    rerender({ active: false });
 
-      act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
+    expect(result.current).toBe(false);
 
-      expect(screen.getByRole('status')).toBeInTheDocument();
-    });
-
-    it('reserves height so the footer does not jump when content arrives', () => {
-      // Without this the page is momentarily empty, the sticky footer rides up
-      // the viewport, and the layout snaps when the products land.
-      const { container } = render(<PageLoading />);
-      const region = container.firstElementChild;
-
-      expect(region).not.toBeNull();
-      expect(region!.className).not.toBe('');
-    });
+    // And it must not appear afterwards either - the load is already over.
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(result.current).toBe(false);
   });
 
-  describe('LoadingOverlay', () => {
-    it('does not flash its scrim for an operation that finishes quickly', () => {
-      // Still the right component for a blocking save, which is slow enough to
-      // need one - but not for anything that might finish in 25ms.
-      const { rerender } = render(<LoadingOverlay visible={true} />);
-
-      act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS - 1); });
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
-
-      rerender(<LoadingOverlay visible={false} />);
-      act(() => { vi.advanceTimersByTime(1000); });
-      expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  it('appears once the load outlasts the delay', () => {
+    const { result } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
     });
 
-    it('appears for an operation that actually takes time', () => {
-      render(<LoadingOverlay visible={true} label="Saving..." />);
+    expect(result.current).toBe(false);
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
+    expect(result.current).toBe(true);
+  });
 
-      act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
-
-      expect(screen.getByText('Saving...')).toBeInTheDocument();
+  it('stays for the full minimum even when the load ends immediately after', () => {
+    const { result, rerender } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
     });
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
+    expect(result.current).toBe(true);
+
+    // The response lands one millisecond later.
+    rerender({ active: false });
+    act(() => { vi.advanceTimersByTime(1); });
+    expect(result.current).toBe(true);
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_MINIMUM_MS - 100); });
+    expect(result.current).toBe(true);
+
+    act(() => { vi.advanceTimersByTime(100); });
+    expect(result.current).toBe(false);
+  });
+
+  it('does not extend a load that already ran longer than the minimum', () => {
+    const { result, rerender } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
+    });
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS + LOADING_INDICATOR_MINIMUM_MS + 500); });
+    expect(result.current).toBe(true);
+
+    rerender({ active: false });
+    act(() => { vi.advanceTimersByTime(0); });
+
+    expect(result.current).toBe(false);
+  });
+
+  it('keeps showing when a second load starts while the first is still held', () => {
+    const { result, rerender } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
+    });
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
+    rerender({ active: false });
+    act(() => { vi.advanceTimersByTime(100); });
+
+    // A filter click starts another request during the hold.
+    rerender({ active: true });
+    act(() => { vi.advanceTimersByTime(50); });
+
+    // It must not blink off and back on again.
+    expect(result.current).toBe(true);
+  });
+});
+
+describe('PageLoading', () => {
+  it('renders the spinner it is given, leaving the timing to useLoadingState', () => {
+    render(<PageLoading label="Loading products..." />);
+    expect(screen.getByRole('status')).toBeInTheDocument();
+    expect(screen.getByText('Loading products...')).toBeInTheDocument();
+  });
+
+  it('reserves height so the footer does not ride up while it waits', () => {
+    // The page collapsed below the height of the window during a load, and the
+    // dark footer rode up onto the screen - 240px of a 962px viewport.
+    const { container } = render(<PageLoading />);
+    const region = container.firstElementChild;
+
+    expect(region).not.toBeNull();
+    expect(region!.className).not.toBe('');
+  });
+});
+
+describe('LoadingOverlay', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('does not flash its scrim for an operation that finishes quickly', () => {
+    const { rerender } = render(<LoadingOverlay visible={true} />);
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS - 50); });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+
+    rerender(<LoadingOverlay visible={false} />);
+    act(() => { vi.advanceTimersByTime(5000); });
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
+  it('holds the scrim for the minimum once a save has shown one', () => {
+    const { rerender } = render(<LoadingOverlay visible={true} label="Saving..." />);
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
+    expect(screen.getByText('Saving...')).toBeInTheDocument();
+
+    rerender(<LoadingOverlay visible={false} label="Saving..." />);
+    act(() => { vi.advanceTimersByTime(200); });
+    expect(screen.getByText('Saving...')).toBeInTheDocument();
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_MINIMUM_MS); });
+    expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
   });
 });

@@ -3,7 +3,7 @@ import { Link, useSearchParams } from "react-router-dom";
 import type { Product } from "../../types/product_type";
 import { AdminProductCard } from "../../components/AdminProductCard";
 import { SearchBar } from "../../components/SearchBar";
-import { PageLoading } from "../../components/LoadingSpinner";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { getAdminProducts, deleteProduct } from "../../api/admin_product";
 import { useReminder } from "../../context/useReminder";
@@ -20,6 +20,7 @@ export function AdminProductsPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [searchParams] = useSearchParams();
+  const showLoading = useLoadingState(loading || deleting);
 
   const searchTerm = searchParams.get("search")?.trim().toLowerCase() ?? "";
 
@@ -111,7 +112,7 @@ export function AdminProductsPage() {
     [selectedProductIds]
   );
 
-  if (loading || deleting) {
+  if (showLoading) {
     return <PageLoading />;
   }
 

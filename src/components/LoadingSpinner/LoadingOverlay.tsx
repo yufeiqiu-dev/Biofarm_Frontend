@@ -1,5 +1,5 @@
 import { LoadingSpinner } from "./LoadingSpinner";
-import { useDelayedVisible } from "./useDelayedVisible";
+import { useLoadingState } from "./useLoadingState";
 import styles from "./LoadingOverlay.module.css";
 
 type LoadingOverlayProps = {
@@ -24,7 +24,7 @@ export function LoadingOverlay({
   visible,
   label = "Loading...",
 }: LoadingOverlayProps) {
-  const show = useDelayedVisible(visible);
+  const show = useLoadingState(visible);
 
   if (!show) return null;
 

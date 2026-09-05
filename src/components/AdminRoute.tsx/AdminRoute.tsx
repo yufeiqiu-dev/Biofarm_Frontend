@@ -1,6 +1,6 @@
 import { Navigate, useLocation } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
-import { PageLoading } from "../LoadingSpinner";
+import { PageLoading, useLoadingState } from "../LoadingSpinner";
 import { useEffect, useState } from "react";
 import { useReminder } from "../../context/useReminder";
 
@@ -9,6 +9,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [checkingAccess, setCheckingAccess] = useState(true);
   const { showReminder } = useReminder();
+  const showLoading = useLoadingState(loading || checkingAccess);
 
   useEffect(() => {
     const runCheck = async () => {
@@ -22,7 +23,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
     void runCheck();
   }, [refreshUser]);
 
-  if (loading || checkingAccess) {
+  if (showLoading) {
     return <PageLoading label="Checking access..." />;
   }
 

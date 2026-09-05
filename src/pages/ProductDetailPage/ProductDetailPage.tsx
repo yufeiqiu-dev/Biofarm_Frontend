@@ -7,7 +7,7 @@ import { getProductById } from "../../api/product";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import { AddToCartButton } from "../../components/AddToCartButton";
-import { PageLoading } from "../../components/LoadingSpinner";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 
 
 export function ProductDetailPage() {
@@ -16,6 +16,7 @@ export function ProductDetailPage() {
   const [product, setProduct] = useState<Product | null>(null);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(null);
   const [quantity, setQuantity] = useState(1);
+  const showLoading = useLoadingState(loading);
 
   useEffect(() => {
     if (!productId) {
@@ -58,7 +59,7 @@ export function ProductDetailPage() {
     setQuantity(1);
   }
 
-  if (loading) {
+  if (showLoading) {
     return <PageLoading />;
   }
 

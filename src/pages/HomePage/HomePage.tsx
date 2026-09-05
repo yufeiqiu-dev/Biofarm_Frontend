@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { getProducts } from "../../api/product";
 import type { Product } from "../../types/product_type";
 import { ProductCard, ProductList } from "../../components/ProductCard";
-import { PageLoading } from "../../components/LoadingSpinner";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./HomePage.module.css";
 
@@ -45,6 +45,7 @@ export function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState(false);
+  const showLoading = useLoadingState(loading);
 
   useEffect(() => {
     const loadFeaturedProducts = async () => {
@@ -120,7 +121,7 @@ export function HomePage() {
 
         {featuredError ? (
           <p className={styles.loadError}>Unable to load products right now.</p>
-        ) : loading ? (
+        ) : showLoading ? (
           <PageLoading label="Loading products..." compact />
         ) : (
           <ProductList products={featuredProducts}>

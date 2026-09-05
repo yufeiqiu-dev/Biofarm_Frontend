@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { LoadingOverlay, PageLoading } from "../../components/LoadingSpinner";
+import { LoadingOverlay, PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import {
   createProduct,
   deleteProduct,
@@ -119,6 +119,7 @@ export function AdminProductDetailPage() {
   // a partial upload failure reuses the same product instead of creating a duplicate.
   const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const showLoading = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -374,7 +375,7 @@ export function AdminProductDetailPage() {
     }
   };
 
-  if (loading) {
+  if (showLoading) {
     return <PageLoading />;
   }
 

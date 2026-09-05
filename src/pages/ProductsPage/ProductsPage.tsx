@@ -5,7 +5,7 @@ import { getTags } from "../../api/tag";
 import type { Product } from "../../types/product_type";
 import type { Tag } from "../../types/tag_type";
 import { ProductCard, ProductList } from "../../components/ProductCard";
-import { PageLoading } from "../../components/LoadingSpinner";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductsPage.module.css";
 
@@ -43,6 +43,8 @@ export function ProductsPage() {
     if (!activeTag) return allProducts;
     return allProducts.filter((p) => (p.tags ?? []).some((t) => t.name === activeTag));
   }, [allProducts, activeTag]);
+
+  const showLoading = useLoadingState(loading);
 
   const handleTagClick = (tag: string) => {
     setSearchParams((prev) => {
@@ -89,7 +91,7 @@ export function ProductsPage() {
         made them disappear and come back on every load - which also collapsed
         the page far enough to pull the dark footer up onto the screen.
       */}
-      {loading ? (
+      {showLoading ? (
         <PageLoading label="Loading products..." />
       ) : displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
