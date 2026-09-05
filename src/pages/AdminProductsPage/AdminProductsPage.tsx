@@ -6,7 +6,7 @@ import { SearchBar } from "../../components/SearchBar";
 import { LoadingOverlay } from "../../components/LoadingSpinner";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { getAdminProducts, deleteProduct } from "../../api/admin_product";
-import { useReminder } from "../../context/ReminderContext";
+import { useReminder } from "../../context/useReminder";
 import styles from "./AdminProductsPage.module.css";
 
 

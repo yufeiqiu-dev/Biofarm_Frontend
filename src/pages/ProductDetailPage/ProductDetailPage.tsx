@@ -47,10 +47,16 @@ export function ProductDetailPage() {
     product?.variants[0] ??
     null;
 
-  useEffect(() => {
-    if (!selectedVariant) return;
+  // Resetting the quantity when the shopper picks a different size. Done during
+  // render rather than in an effect: an effect runs after the DOM is painted, so
+  // there was a frame showing the new variant beside the old variant's
+  // quantity. This is React's documented way to adjust state on a prop change,
+  // and it also drops the effect the dependency linter was complaining about.
+  const [quantityVariantId, setQuantityVariantId] = useState(selectedVariant?.id);
+  if (selectedVariant && selectedVariant.id !== quantityVariantId) {
+    setQuantityVariantId(selectedVariant.id);
     setQuantity(1);
-  }, [selectedVariant?.id]);
+  }
 
   if (loading) {
     return <LoadingOverlay visible={true} />;
@@ -141,7 +147,7 @@ export function ProductDetailPage() {
                     <td>
                       {variant.size_value} {variant.size_unit}
                     </td>
-                    <td>${Number(variant.price).toFixed(2)}</td>
+                    <td>${variant.price.toFixed(2)}</td>
                     <td>{variant.stock > 0 ? "Available" : "Out of stock"}</td>
                   </tr>
                 );
@@ -158,7 +164,7 @@ export function ProductDetailPage() {
             </p>
 
             <p className={styles.label}>Price</p>
-            <p className={styles.price}>${Number(activeVariant.price).toFixed(2)}</p>
+            <p className={styles.price}>${activeVariant.price.toFixed(2)}</p>
 
             {activeVariant.stock > 0 ? (
               <div className={styles.purchaseRow}>

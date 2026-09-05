@@ -40,13 +40,24 @@ interface ShipModalProps {
 }
 
 function ShipModal({ isOpen, loading, onConfirm, onCancel }: ShipModalProps) {
+  // Mounting the body only while open is what resets the tracking field. It
+  // used to stay mounted and clear itself with a setState inside an effect,
+  // which meant a render with the previous shipment's number still in it before
+  // the blanking one - and a stale value briefly visible if focus arrived first.
+  if (!isOpen) return null;
+  return <ShipModalBody loading={loading} onConfirm={onConfirm} onCancel={onCancel} />;
+}
+
+function ShipModalBody({ loading, onConfirm, onCancel }: Omit<ShipModalProps, "isOpen">) {
   const [tracking, setTracking] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    if (!isOpen) return;
-    setTracking("");
-    setTimeout(() => inputRef.current?.focus(), 50);
+    // Portals are committed before effects run, so the input exists here. The
+    // old 50ms setTimeout was working around the element not yet being in the
+    // tree, and raced with anything that stole focus in the meantime.
+    inputRef.current?.focus();
+
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
     document.addEventListener("keydown", handler);
     document.body.style.overflow = "hidden";
@@ -54,9 +65,7 @@ function ShipModal({ isOpen, loading, onConfirm, onCancel }: ShipModalProps) {
       document.removeEventListener("keydown", handler);
       document.body.style.overflow = "";
     };
-  }, [isOpen, onCancel]);
-
-  if (!isOpen) return null;
+  }, [onCancel]);
 
   return ReactDOM.createPortal(
     <div className={styles.modalBackdrop} onClick={onCancel}>
@@ -174,8 +183,8 @@ export function AdminOrderDetailPage() {
   const canCancel = order.status !== "cancelled";
   const cancelNeedsRefund = order.status === "shipped" || order.status === "delivered";
 
-  const subtotal = order.items.reduce((s, i) => s + Number(i.unit_price) * i.quantity, 0);
-  const tax = Number(order.tax_amount);
+  const subtotal = order.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  const tax = order.tax_amount;
   const total = subtotal + tax;
 
   return (
@@ -233,7 +242,7 @@ export function AdminOrderDetailPage() {
                   </span>
                 )}
               </span>
-              <span>${(Number(item.unit_price) * item.quantity).toFixed(2)}</span>
+              <span>${(item.unit_price * item.quantity).toFixed(2)}</span>
             </div>
           );
         })}

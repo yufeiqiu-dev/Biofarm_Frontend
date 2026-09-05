@@ -1,8 +1,8 @@
 import { Navigate, useLocation } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
+import { useAuth } from "../../auth/useAuth";
 import { LoadingOverlay } from "../LoadingSpinner";
 import { useEffect, useState } from "react";
-import { useReminder } from "../../context/ReminderContext";
+import { useReminder } from "../../context/useReminder";
 
 export function AdminRoute({ children }: { children: React.ReactNode }) {
   const { loading, isAuthenticated, user, refreshUser } = useAuth();

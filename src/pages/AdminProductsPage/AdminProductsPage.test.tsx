@@ -4,13 +4,6 @@ import userEvent from '@testing-library/user-event';
 import { AdminProductsPage } from './AdminProductsPage';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { createMockAdminUser } from '../../test/mocks/mockUser';
-import { createMockProduct } from '../../test/mocks/mockProduct';
-
-const mockProducts = [
-  createMockProduct({ id: 'p1', name: 'Product One' }),
-  createMockProduct({ id: 'p2', name: 'Product Two' }),
-];
-
 vi.mock('../../api/admin_product', () => ({
   getAdminProducts: vi.fn().mockResolvedValue([
     {

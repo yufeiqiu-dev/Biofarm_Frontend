@@ -146,7 +146,7 @@ export function OrdersPage() {
             <div className={styles.cardBottom}>
               <span className={styles.itemSummary}>{itemSummary(order)}</span>
               <div className={styles.totalRow}>
-                <span className={styles.total}>${(Number(order.total_amount) + Number(order.tax_amount)).toFixed(2)}</span>
+                <span className={styles.total}>${(order.total_amount + order.tax_amount).toFixed(2)}</span>
                 <span className={styles.arrow}>›</span>
               </div>
             </div>

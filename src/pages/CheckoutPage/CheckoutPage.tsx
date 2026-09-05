@@ -7,8 +7,8 @@ import {
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
-import { useAuth } from "../../auth/AuthContext";
-import { useCartSideBar } from "../../context/CartSideBarContext";
+import { useAuth } from "../../auth/useAuth";
+import { useCartSideBar } from "../../context/useCartSideBar";
 import { createPaymentIntent } from "../../api/order";
 import type { CheckoutShipping } from "../../types/order_types";
 import styles from "./CheckoutPage.module.css";
@@ -386,8 +386,6 @@ export function CheckoutPage() {
     navigate("/cart");
     return null;
   }
-
-  const total = cartItems.reduce((s, i) => s + i.unitPrice * i.quantity, 0);
 
   const handleProceedToPayment = async () => {
     setPiError(null);

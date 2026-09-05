@@ -1,6 +1,6 @@
 import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../../auth/AuthContext";
-import { useCartSideBar } from "../../context/CartSideBarContext";
+import { useAuth } from "../../auth/useAuth";
+import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../../components/CartProductCard";
 import styles from "./CartPage.module.css";
 
@@ -21,12 +21,28 @@ export function CartPage() {
   };
 
   if (cartItems.length === 0) {
+    // A signed-out shopper always has an empty cart - it is stored per user and
+    // cleared on sign-out - so "your cart is empty" is true but unhelpful, and
+    // offering only "browse products" makes this a dead end for someone who had
+    // items a moment ago. Say which of the two situations they are in.
     return (
       <div className={styles.page}>
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>🛒</div>
-          <p>Your cart is empty.</p>
-          <Link to="/products" className={styles.shopLink}>Browse Products</Link>
+          {isAuthenticated ? (
+            <>
+              <p>Your cart is empty.</p>
+              <Link to="/products" className={styles.shopLink}>Browse Products</Link>
+            </>
+          ) : (
+            <>
+              <p>Sign in to see your cart.</p>
+              <button className={styles.shopLink} onClick={() => void signIn()}>
+                Sign in
+              </button>
+              <p className={styles.signInNote}>You'll be redirected back after signing in.</p>
+            </>
+          )}
         </div>
       </div>
     );

@@ -1,6 +1,4 @@
 import {
-  createContext,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -15,19 +13,7 @@ import {
   signOut as amplifySignOut,
 } from "aws-amplify/auth";
 import { setSessionGetter } from "../api/client";
-
-type AuthContextValue = {
-  user: User | null;
-  loading: boolean;
-  isAuthenticated: boolean;
-  signIn: () => Promise<void>;
-  signOut: () => Promise<void>;
-  refreshUser: () => Promise<void>;
-  getAccessToken: () => Promise<string | null>;
-  getUserGroups: () => Promise<string[]>;
-};
-
-export const AuthContext = createContext<AuthContextValue | undefined>(undefined);
+import { AuthContext } from "./useAuth";
 
 const REDIRECT_PATH_KEY = "RedirectPath";
 
@@ -159,12 +145,4 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
-}
-
-export function useAuth() {
-  const ctx = useContext(AuthContext);
-  if (!ctx) {
-    throw new Error("useAuth must be used within AuthProvider");
-  }
-  return ctx;
 }
