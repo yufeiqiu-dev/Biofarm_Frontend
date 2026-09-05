@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCartSideBar } from "../../context/useCartSideBar";
+import { useAuth } from "../../auth/useAuth";
 import { getMyOrderByPaymentIntent } from "../../api/order";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order } from "../../types/order_types";
@@ -16,6 +17,7 @@ function fmt(cents: number) {
 export function OrderSuccessPage() {
   const [searchParams] = useSearchParams();
   const { clearCart } = useCartSideBar();
+  const { loading: authLoading } = useAuth();
   const paymentIntent = searchParams.get("payment_intent");
   const redirectStatus = searchParams.get("redirect_status");
 
@@ -27,12 +29,27 @@ export function OrderSuccessPage() {
     const url = new URL(window.location.href);
     url.searchParams.delete("payment_intent_client_secret");
     window.history.replaceState({}, "", url.toString());
+  }, []);
 
-    if (redirectStatus === "succeeded" && !didClear.current) {
-      didClear.current = true;
-      clearCart();
-    }
-  }, [redirectStatus, clearCart]);
+  /*
+   * Waiting for the session before clearing, which is the whole fix.
+   *
+   * Stripe confirms with `redirect: "always"`, so arriving here is a full page
+   * load: the cart provider mounts fresh and Amplify restores the session
+   * asynchronously afterwards. Clearing on mount therefore ran while `user` was
+   * still null - and clearCart only removes the saved copy when it knows whose
+   * cart it is, so it emptied an already-empty in-memory cart, left storage
+   * alone, and the provider loaded the paid-for cart straight back out of it a
+   * moment later when the session arrived.
+   */
+  useEffect(() => {
+    if (redirectStatus !== "succeeded") return;
+    if (authLoading) return;
+    if (didClear.current) return;
+
+    didClear.current = true;
+    clearCart();
+  }, [redirectStatus, authLoading, clearCart]);
 
   useEffect(() => {
     if (redirectStatus !== "succeeded" || !paymentIntent) return;
