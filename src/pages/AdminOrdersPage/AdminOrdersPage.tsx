@@ -141,7 +141,7 @@ export function AdminOrdersPage() {
           <tbody>
             {filtered.map((order) => (
               <tr key={order.id} onClick={() => navigate(`/admin/orders/${order.id}`)}>
-                <td>{order.order_number}</td>
+                <td>#{order.order_number}</td>
                 <td>
                   {order.customer_email ? (
                     <span>{order.customer_email}</span>

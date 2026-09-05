@@ -97,7 +97,7 @@ export function OrderSuccessPage() {
         <h1 className={styles.title}>Order Placed!</h1>
         <p className={styles.subtitle}>
           {order
-            ? `Order ${order.order_number} · Placed ${placedDate}`
+            ? `Order #${order.order_number} · Placed ${placedDate}`
             : "Your payment was successful."}
         </p>
       </div>
@@ -107,7 +107,7 @@ export function OrderSuccessPage() {
         <div className={styles.card}>
           <div className={styles.cardHeader}>
             <h2 className={styles.cardTitle}>Order Summary</h2>
-            <span className={styles.orderMeta}>{order.order_number}</span>
+            <span className={styles.orderMeta}>#{order.order_number}</span>
           </div>
 
           {order.items.map((item) => (

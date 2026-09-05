@@ -21,8 +21,10 @@ export interface AdminOrderItem extends OrderItem {
 
 export interface Order {
   id: string;
-  /** Customer-facing and deliberately not sequential, e.g. "OB-7K3M9QXZ".
-   *  Not an ordering key - sort by created_at. */
+  /** Ten digits, customer-facing and deliberately not sequential, e.g.
+   *  "4827193056". A string rather than a number: nothing does arithmetic on it,
+   *  and JSON numbers would invite exactly that. Not an ordering key - sort by
+   *  created_at. */
   order_number: string;
   status: OrderStatus;
   total_amount: number;

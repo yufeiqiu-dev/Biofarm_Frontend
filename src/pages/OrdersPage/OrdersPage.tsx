@@ -135,7 +135,7 @@ export function OrdersPage() {
           >
             <div className={styles.cardTop}>
               <div className={styles.orderMeta}>
-                <span className={styles.orderNumber}>Order {order.order_number}</span>
+                <span className={styles.orderNumber}>Order #{order.order_number}</span>
                 <span className={styles.orderDate}>{formatDate(order.created_at)}</span>
               </div>
               <span className={`${styles.badge} ${STATUS_BADGE[order.status]}`}>
