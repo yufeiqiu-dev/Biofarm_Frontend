@@ -45,7 +45,7 @@ export function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState(false);
-  const showLoading = useLoadingState(loading);
+  const load = useLoadingState(loading);
 
   useEffect(() => {
     const loadFeaturedProducts = async () => {
@@ -121,8 +121,8 @@ export function HomePage() {
 
         {featuredError ? (
           <p className={styles.loadError}>Unable to load products right now.</p>
-        ) : showLoading ? (
-          <PageLoading label="Loading products..." compact />
+        ) : load.pending ? (
+          <PageLoading label="Loading products..." compact visible={load.visible} />
         ) : (
           <ProductList products={featuredProducts}>
             {featuredProducts.map((product) => (

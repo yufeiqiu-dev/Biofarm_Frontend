@@ -20,7 +20,7 @@ export function ProductDetailPage() {
     null,
   );
   const [quantity, setQuantity] = useState(1);
-  const showLoading = useLoadingState(loading);
+  const load = useLoadingState(loading);
 
   useEffect(() => {
     if (!productId) {
@@ -65,8 +65,8 @@ export function ProductDetailPage() {
     setQuantity(1);
   }
 
-  if (showLoading) {
-    return <PageLoading />;
+  if (load.pending) {
+    return <PageLoading visible={load.visible} />;
   }
 
   if (!product) {

@@ -1,4 +1,5 @@
 import { Routes, Route } from "react-router-dom";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { Layout } from "./layout/Layout";
 import { AdminLayout } from "./layout/AdminLayout";
 import { HomePage } from "./pages/HomePage";
@@ -22,33 +23,74 @@ import { AdminOrderDetailPage } from "./pages/AdminOrderDetailPage";
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public + authenticated customer routes */}
-      <Route element={<Layout />}>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/products" element={<ProductsPage />} />
-        <Route path="/cart" element={<CartPage />} />
-        <Route path="/about" element={<AboutPage />} />
-        <Route path="/products/:productId" element={<ProductDetailPage />} />
-        <Route path="/auth/callback" element={<AuthCallBackPage />} />
-        <Route path="/checkout/success" element={<OrderSuccessPage />} />
-        <Route path="/checkout" element={<PrivateRoute><CheckoutPage /></PrivateRoute>} />
-        <Route path="/orders" element={<PrivateRoute><OrdersPage /></PrivateRoute>} />
-        <Route path="/orders/:orderId" element={<PrivateRoute><OrderDetailPage /></PrivateRoute>} />
-      </Route>
+    <>
+      {/* Sits above the routes so it runs on every navigation, not per page. */}
+      <ScrollToTop />
 
-      {/* Admin routes — new AdminLayout shell */}
-      <Route element={<AdminRoute><AdminLayout /></AdminRoute>}>
-        <Route path="/admin/products" element={<AdminProductsPage />} />
-        <Route path="/admin/products/new" element={<AdminProductDetailPage />} />
-        <Route path="/admin/products/:productId" element={<AdminProductDetailPage />} />
-        <Route path="/admin/tags" element={<AdminTagsPage />} />
-        <Route path="/admin/orders" element={<AdminOrdersPage />} />
-        <Route path="/admin/orders/:orderId" element={<AdminOrderDetailPage />} />
-      </Route>
+      <Routes>
+        {/* Public + authenticated customer routes */}
+        <Route element={<Layout />}>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/products" element={<ProductsPage />} />
+          <Route path="/cart" element={<CartPage />} />
+          <Route path="/about" element={<AboutPage />} />
+          <Route path="/products/:productId" element={<ProductDetailPage />} />
+          <Route path="/auth/callback" element={<AuthCallBackPage />} />
+          <Route path="/checkout/success" element={<OrderSuccessPage />} />
+          <Route
+            path="/checkout"
+            element={
+              <PrivateRoute>
+                <CheckoutPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/orders"
+            element={
+              <PrivateRoute>
+                <OrdersPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/orders/:orderId"
+            element={
+              <PrivateRoute>
+                <OrderDetailPage />
+              </PrivateRoute>
+            }
+          />
+        </Route>
 
-      {/* Catch-all 404 */}
-      <Route path="*" element={<NotFoundPage />} />
-    </Routes>
+        {/* Admin routes — new AdminLayout shell */}
+        <Route
+          element={
+            <AdminRoute>
+              <AdminLayout />
+            </AdminRoute>
+          }
+        >
+          <Route path="/admin/products" element={<AdminProductsPage />} />
+          <Route
+            path="/admin/products/new"
+            element={<AdminProductDetailPage />}
+          />
+          <Route
+            path="/admin/products/:productId"
+            element={<AdminProductDetailPage />}
+          />
+          <Route path="/admin/tags" element={<AdminTagsPage />} />
+          <Route path="/admin/orders" element={<AdminOrdersPage />} />
+          <Route
+            path="/admin/orders/:orderId"
+            element={<AdminOrderDetailPage />}
+          />
+        </Route>
+
+        {/* Catch-all 404 */}
+        <Route path="*" element={<NotFoundPage />} />
+      </Routes>
+    </>
   );
 }

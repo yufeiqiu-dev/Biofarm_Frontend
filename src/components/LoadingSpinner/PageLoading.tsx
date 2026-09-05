@@ -4,6 +4,12 @@ import styles from "./PageLoading.module.css";
 type PageLoadingProps = {
   label?: string;
   /**
+   * Whether to draw the spinner. The region reserves its height either way -
+   * that is the whole point of it - so a load shorter than the delay holds the
+   * page open without ever showing anything.
+   */
+  visible?: boolean;
+  /**
    * Reserve a section's worth of height rather than a page's - for a block
    * loading inside an already-rendered page, like the featured products on the
    * home page below the hero.
@@ -26,13 +32,13 @@ type PageLoadingProps = {
  * its cards the instant the request resolves would defeat the minimum hold no
  * matter what this component did.
  */
-export function PageLoading({ label, compact = false }: PageLoadingProps) {
+export function PageLoading({ label, compact = false, visible = true }: PageLoadingProps) {
   return (
     <div
       className={compact ? `${styles.region} ${styles.compact}` : styles.region}
       aria-busy="true"
     >
-      <LoadingSpinner label={label} />
+      {visible && <LoadingSpinner label={label} />}
     </div>
   );
 }

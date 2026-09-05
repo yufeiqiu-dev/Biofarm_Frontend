@@ -31,11 +31,11 @@ describe('useLoadingState', () => {
     act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS - 50); });
     rerender({ active: false });
 
-    expect(result.current).toBe(false);
+    expect(result.current.visible).toBe(false);
 
     // And it must not appear afterwards either - the load is already over.
     act(() => { vi.advanceTimersByTime(5000); });
-    expect(result.current).toBe(false);
+    expect(result.current.visible).toBe(false);
   });
 
   it('appears once the load outlasts the delay', () => {
@@ -43,9 +43,9 @@ describe('useLoadingState', () => {
       initialProps: { active: true },
     });
 
-    expect(result.current).toBe(false);
+    expect(result.current.visible).toBe(false);
     act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
-    expect(result.current).toBe(true);
+    expect(result.current.visible).toBe(true);
   });
 
   it('stays for the full minimum even when the load ends immediately after', () => {
@@ -54,18 +54,18 @@ describe('useLoadingState', () => {
     });
 
     act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
-    expect(result.current).toBe(true);
+    expect(result.current.visible).toBe(true);
 
     // The response lands one millisecond later.
     rerender({ active: false });
     act(() => { vi.advanceTimersByTime(1); });
-    expect(result.current).toBe(true);
+    expect(result.current.visible).toBe(true);
 
     act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_MINIMUM_MS - 100); });
-    expect(result.current).toBe(true);
+    expect(result.current.visible).toBe(true);
 
     act(() => { vi.advanceTimersByTime(100); });
-    expect(result.current).toBe(false);
+    expect(result.current.visible).toBe(false);
   });
 
   it('does not extend a load that already ran longer than the minimum', () => {
@@ -74,12 +74,12 @@ describe('useLoadingState', () => {
     });
 
     act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS + LOADING_INDICATOR_MINIMUM_MS + 500); });
-    expect(result.current).toBe(true);
+    expect(result.current.visible).toBe(true);
 
     rerender({ active: false });
     act(() => { vi.advanceTimersByTime(0); });
 
-    expect(result.current).toBe(false);
+    expect(result.current.visible).toBe(false);
   });
 
   it('keeps showing when a second load starts while the first is still held', () => {
@@ -96,7 +96,7 @@ describe('useLoadingState', () => {
     act(() => { vi.advanceTimersByTime(50); });
 
     // It must not blink off and back on again.
-    expect(result.current).toBe(true);
+    expect(result.current.visible).toBe(true);
   });
 });
 
@@ -145,5 +145,52 @@ describe('LoadingOverlay', () => {
 
     act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_MINIMUM_MS); });
     expect(screen.queryByText('Saving...')).not.toBeInTheDocument();
+  });
+});
+
+describe('useLoadingState reserving space', () => {
+  beforeEach(() => vi.useFakeTimers());
+  afterEach(() => vi.useRealTimers());
+
+  it('is pending from the very first frame, before the spinner is due', () => {
+    // The regression this exists to stop. While the spinner was gated behind
+    // the delay, pages rendered their *empty* state for the first 250ms - "No
+    // products found." on the listing, an empty grid on the home page - so the
+    // page collapsed and the dark footer rode up. Measured per animation frame:
+    // one frame at 54% of the viewport dark on the way to the home page.
+    const { result } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
+    });
+
+    expect(result.current.pending).toBe(true);
+    expect(result.current.visible).toBe(false);
+  });
+
+  it('stays pending through the minimum hold after the load ends', () => {
+    const { result, rerender } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
+    });
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_DELAY_MS); });
+    rerender({ active: false });
+    act(() => { vi.advanceTimersByTime(100); });
+
+    expect(result.current.pending).toBe(true);
+
+    act(() => { vi.advanceTimersByTime(LOADING_INDICATOR_MINIMUM_MS); });
+    expect(result.current.pending).toBe(false);
+  });
+
+  it('stops being pending as soon as a fast load ends, having shown nothing', () => {
+    const { result, rerender } = renderHook(({ active }) => useLoadingState(active), {
+      initialProps: { active: true },
+    });
+
+    act(() => { vi.advanceTimersByTime(50); });
+    rerender({ active: false });
+    act(() => { vi.advanceTimersByTime(0); });
+
+    expect(result.current.pending).toBe(false);
+    expect(result.current.visible).toBe(false);
   });
 });

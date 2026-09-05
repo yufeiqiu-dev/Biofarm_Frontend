@@ -9,7 +9,7 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
   const location = useLocation();
   const [checkingAccess, setCheckingAccess] = useState(true);
   const { showReminder } = useReminder();
-  const showLoading = useLoadingState(loading || checkingAccess);
+  const load = useLoadingState(loading || checkingAccess);
 
   useEffect(() => {
     const runCheck = async () => {
@@ -23,8 +23,8 @@ export function AdminRoute({ children }: { children: React.ReactNode }) {
     void runCheck();
   }, [refreshUser]);
 
-  if (showLoading) {
-    return <PageLoading label="Checking access..." />;
+  if (load.pending) {
+    return <PageLoading label="Checking access..." visible={load.visible} />;
   }
 
   const isAdmin = user?.roles?.includes("Admin") ?? false;

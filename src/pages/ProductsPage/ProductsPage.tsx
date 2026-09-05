@@ -44,7 +44,7 @@ export function ProductsPage() {
     return allProducts.filter((p) => (p.tags ?? []).some((t) => t.name === activeTag));
   }, [allProducts, activeTag]);
 
-  const showLoading = useLoadingState(loading);
+  const load = useLoadingState(loading);
 
   const handleTagClick = (tag: string) => {
     setSearchParams((prev) => {
@@ -91,8 +91,8 @@ export function ProductsPage() {
         made them disappear and come back on every load - which also collapsed
         the page far enough to pull the dark footer up onto the screen.
       */}
-      {showLoading ? (
-        <PageLoading label="Loading products..." />
+      {load.pending ? (
+        <PageLoading label="Loading products..." visible={load.visible} />
       ) : displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
       ) : (

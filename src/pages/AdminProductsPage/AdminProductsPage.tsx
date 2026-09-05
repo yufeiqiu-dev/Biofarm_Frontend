@@ -20,7 +20,7 @@ export function AdminProductsPage() {
   const [deleting, setDeleting] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [searchParams] = useSearchParams();
-  const showLoading = useLoadingState(loading || deleting);
+  const load = useLoadingState(loading || deleting);
 
   const searchTerm = searchParams.get("search")?.trim().toLowerCase() ?? "";
 
@@ -112,8 +112,8 @@ export function AdminProductsPage() {
     [selectedProductIds]
   );
 
-  if (showLoading) {
-    return <PageLoading />;
+  if (load.pending) {
+    return <PageLoading visible={load.visible} />;
   }
 
   if (loadError) {

@@ -24,7 +24,7 @@ export function LoadingOverlay({
   visible,
   label = "Loading...",
 }: LoadingOverlayProps) {
-  const show = useLoadingState(visible);
+  const { visible: show } = useLoadingState(visible);
 
   if (!show) return null;
 

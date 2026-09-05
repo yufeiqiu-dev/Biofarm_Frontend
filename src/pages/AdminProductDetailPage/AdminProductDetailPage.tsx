@@ -119,7 +119,7 @@ export function AdminProductDetailPage() {
   // a partial upload failure reuses the same product instead of creating a duplicate.
   const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const showLoading = useLoadingState(loading);
+  const load = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
@@ -375,8 +375,8 @@ export function AdminProductDetailPage() {
     }
   };
 
-  if (showLoading) {
-    return <PageLoading />;
+  if (load.pending) {
+    return <PageLoading visible={load.visible} />;
   }
 
   const pendingDeletionCount = savedUrls.filter((u) => !displayedUrls.includes(u)).length;
