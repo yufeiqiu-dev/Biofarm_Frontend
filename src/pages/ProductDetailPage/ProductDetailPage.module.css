@@ -17,9 +17,9 @@
   
   .imageSection {
     grid-area: image;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     padding: 12px;
     min-height: 420px;
     display: flex;
@@ -35,7 +35,7 @@
     max-height: 340px;
     height: auto;
     object-fit: contain;
-    border-radius: 8px;
+    border-radius: var(--radius-container);
   }
 
   .thumbnailStrip {
@@ -49,26 +49,26 @@
     width: 60px;
     height: 60px;
     object-fit: cover;
-    border-radius: 6px;
-    border: 2px solid #e5e7eb;
+    border-radius: var(--radius-container);
+    border: 2px solid var(--rule);
     cursor: pointer;
     transition: border-color 0.15s;
   }
 
   .thumbnail:hover {
-    border-color: #0d9488;
+    border-color: var(--accent);
   }
 
   .thumbnailActive {
-    border-color: #0d9488;
+    border-color: var(--accent);
   }
   
   .variantSection {
     grid-area: variants;
     min-width: 0;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     padding: 14px;
   }
   
@@ -77,9 +77,9 @@
   }
   
   .priceCard {
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     padding: 14px;
   }
   
@@ -88,7 +88,7 @@
     font-size: 22px;
     font-weight: 700;
     line-height: 1.2;
-    color: #111827;
+    color: var(--ink);
   }
   
   .variantTable {
@@ -101,15 +101,15 @@
     padding: 10px 12px;
     font-size: 13px;
     text-align: left;
-    color: #374151;
-    border-bottom: 1px solid #e5e7eb;
+    color: var(--slate);
+    border-bottom: 1px solid var(--rule);
   }
   
   .variantTable tbody td {
     padding: 10px 12px;
     font-size: 13px;
-    color: #111827;
-    border-bottom: 1px solid #e5e7eb;
+    color: var(--ink);
+    border-bottom: 1px solid var(--rule);
     word-break: break-word;
   }
   
@@ -119,30 +119,30 @@
   }
   
   .variantTable tbody tr:hover {
-    background: #f8fafc;
+    background: var(--canvas);
   }
   
   .selectedRow {
-    background: #f0fdfa;
+    background: var(--accent-wash);
   }
   
   .label {
     margin: 0 0 4px;
     font-size: 12px;
-    color: #6b7280;
+    color: var(--muted);
   }
   
   .catalogId {
     margin: 0 0 12px;
     font-size: 16px;
     font-weight: 600;
-    color: #111827;
+    color: var(--ink);
   }
   
   .price,
   .info {
     margin: 0 0 12px;
-    color: #111827;
+    color: var(--ink);
   }
   
   .price {
@@ -165,10 +165,10 @@
     display: flex;
     align-items: center;
     height: 36px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     overflow: hidden;
-    background: #ffffff;
+    background: var(--surface);
     flex-shrink: 0;
   }
   
@@ -176,16 +176,16 @@
     width: 36px;
     height: 36px;
     border: none;
-    background: #f9fafb;
+    background: var(--canvas);
     font-size: 16px;
     line-height: 1;
-    color: #111827;
+    color: var(--ink);
     cursor: pointer;
     transition: background-color 0.15s ease;
   }
   
   .quantityButton:hover:not(:disabled) {
-    background: #f3f4f6;
+    background: var(--canvas);
   }
   
   .quantityButton:disabled {
@@ -199,7 +199,7 @@
     text-align: center;
     font-size: 14px;
     font-weight: 600;
-    color: #111827;
+    color: var(--ink);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -218,29 +218,29 @@
   
   .descriptionSection {
     margin-top: 32px;
-    background: #ffffff;
-    border: 1px solid #e5e7eb;
-    border-radius: 12px;
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: var(--radius-container);
     padding: clamp(16px, 2vw, 24px);
   }
   
   .descriptionSection h2 {
     margin: 0 0 12px;
     font-size: clamp(20px, 2.5vw, 24px);
-    color: #111827;
+    color: var(--ink);
   }
   
   .descriptionSection p {
     margin: 0;
     line-height: 1.7;
-    color: #374151;
+    color: var(--slate);
   }
   
   .notFound {
     padding: 48px 24px;
     text-align: center;
     font-size: 18px;
-    color: #374151;
+    color: var(--slate);
   }
   
   /* tablet */

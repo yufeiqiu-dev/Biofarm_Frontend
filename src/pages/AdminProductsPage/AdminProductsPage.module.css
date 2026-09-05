@@ -20,7 +20,7 @@
   
   .subtitle {
     margin: 8px 0 0;
-    color: #6b7280;
+    color: var(--muted);
   }
   
   .topActions {
@@ -31,9 +31,9 @@
   .addButton {
     height: 40px;
     padding: 0 16px;
-    border-radius: 8px;
+    border-radius: var(--radius-container);
     border: none;
-    background: #22c55e;
+    background: var(--in-stock);
     color: white;
     font-size: 14px;
     font-weight: 600;
@@ -44,16 +44,16 @@
     justify-content: center;
   }
   .addButton:hover {
-    background: #16a34a;
+    background: var(--in-stock);
   }
 
   .tagsButton {
     height: 40px;
     padding: 0 16px;
-    border-radius: 8px;
-    border: 1px solid #d1d5db;
+    border-radius: var(--radius-container);
+    border: 1px solid var(--rule);
     background: white;
-    color: #374151;
+    color: var(--slate);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -63,16 +63,16 @@
     justify-content: center;
   }
   .tagsButton:hover {
-    background: #f9fafb;
+    background: var(--canvas);
   }
 
   .deleteButton {
     height: 40px;
     padding: 0 16px;
-    border-radius: 8px;
-    border: 1px solid #fca5a5;
-    background: #fee2e2;
-    color: #b91c1c;
+    border-radius: var(--radius-container);
+    border: 1px solid var(--danger);
+    background: var(--status-cancelled-wash);
+    color: var(--out-of-stock);
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
@@ -81,7 +81,7 @@
     justify-content: center;
   }
   .deleteButton:hover:not(:disabled) {
-    background: #fecaca;
+    background: var(--status-cancelled-wash);
   }
   .deleteButton:disabled {
     opacity: 0.5;
@@ -117,7 +117,7 @@
   
   .selectedCount {
     font-size: 13px;
-    color: #6b7280;
+    color: var(--muted);
     line-height: 1;
   }
   
@@ -126,11 +126,11 @@
     grid-template-columns: 40px 68px 1fr 180px 80px 80px 80px;
     gap: 12px;
     padding: 8px 16px;
-    background: #f3f4f6;
-    border-radius: 8px;
+    background: var(--canvas);
+    border-radius: var(--radius-container);
     font-size: 11px;
     font-weight: 600;
-    color: #6b7280;
+    color: var(--muted);
     text-transform: uppercase;
     letter-spacing: 0.05em;
     margin-bottom: 8px;

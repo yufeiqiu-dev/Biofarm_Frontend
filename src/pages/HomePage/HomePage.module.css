@@ -1,7 +1,7 @@
 .hero {
   padding: 5rem 2rem 4.5rem;
   border-radius: 1.25rem;
-  background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 60%, #0d4f4f 100%);
+  background: linear-gradient(135deg, var(--ink) 0%, #1e3a5f 60%, #0d4f4f 100%);
   color: white;
   overflow: hidden;
 }
@@ -15,11 +15,11 @@
   margin-bottom: 1.25rem;
   font-size: 0.75rem;
   font-weight: 700;
-  color: #5eead4;
+  color: var(--accent);
   background: rgba(94, 234, 212, 0.1);
   border: 1px solid rgba(94, 234, 212, 0.25);
   padding: 0.3rem 0.75rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
   letter-spacing: 0.1em;
 }
@@ -30,7 +30,7 @@
   line-height: 1.15;
   font-weight: 800;
   letter-spacing: -0.025em;
-  color: #f1f5f9;
+  color: var(--canvas);
 }
 
 .heroSubtitle {
@@ -38,7 +38,7 @@
   max-width: 580px;
   font-size: 1.0625rem;
   line-height: 1.7;
-  color: #94a3b8;
+  color: var(--muted);
 }
 
 .heroActions {
@@ -53,10 +53,10 @@
   align-items: center;
   justify-content: center;
   padding: 0.625rem 1.25rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(255,255,255,0.25);
   background: rgba(255,255,255,0.07);
-  color: #e2e8f0;
+  color: var(--rule);
   font-weight: 600;
   font-size: 0.9375rem;
   text-decoration: none;
@@ -83,7 +83,7 @@
   margin: 0;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #0f172a;
+  color: var(--ink);
 }
 
 .categoryGrid {
@@ -97,7 +97,7 @@
   flex-direction: column;
   overflow: hidden;
   border-radius: 0.875rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid var(--rule);
   background: white;
   text-decoration: none;
   color: inherit;
@@ -132,13 +132,13 @@
 
 .categoryContent {
   padding: 0.875rem 1rem 1rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid var(--canvas);
 }
 
 .categoryContent p {
   margin: 0;
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--muted);
   line-height: 1.5;
 }
 

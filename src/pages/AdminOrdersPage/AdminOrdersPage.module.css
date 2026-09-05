@@ -17,22 +17,22 @@
 
 .searchInput {
   padding: 0.5rem 0.875rem;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   font-size: 0.875rem;
   width: 300px;
   outline: none;
 }
 
 .searchInput:focus {
-  border-color: #2d6a4f;
+  border-color: var(--status-delivered-text);
   box-shadow: 0 0 0 2px rgba(45, 106, 79, 0.15);
 }
 
 .userId {
   font-family: monospace;
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: var(--muted);
 }
 
 .tabs {
@@ -44,62 +44,62 @@
 
 .tab {
   padding: 0.375rem 0.875rem;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
+  border-radius: var(--radius-container);
+  border: 1px solid var(--rule);
   background: white;
   font-size: 0.875rem;
   cursor: pointer;
-  color: #374151;
+  color: var(--slate);
 }
 
 .tab.active {
-  background: var(--color-primary, #2d6a4f);
+  background: var(--color-primary, var(--status-delivered-text));
   color: white;
-  border-color: var(--color-primary, #2d6a4f);
+  border-color: var(--color-primary, var(--status-delivered-text));
 }
 
 .table {
   width: 100%;
   border-collapse: collapse;
   background: white;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
   overflow: hidden;
 }
 
 .table th {
-  background: #f3f4f6;
+  background: var(--canvas);
   padding: 0.75rem 1rem;
   text-align: left;
   font-size: 0.75rem;
   text-transform: uppercase;
-  color: #6b7280;
+  color: var(--muted);
   font-weight: 600;
 }
 
 .table td {
   padding: 0.75rem 1rem;
   font-size: 0.875rem;
-  border-top: 1px solid #f3f4f6;
+  border-top: 1px solid var(--canvas);
 }
 
 .table tr:hover td {
-  background: #f9fafb;
+  background: var(--canvas);
   cursor: pointer;
 }
 
 .badge {
   display: inline-block;
   padding: 0.2rem 0.5rem;
-  border-radius: 4px;
+  border-radius: var(--radius-data);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
 }
 
-.badgePending { background: #f3f4f6; color: #6b7280; }
-.badgeAwaiting { background: #fef3c7; color: #92400e; }
-.badgeConfirmed { background: #dbeafe; color: #1e40af; }
-.badgeShipped { background: #d1fae5; color: #065f46; }
-.badgeDelivered { background: #d1fae5; color: #065f46; }
-.badgeCancelled { background: #fee2e2; color: #991b1b; }
+.badgePending { background: var(--canvas); color: var(--muted); }
+.badgeAwaiting { background: var(--status-awaiting-wash); color: var(--status-awaiting-text); }
+.badgeConfirmed { background: var(--status-confirmed-wash); color: var(--status-confirmed-text); }
+.badgeShipped { background: var(--status-shipped-wash); color: var(--status-shipped-text); }
+.badgeDelivered { background: var(--status-shipped-wash); color: var(--status-shipped-text); }
+.badgeCancelled { background: var(--status-cancelled-wash); color: var(--status-cancelled-text); }

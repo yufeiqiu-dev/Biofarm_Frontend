@@ -16,33 +16,33 @@
 
 .tagPill {
   padding: 0.3rem 0.85rem;
-  border-radius: 999px;
-  border: 1px solid #d1d5db;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--rule);
   background: white;
-  color: #374151;
+  color: var(--slate);
   font-size: 0.85rem;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
 .tagPill:hover {
-  border-color: #0d9488;
-  color: #0f766e;
+  border-color: var(--accent);
+  color: var(--accent-press);
 }
 
 .tagPillActive {
-  background: #0d9488;
-  border-color: #0d9488;
+  background: var(--accent);
+  border-color: var(--accent);
   color: white;
 }
 
 .tagPillActive:hover {
-  background: #0f766e;
+  background: var(--accent-press);
   color: white;
 }
 
 .empty {
-  color: #9ca3af;
+  color: var(--muted);
   margin-top: 2rem;
 }
 

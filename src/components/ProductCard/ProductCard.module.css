@@ -35,7 +35,7 @@
 .description {
   margin: 0;
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--muted);
 }
 
 .footer {
@@ -47,7 +47,7 @@
 
 .price {
   font-weight: 600;
-  color: #0d9488;
+  color: var(--accent);
 }
 
 .imageLink {
