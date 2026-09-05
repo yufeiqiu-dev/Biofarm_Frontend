@@ -1,8 +1,19 @@
+/*
+ * Sticky rather than fixed, so the navbar occupies the space it takes up.
+ *
+ * While it was fixed it sat outside the flow, and <main> was pushed clear of it
+ * by an inline padding computed in Layout - which was `15 + `${navbarHeight}px``,
+ * a number concatenated onto a string, and which measured a wrapper whose only
+ * child was this fixed element and therefore reported 0 forever. The two faults
+ * cancelled into a hardcoded 150px that happened to clear a 149px navbar by one
+ * pixel on a phone, and hid 47px of the page behind it at a 20px root font.
+ *
+ * In flow there is nothing to compute: the navbar is as tall as its contents,
+ * whatever the text size, and the content starts underneath it.
+ */
 .navbar {
-  position: fixed;
+  position: sticky;
   top: 0;
-  left: 0;
-  width: 100%;
   z-index: 1000;
   display: flex;
   flex-direction: column;
