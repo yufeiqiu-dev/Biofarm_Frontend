@@ -14,7 +14,11 @@ name: CI
 on:
   pull_request:
   push:
-    branches: [exp]
+    # staging and main included deliberately. Amplify builds those branches on
+    # push, but its build spec runs neither the linter nor the tests - so
+    # without this a change pushed straight to a deploying branch would reach
+    # the deployed site having had nothing checked at all.
+    branches: [exp, staging, main]
 
 jobs:
   check:
