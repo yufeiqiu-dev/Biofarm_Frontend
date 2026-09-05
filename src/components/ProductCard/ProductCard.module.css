@@ -1,89 +1,80 @@
 /*
- * A catalogue index. The columns are defined once here and every row takes them
- * with subgrid, because the entire point is that price, size and availability
- * line up down the page and can be compared at a glance. Rows that each style
- * themselves as their own grid do not do that: the tracks are computed per row,
- * so a row with a thumbnail and one without end up different widths and the
- * button wraps on some and not others.
+ * The card grid.
  *
- * Below 860px it stacks - five columns in 390px is not a table, it is a mess.
+ * auto-fill against a minimum, so columns follow the available width instead of
+ * a ladder of breakpoints: three up at desktop, two on a tablet, one on a phone,
+ * with no media query needed to say so.
  */
-.list {
+.grid {
   display: grid;
-  grid-template-columns: 112px minmax(0, 1fr) 7rem 7.5rem 6rem auto;
-  /*
-   * The inset lives here, not on the rows. A row is a subgrid, and horizontal
-   * padding on a subgrid shifts its tracks off the parent's column lines - so
-   * padding the row moved every cell right while the column boundaries stayed
-   * put, and the product name was drawn 3px over the top of the thumbnail.
-   * Vertical padding on a row is fine; horizontal is not.
-   */
-  padding-inline: var(--space-4);
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: var(--space-5);
+}
+
+/*
+ * A fixed internal structure, not a stack that grows with its content. The body
+ * is a grid whose last row is the footer, and `1fr` on the description row
+ * absorbs the difference in text length - so the price and the button sit on
+ * the same line across the whole row of cards. Cards that each size themselves
+ * leave four buttons at four heights, which is most of what makes a grid look
+ * untidy.
+ */
+.card {
+  display: grid;
+  grid-template-rows: auto 1fr;
   background: var(--surface);
   border: var(--border);
   border-radius: var(--radius-container);
   overflow: hidden;
+  /*
+   * No shadow. On white-on-canvas a 1px rule separates more crisply than a
+   * blur, and an identical soft shadow under every card is the tell of a
+   * template. The border does the same job with less noise.
+   */
+  transition: border-color 120ms ease;
 }
 
-/* No pictures in view, so no gutter reserved for them. */
-.list[data-thumbs="no"] {
-  grid-template-columns: 0 minmax(0, 1fr) 7rem 7.5rem 6rem auto;
+.card:hover {
+  border-color: var(--muted);
 }
 
-.row {
+.figure {
   display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: subgrid;
-  align-items: center;
-  gap: var(--space-4);
-  padding-block: var(--space-4);
-  border-bottom: var(--border);
-}
-
-.row:last-child {
-  border-bottom: none;
-}
-
-.row:hover {
-  background: var(--canvas);
-}
-
-/*
- * Every cell names its own column. Without this, a row with no thumbnail has
- * nothing in column 1, so the name auto-places into the thumbnail track and
- * wraps a character at a time - placement cannot depend on how many children a
- * row happens to render.
- */
-.thumbLink {
-  display: block;
-  line-height: 0;
-  grid-column: 1;
-}
-
-/*
- * 112x84, which is the size this needs to be rather than the size that fits
- * neatly. For an antibody the image is the validation data - a western blot
- * with a band at the right molecular weight, or a stained section - and at 56px
- * a blot is a few grey dashes: decoration where evidence was intended. Every
- * reagent supplier that shows these at all shows them at roughly this size.
- *
- * 4:3 because that is the shape a blot is photographed in. Cropped rather than
- * letterboxed, and left-aligned within the crop, since the lanes that matter
- * are usually at the left.
- */
-.thumb {
-  width: 112px;
+  place-items: center;
   aspect-ratio: 4 / 3;
-  object-fit: cover;
-  object-position: left center;
-  display: block;
-  border: var(--border);
-  border-radius: var(--radius-data);
   background: var(--canvas);
+  border-bottom: var(--border);
+  overflow: hidden;
+  text-decoration: none;
+}
+
+.image {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/*
+ * The empty state of the image, and deliberately quiet: the catalog ID set in
+ * mono at the size the picture would have been. It identifies the product,
+ * which "Image Not Available" does not, and it does not announce a defect.
+ */
+.figureFallback {
+  font-family: var(--font-mono);
+  font-size: var(--text-lg);
+  letter-spacing: 0.06em;
+  color: var(--muted);
+}
+
+.body {
+  display: grid;
+  grid-template-rows: auto auto 1fr auto auto;
+  gap: var(--space-3);
+  padding: var(--space-4);
 }
 
 .identity {
-  grid-column: 2;
   display: flex;
   flex-direction: column;
   gap: 2px;
@@ -92,9 +83,9 @@
 }
 
 /*
- * Mono, and only here. A catalog ID is a code that gets transcribed into a
- * Methods section or an email to a supplier, so the character shapes need to be
- * unambiguous. It leads the row because it is the product's real name.
+ * Mono, and only here. A catalog ID gets transcribed into a Methods section or
+ * an email to a supplier, so the character shapes have to be unambiguous. It
+ * leads the card because it is the product's real name in this world.
  */
 .catId {
   font-family: var(--font-mono);
@@ -105,9 +96,16 @@
 }
 
 .name {
-  color: var(--ink);
+  margin: 0;
+  font-size: var(--text-md);
   font-weight: 600;
   line-height: var(--leading-tight);
+  color: var(--ink);
+  /* Two lines, so a long antibody name cannot push the footer out of line. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .identity:hover .name {
@@ -116,84 +114,90 @@
 }
 
 .tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag {
+  font-size: var(--text-xs);
+  color: var(--slate);
+  background: var(--canvas);
+  border: var(--border);
+  border-radius: var(--radius-pill);
+  padding: 2px var(--space-2);
+}
+
+.description {
+  margin: 0;
   font-size: var(--text-sm);
+  line-height: var(--leading-body);
+  color: var(--slate);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/*
+ * Size and availability, as a spec list rather than prose. Two columns with the
+ * value right-aligned, so both read down the page across a row of cards.
+ */
+.spec {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px var(--space-3);
+  margin: 0;
+  padding-block: var(--space-3);
+  border-top: var(--border);
+  border-bottom: var(--border);
+  font-size: var(--text-sm);
+}
+
+.specKey {
   color: var(--muted);
 }
 
-.size,
-.price {
+.specValue {
+  margin: 0;
   text-align: right;
   color: var(--slate);
-}
-
-.size { grid-column: 3; }
-.price { grid-column: 4; }
-.stock { grid-column: 5; }
-.action { grid-column: 6; }
-
-.price {
-  color: var(--ink);
-  font-weight: 600;
-}
-
-.stock {
-  font-size: var(--text-sm);
-  text-align: right;
-  white-space: nowrap;
 }
 
 .inStock { color: var(--in-stock); }
 .lowStock { color: var(--low-stock); font-weight: 600; }
 .outOfStock { color: var(--out-of-stock); }
 
-.action {
+.footer {
   display: flex;
-  justify-content: flex-end;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
 }
 
-@media (max-width: 860px) {
-  /* Stacked, so there are no shared columns left to inherit. */
-  .list,
-  .list[data-thumbs="no"] {
-    display: block;
-    background: none;
-    border: none;
-    border-radius: 0;
-    padding-inline: 0;
+.price {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  color: var(--ink);
+  /* Tabular figures, so prices compare down a column of cards. */
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 420px) {
+  .grid {
+    grid-template-columns: 1fr;
+    gap: var(--space-4);
   }
 
-  .row {
-    display: grid;
-    padding-block: var(--space-4);
-    grid-template-columns: auto 1fr auto;
-    grid-template-areas:
-      "thumb identity identity"
-      "size  size     stock"
-      "price price    action";
-    row-gap: var(--space-3);
+  /*
+   * Shallower on a phone. At 4:3 the image area is 240px of a 390px screen -
+   * acceptable when it holds a blot, wasteful when it holds a catalog ID, and
+   * either way it pushes the price and the button below the fold.
+   */
+  .figure {
+    aspect-ratio: 16 / 9;
   }
-
-  .thumbLink { grid-area: thumb; grid-column: unset; margin-right: var(--space-3); }
-
-  /* Narrower on a phone, where 112px is a third of the screen. */
-  .thumb { width: 84px; }
-  .identity { grid-area: identity; grid-column: unset; }
-
-  .size {
-    grid-area: size;
-    grid-column: unset;
-    text-align: left;
-    font-size: var(--text-sm);
-  }
-
-  .stock { grid-area: stock; grid-column: unset; }
-
-  .price {
-    grid-area: price;
-    grid-column: unset;
-    text-align: left;
-    font-size: var(--text-md);
-  }
-
-  .action { grid-area: action; grid-column: unset; }
 }

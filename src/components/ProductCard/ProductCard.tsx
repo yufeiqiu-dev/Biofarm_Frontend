@@ -11,28 +11,27 @@ interface Props {
 }
 
 /**
- * A catalogue entry, not a shop card.
+ * A product card.
  *
- * Reads as a row on desktop and stacks on mobile. The reasoning: a researcher
- * comparing five antibodies wants price, size and availability lined up down a
- * column, which a grid of cards cannot do - and with no product images a card
- * grid is mostly empty space with an apology in the middle of it.
- *
- * The catalog ID leads because it is the product's real name in this world: it
- * is what gets searched, written down, and cited in a Methods section.
+ * The card structure is fixed rather than growing with its content - image,
+ * identity, description, specs, then a footer pinned to the bottom - so price
+ * and button land on the same line across a row of cards however long the
+ * descriptions happen to be. Cards that each size themselves leave the buy
+ * buttons at four different heights, which is what makes a grid look untidy.
  */
 export function ProductCard({ product }: Props) {
   const cheapest = [...product.variants].sort((a, b) => a.price - b.price)[0];
   const stock = stockSummary(product.variants);
+  const thumbnail = product.image_urls[0];
 
   const item: AddToCartItem | null = cheapest
     ? {
         productId: product.id,
         variantId: cheapest.id,
         name: product.name,
-        // The cart still shows a thumbnail, and an empty src makes the
-        // browser re-request the page and render a broken image.
-        imageUrl: product.image_urls[0] ?? DEFAULT_PRODUCT_IMAGE,
+        // The cart shows its own thumbnail, and an empty src makes the browser
+        // re-request the page and render a broken image.
+        imageUrl: thumbnail ?? DEFAULT_PRODUCT_IMAGE,
         catalogNumber: cheapest.catalog_id,
         sizeLabel: `${cheapest.size_value}${cheapest.size_unit}`,
         unitPrice: cheapest.price,
@@ -40,41 +39,63 @@ export function ProductCard({ product }: Props) {
       }
     : null;
 
-  const thumbnail = product.image_urls[0];
-
   return (
-    <article className={styles.row}>
-      {/*
-        Rendered only when there is one. A placeholder here would put six
-        identical grey boxes down the page saying "Image Not Available", which
-        is worse than the row simply being narrower - the grid collapses the
-        column when every product in view is imageless.
-      */}
-      {thumbnail && (
-        <Link to={`/products/${product.id}`} className={styles.thumbLink} tabIndex={-1} aria-hidden="true">
-          <img src={thumbnail} alt="" className={styles.thumb} loading="lazy" />
-        </Link>
-      )}
-
-      <Link to={`/products/${product.id}`} className={styles.identity}>
-        <span className={styles.catId}>{product.cat_id}</span>
-        <span className={styles.name}>{product.name}</span>
-        {product.tags.length > 0 && (
-          <span className={styles.tags}>
-            {product.tags.map((tag) => tag.name).join(", ")}
-          </span>
+    <article className={styles.card}>
+      <Link
+        to={`/products/${product.id}`}
+        className={styles.figure}
+        tabIndex={-1}
+        aria-hidden="true"
+      >
+        {thumbnail ? (
+          <img src={thumbnail} alt="" className={styles.image} loading="lazy" />
+        ) : (
+          /*
+           * Not "Image Not Available". Six identical grey boxes apologising in
+           * 24px grey is worse than saying something true, and the catalog ID
+           * is what identifies this product anyway. The space stays reserved so
+           * the cards keep a common height whether or not a photo exists - and
+           * this no longer reaches dummyimage.com for a placeholder.
+           */
+          <span className={styles.figureFallback}>{product.cat_id}</span>
         )}
       </Link>
 
-      <span className={styles.size}>{formatSizeRange(product.variants)}</span>
+      <div className={styles.body}>
+        <Link to={`/products/${product.id}`} className={styles.identity}>
+          <span className={styles.catId}>{product.cat_id}</span>
+          <h3 className={styles.name}>{product.name}</h3>
+        </Link>
 
-      <span className={styles.price}>{formatPriceRange(product.variants)}</span>
+        {product.tags.length > 0 && (
+          <ul className={styles.tags}>
+            {product.tags.map((tag) => (
+              <li key={tag.id} className={styles.tag}>
+                {tag.name}
+              </li>
+            ))}
+          </ul>
+        )}
 
-      <span className={`${styles.stock} ${styles[stock.tone]}`}>{stock.label}</span>
+        <p className={styles.description}>{product.description}</p>
 
-      <span className={styles.action}>
-        {item && <AddToCartButton item={item} available={stock.total} />}
-      </span>
+        {/*
+          Size and availability as a two-row spec list rather than prose. These
+          are the two things being compared across cards, so they sit in the
+          same place on every one.
+        */}
+        <dl className={styles.spec}>
+          <dt className={styles.specKey}>Size</dt>
+          <dd className={styles.specValue}>{formatSizeRange(product.variants)}</dd>
+          <dt className={styles.specKey}>Availability</dt>
+          <dd className={`${styles.specValue} ${styles[stock.tone]}`}>{stock.label}</dd>
+        </dl>
+
+        <div className={styles.footer}>
+          <span className={styles.price}>{formatPriceRange(product.variants)}</span>
+          {item && <AddToCartButton item={item} available={stock.total} />}
+        </div>
+      </div>
     </article>
   );
 }
