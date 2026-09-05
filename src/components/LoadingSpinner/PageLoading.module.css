@@ -4,13 +4,36 @@
  * ride up the viewport and snap back down when the products arrive - a bigger
  * visual disturbance than the thing this replaced.
  */
+/*
+ * The reserve has to keep the footer below the fold, not merely look roomy.
+ *
+ * The layout is a column with the footer last and <main> flex:1 inside a 100vh
+ * root, so the footer sits at the bottom of the viewport whenever the page is
+ * short. At 60vh the loading page was short: the footer rode up 240px onto a
+ * 962px screen for the length of the request and dropped away again when the
+ * cards arrived - a quarter of the window going dark and back, which is what
+ * "0.1 sec of dark loading" was.
+ *
+ * 100vh is more than the content usually needs, and that is the point: it
+ * guarantees the page exceeds the viewport while loading whatever the height of
+ * the navbar and the page heading above it.
+ */
 .region {
   display: grid;
-  place-items: center;
-  min-height: 60vh;
+  justify-items: center;
+  align-items: start;
+  /* Roughly where the first row of cards would be, rather than halfway down a
+     tall empty reserve where it would fall below the fold. */
+  padding-top: 12vh;
+  min-height: 100vh;
 }
 
-/* Roughly one row of product cards, so the page below does not move. */
+/*
+ * For a block loading inside an already-rendered page, where there is content
+ * below it and the footer is nowhere near - roughly one row of product cards.
+ */
 .compact {
   min-height: 320px;
+  padding-top: 0;
+  align-items: center;
 }

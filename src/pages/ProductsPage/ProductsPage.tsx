@@ -56,8 +56,6 @@ export function ProductsPage() {
     });
   };
 
-  if (loading) return <PageLoading label="Loading products..." />;
-
   if (error) {
     return (
       <div className={shared.page}>
@@ -85,7 +83,15 @@ export function ProductsPage() {
         </div>
       )}
 
-      {displayedProducts.length === 0 ? (
+      {/*
+        Only the grid waits. The heading and the filters do not depend on the
+        products request, and returning the loading state instead of the page
+        made them disappear and come back on every load - which also collapsed
+        the page far enough to pull the dark footer up onto the screen.
+      */}
+      {loading ? (
+        <PageLoading label="Loading products..." />
+      ) : displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
       ) : (
         <ProductList products={displayedProducts}>
