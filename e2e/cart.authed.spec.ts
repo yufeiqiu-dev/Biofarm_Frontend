@@ -9,14 +9,18 @@ import { test, expect, type Page } from "@playwright/test";
  */
 
 /**
- * The sliding panel.
+ * The sliding panel, by its accessible name.
  *
- * It is always in the DOM and moves with a transform, so `toBeVisible` is true
- * even when it is parked off-screen. `toBeInViewport` is the assertion that
- * actually distinguishes open from closed.
+ * Addressed by its accessible name rather than by a hashed CSS class, which is
+ * what the aria-label on the panel bought.
+ *
+ * Still paired with toBeInViewport rather than toBeVisible. The panel never
+ * leaves the DOM and moves on a transform, so it is "visible" to Playwright
+ * while parked off-screen; and Playwright does not model `inert`, so a role
+ * query resolves whether it is open or not.
  */
 function sidebar(page: Page) {
-  return page.locator('aside[class*="cartSideBar"]');
+  return page.getByRole("complementary", { name: "Shopping cart" });
 }
 
 function navbarCartButton(page: Page) {
@@ -84,12 +88,13 @@ test("a quantity change survives a reload", async ({ page }) => {
   const panel = sidebar(page);
   await expect(panel).toBeInViewport();
 
-  // The quantity readout specifically. A bare "2" also matches the header's
-  // item count, which is the same number for the same reason and so proves
-  // nothing about the control.
-  const quantity = panel.locator('[class*="quantityValue"]').first();
+  // Addressed by what the buttons are for rather than by their glyphs, now
+  // that they carry the name of the line they act on.
+  await panel.getByRole("button", { name: /increase quantity of/i }).first().click();
 
-  await panel.getByRole("button", { name: "+", exact: true }).first().click();
+  // The readout specifically. A bare "2" also matches the header's item count,
+  // which is the same number for the same reason and so proves nothing.
+  const quantity = panel.locator('[class*="quantityValue"]').first();
   await expect(quantity).toHaveText("2");
 
   await page.reload();
@@ -104,7 +109,7 @@ test("the cart can be emptied item by item", async ({ page }) => {
   const panel = sidebar(page);
   await expect(panel).toBeInViewport();
 
-  await panel.getByRole("button", { name: "Remove item" }).first().click();
+  await panel.getByRole("button", { name: /remove .* from cart/i }).first().click();
 
   await expect(panel.getByText(/your cart is empty|no items/i)).toBeVisible();
 });
@@ -119,4 +124,48 @@ test("checkout is reachable with items in the cart", async ({ page }) => {
   // being smuggled into a cart test.
   await expect(page).toHaveURL(/\/checkout/);
   await expect(page.getByRole("heading").first()).toBeVisible();
+});
+
+test("a closed cart refuses keyboard focus", async ({ page }) => {
+  // The panel never leaves the DOM, so before it was made inert its buttons sat
+  // in the tab order the whole time and a keyboard user could tab into a cart
+  // that was not on screen.
+  //
+  // Asserted by trying to focus a control inside it rather than by looking for
+  // the attribute: inert refusing focus is the behaviour, and Playwright's
+  // getByRole does not model inert, so a role query still resolves here.
+  await addFirstAvailableProduct(page);
+  await page.goto("/products");
+
+  const closed = await page.evaluate(() => {
+    const panel = document.querySelector('aside[aria-label="Shopping cart"]');
+    const button = panel?.querySelector("button");
+    button?.focus();
+    return {
+      panelExists: !!panel,
+      buttonExists: !!button,
+      inert: panel?.hasAttribute("inert") ?? false,
+      tookFocus: document.activeElement === button,
+    };
+  });
+
+  expect(closed.panelExists).toBe(true);
+  expect(closed.buttonExists).toBe(true);
+  expect(closed.inert).toBe(true);
+  expect(closed.tookFocus).toBe(false);
+
+  // And once open it is focusable again, or the fix would just be a cart nobody
+  // can use.
+  await navbarCartButton(page).click();
+  await expect(sidebar(page)).toBeInViewport();
+
+  const open = await page.evaluate(() => {
+    const panel = document.querySelector('aside[aria-label="Shopping cart"]');
+    const button = panel?.querySelector("button");
+    button?.focus();
+    return { inert: panel?.hasAttribute("inert") ?? false, tookFocus: document.activeElement === button };
+  });
+
+  expect(open.inert).toBe(false);
+  expect(open.tookFocus).toBe(true);
 });
