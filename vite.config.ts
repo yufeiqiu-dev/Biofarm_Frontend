@@ -14,5 +14,9 @@ export default defineConfig({
     globals: true,
     css: false,
     passWithNoTests: true,
+    // Unit tests only. e2e/ holds Playwright specs, which import from
+    // @playwright/test and cannot run under vitest - without this they are
+    // collected and fail before a single unit test runs.
+    include: ['src/**/*.{test,spec}.{ts,tsx}'],
   },
 })

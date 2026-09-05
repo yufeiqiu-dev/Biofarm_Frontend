@@ -28,3 +28,9 @@ dist-ssr
 
 # planning docs
 docs/
+
+# Playwright
+e2e/.auth/
+test-results/
+playwright-report/
+.env.e2e
