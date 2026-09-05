@@ -1,6 +1,6 @@
 .footer {
-  background: #0f172a;
-  color: #94a3b8;
+  background: var(--ink);
+  color: var(--muted);
   margin-top: auto;
 }
 
@@ -28,7 +28,7 @@
 .logo {
   font-size: 1.1rem;
   font-weight: 700;
-  color: #f1f5f9;
+  color: var(--canvas);
   letter-spacing: -0.02em;
   display: block;
   margin-bottom: 0.625rem;
@@ -36,7 +36,7 @@
 
 .tagline {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--muted);
   line-height: 1.6;
   margin: 0;
 }
@@ -64,26 +64,26 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  color: #475569;
+  color: var(--slate);
   margin-bottom: 0.25rem;
 }
 
 .link {
   font-size: 0.875rem;
-  color: #64748b;
+  color: var(--muted);
   text-decoration: none;
   transition: color 0.15s;
 }
 
 .link:hover {
-  color: #e2e8f0;
+  color: var(--rule);
 }
 
 .bottom {
   max-width: 1120px;
   margin: 0 auto;
   padding: 1.25rem 2rem;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid var(--ink);
   font-size: 0.8125rem;
-  color: #475569;
+  color: var(--slate);
 }

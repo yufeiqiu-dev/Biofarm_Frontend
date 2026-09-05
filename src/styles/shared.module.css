@@ -4,10 +4,12 @@
 }
 
 .primaryButton {
+  /* A button label that wraps stops looking like a button. */
+  white-space: nowrap;
   padding: 0.5rem 1rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: none;
-  background: #0d9488;
+  background: var(--accent);
   color: white;
   font-weight: 600;
   cursor: pointer;
@@ -17,18 +19,23 @@
   justify-content: center;
 }
 
-.primaryButton:hover {
-  background: #0f766e;
+.primaryButton:hover:not(:disabled) {
+  background: var(--accent-press);
+}
+
+/*
+ * A disabled action still has to say something. Greying it out without a reason
+ * leaves the reader guessing, so the label carries the reason ("Out of stock")
+ * and not-allowed confirms it is deliberate rather than broken.
+ */
+.primaryButton:disabled {
+  background: var(--rule);
+  color: var(--muted);
+  cursor: not-allowed;
 }
 
 .link {
-  color: #0d9488;
+  color: var(--accent);
   text-decoration: none;
   font-size: 0.875rem;
-}
-
-.productGrid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-  gap: 1.5rem;
 }

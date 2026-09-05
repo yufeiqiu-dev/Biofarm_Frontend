@@ -1,8 +1,28 @@
+@import "./tokens.css";
+
+/*
+ * IBM Plex Sans and Mono. Only the weights actually used are requested, and
+ * display=swap so text renders in the fallback rather than not at all while the
+ * face loads - a catalogue is read, not looked at.
+ */
+@import url("https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap");
+
 :root {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro Text",
-    sans-serif;
-  color: #0f172a;
-  background-color: #f8fafc;
+  font-family: var(--font-sans);
+  font-size: var(--text-base);
+  line-height: var(--leading-body);
+  color: var(--slate);
+  background-color: var(--canvas);
+
+  /*
+   * Tabular figures everywhere by default. Prices and sizes are compared down a
+   * column in this interface, and proportional digits make that column ragged.
+   */
+  font-variant-numeric: tabular-nums;
+
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
 body {
@@ -13,4 +33,42 @@ body {
 *::before,
 *::after {
   box-sizing: border-box;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  color: var(--ink);
+  line-height: var(--leading-tight);
+  font-weight: 600;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+a {
+  color: var(--accent);
+}
+
+/*
+ * A visible focus ring on everything reachable by keyboard. The default outline
+ * disappears against the teal, and a buy flow that cannot be completed from the
+ * keyboard is not finished.
+ */
+:where(a, button, input, select, textarea, [tabindex]):focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: var(--radius-data);
+}
+
+/* Motion only ever confirms an action here, so there is nothing to keep. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

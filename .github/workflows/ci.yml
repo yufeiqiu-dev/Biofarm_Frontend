@@ -1,0 +1,82 @@
+# Lint, type-check, test and build on every pull request.
+#
+# This repository does not deploy from CI. Amplify builds the branch itself on
+# push, so this is a gate in front of that, not a deployer - which is also why
+# there are no AWS credentials here and no OIDC permissions block.
+#
+# The build step matters as much as the tests: tsc runs as part of `npm run
+# build` and not during vitest, so an unused variable or a type error is
+# invisible to the test suite and fails the Amplify build instead - after merge,
+# where it is most annoying to find. That has already happened once in this
+# repository.
+name: CI
+
+on:
+  pull_request:
+  push:
+    # staging and main included deliberately. Amplify builds those branches on
+    # push, but its build spec runs neither the linter nor the tests - so
+    # without this a change pushed straight to a deploying branch would reach
+    # the deployed site having had nothing checked at all.
+    branches: [exp, staging, main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # From .nvmrc, which the Amplify build spec reads too. CI pinning a
+          # version Amplify does not use makes this gate meaningless: a green run
+          # here would say nothing about the build that actually deploys, which
+          # is the post-merge failure the job exists to catch. Vite requires
+          # ^20.19 || >=22.12.
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        # npm ci, matching the Amplify build spec: the lockfile is authoritative,
+        # so CI cannot pass against a dependency tree the deploy will not use.
+        run: npm ci
+
+      - name: Lint
+        # The npm script carries --max-warnings 0. Without it eslint exits 0 on
+        # warnings, and both reactRefresh and tseslint emit warning-severity
+        # rules - so the accumulation this step is meant to prevent would have
+        # passed silently. It lives in the script rather than only here so that a
+        # local run and CI agree on what "clean" means.
+        run: npm run lint
+
+      - name: Test
+        # One run, reported twice: readable output for whoever reads the log, and
+        # JSON on disk for the count check below. That count used to be a second
+        # full run of the same suite purely to read one number out of it.
+        run: npm run test -- --reporter=default --reporter=json --outputFile=vitest-results.json
+
+      - name: Build
+        run: npm run build
+
+      - name: Confirm the tests actually ran
+        # passWithNoTests is on in the vitest config, so an empty or mis-globbed
+        # run exits 0 - the failure mode where CI is worse than none, because it
+        # reports confidence it does not have.
+        run: |
+          COUNT=$(node -e "
+            const fs = require('fs');
+            try {
+              process.stdout.write(String(JSON.parse(fs.readFileSync('vitest-results.json','utf8')).numTotalTests));
+            } catch (error) {
+              // Reported rather than collapsed to zero. Swallowing this blamed
+              // the glob for what was really a crash or a config error, and
+              // threw away the only evidence of the actual cause.
+              console.error('Could not read the vitest report:', error.message);
+              process.exit(1);
+            }
+          ")
+          echo "tests run: $COUNT"
+          if [ "$COUNT" -lt 40 ]; then
+            echo "Expected at least 40 tests, found $COUNT - has the glob broken?"
+            exit 1
+          fi

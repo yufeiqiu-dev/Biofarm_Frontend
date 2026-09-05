@@ -16,7 +16,23 @@ export function CartSideBar() {
         onClick={closeCartSideBar}
       />
 
-      <aside className={`${styles.cartSideBar} ${isOpen ? styles.open : styles.closed}`}>
+      {/*
+        Named, and genuinely hidden when it is closed.
+
+        The panel never leaves the DOM - it slides on a transform - so while it
+        was parked off-screen its contents were still in the accessibility tree
+        and its buttons were still in the tab order. Someone navigating by
+        keyboard tabbed into a cart they could not see.
+
+        `inert` is the right tool rather than aria-hidden: aria-hidden on a
+        subtree that still holds focusable elements is itself an error, and
+        inert removes it from both the tree and the tab order at once.
+      */}
+      <aside
+        className={`${styles.cartSideBar} ${isOpen ? styles.open : styles.closed}`}
+        aria-label="Shopping cart"
+        inert={!isOpen}
+      >
         <div className={styles.header}>
           <h2 className={styles.title}>
             Cart

@@ -2,8 +2,8 @@ import { Link } from "react-router-dom";
 import { useEffect, useState } from "react";
 import { getProducts } from "../../api/product";
 import type { Product } from "../../types/product_type";
-import { ProductCard } from "../../components/ProductCard";
-import { LoadingOverlay } from "../../components/LoadingSpinner";
+import { ProductCard, ProductList } from "../../components/ProductCard";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./HomePage.module.css";
 
@@ -13,37 +13,31 @@ const categories = [
     name: "Tool Antibodies",
     description: "Antibodies for tags and fluorescent proteins.",
     path: "/products?tag=tool-antibodies",
-    gradient: "linear-gradient(135deg, #0ea5e9 0%, #0369a1 100%)",
   },
   {
     name: "Secondary Antibodies",
     description: "Secondary antibodies for multi-channel IF staining.",
     path: "/products?tag=secondary-antibodies",
-    gradient: "linear-gradient(135deg, #a855f7 0%, #7c3aed 100%)",
   },
   {
     name: "Brain Organoid",
     description: "Antibodies for organoid research.",
     path: "/products?tag=brain-organoid",
-    gradient: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
   },
   {
     name: "Glial Cells",
     description: "Antibodies for glia and microglia.",
     path: "/products?tag=glial-cells",
-    gradient: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)",
   },
   {
     name: "Neurons",
     description: "Antibodies for neuronal and neural markers.",
     path: "/products?tag=neurons",
-    gradient: "linear-gradient(135deg, #6366f1 0%, #4338ca 100%)",
   },
   {
     name: "Reagents & Kits",
     description: "Myelin staining kits and other research reagents.",
     path: "/products?tag=reagents-kits",
-    gradient: "linear-gradient(135deg, #14b8a6 0%, #0f766e 100%)",
   },
 ];
 
@@ -51,6 +45,7 @@ export function HomePage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [featuredError, setFeaturedError] = useState(false);
+  const load = useLoadingState(loading);
 
   useEffect(() => {
     const loadFeaturedProducts = async () => {
@@ -74,8 +69,6 @@ export function HomePage() {
 
   return (
     <div className={shared.page}>
-      {loading && <LoadingOverlay visible={true} />}
-
       <section className={styles.hero}>
         <div className={styles.heroContent}>
           <p className={styles.eyebrow}>Research Antibodies &amp; Diagnostics</p>
@@ -109,16 +102,10 @@ export function HomePage() {
               to={category.path}
               className={styles.categoryCard}
             >
-              <div
-                className={styles.categoryImageWrapper}
-                style={{ background: category.gradient }}
-              >
-                <div className={styles.categoryBanner}>{category.name}</div>
-              </div>
-
-              <div className={styles.categoryContent}>
-                <p>{category.description}</p>
-              </div>
+              <span className={styles.categoryName}>{category.name}</span>
+              <span className={styles.categoryDescription}>
+                {category.description}
+              </span>
             </Link>
           ))}
         </div>
@@ -133,13 +120,15 @@ export function HomePage() {
         </div>
 
         {featuredError ? (
-          <p style={{ color: "#667085" }}>Unable to load products right now.</p>
+          <p className={styles.loadError}>Unable to load products right now.</p>
+        ) : load.pending ? (
+          <PageLoading label="Loading products..." compact visible={load.visible} />
         ) : (
-          <div className={shared.productGrid}>
+          <ProductList products={featuredProducts}>
             {featuredProducts.map((product) => (
               <ProductCard key={product.id} product={product} />
             ))}
-          </div>
+          </ProductList>
         )}
       </section>
     </div>

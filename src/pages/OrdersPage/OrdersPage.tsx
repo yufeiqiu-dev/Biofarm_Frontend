@@ -47,7 +47,7 @@ function itemSummary(order: Order) {
 function matchesSearch(order: Order, query: string): boolean {
   const q = query.toLowerCase().trim();
   if (!q) return true;
-  if (String(order.order_number).includes(q)) return true;
+  if (order.order_number.toLowerCase().includes(q)) return true;
   return order.items.some((i) => i.product_name.toLowerCase().includes(q));
 }
 
