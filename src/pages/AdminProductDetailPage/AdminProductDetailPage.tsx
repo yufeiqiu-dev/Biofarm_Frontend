@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay, PageLoading, useLoadingState } from "../../components/LoadingSpinner";
-import {
-  createProduct,
-  deleteProduct,
-  updateProduct,
-  getImagePresignedUrl,
-  confirmImageUpload,
-  deleteImage,
-} from "../../api/admin_product";
+import { createProduct, deleteProduct, updateProduct } from "../../api/admin_product";
 import { getProductById } from "../../api/product";
 import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
@@ -16,6 +9,7 @@ import { useReminder } from "../../context/useReminder";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
+import { MAX_IMAGES, useProductImages } from "./useProductImages";
 
 type AdminVariantForm = {
   id?: string;
@@ -91,13 +85,6 @@ function validateForm(form: AdminProductForm): Record<string, string> {
   return errors;
 }
 
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
-const MAX_IMAGES = 10;
-
-function getExtension(filename: string): string {
-  return filename.split(".").pop()?.toLowerCase() ?? "";
-}
-
 export function AdminProductDetailPage() {
   const navigate = useNavigate();
   const { productId } = useParams();
@@ -107,11 +94,11 @@ export function AdminProductDetailPage() {
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  // displayedUrls = confirmed in DB; savedUrls = DB state at last load/save
-  const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
-  const [savedUrls, setSavedUrls] = useState<string[]>([]);
-  // pendingFiles = selected but not yet uploaded; previewUrl is a local blob URL
-  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string }[]>([]);
+  const images = useProductImages(showReminder);
+  // Destructured because the effect below needs it as a dependency, and the
+  // hook's return object is rebuilt every render - depending on the whole thing
+  // would reload the product on every keystroke. `reset` itself is stable.
+  const { reset: resetImages } = images;
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,14 +109,6 @@ export function AdminProductDetailPage() {
   const load = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-
-  // Keep a ref to pendingFiles so the unmount cleanup can revoke all blob URLs
-  // even when the user navigates away without saving.
-  const pendingFilesRef = useRef<{ file: File; previewUrl: string }[]>([]);
-  pendingFilesRef.current = pendingFiles;
-  useEffect(() => {
-    return () => pendingFilesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
-  }, []);
 
   useEffect(() => {
     void getAdminTags().then(setAvailableTags).catch(() => {});
@@ -159,9 +138,7 @@ export function AdminProductDetailPage() {
             stock: String(variant.stock),
           })),
         });
-        const urls = product.image_urls ?? [];
-        setDisplayedUrls(urls);
-        setSavedUrls(urls);
+        resetImages(product.image_urls ?? []);
       } catch (error) {
         console.error("Failed to load product", error);
         setSaveError(
@@ -173,7 +150,7 @@ export function AdminProductDetailPage() {
     };
 
     void loadProduct();
-  }, [isEditMode, productId]);
+  }, [isEditMode, productId, resetImages]);
 
   const handleFieldChange = (
     field: keyof AdminProductForm,
@@ -235,35 +212,43 @@ export function AdminProductDetailPage() {
     }));
   };
 
-  const handleFileSelect = (file: File) => {
-    const ext = getExtension(file.name);
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
-      showReminder({ message: "Only jpg, jpeg, png, and webp files are allowed." });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    if (displayedUrls.length + pendingFiles.length >= MAX_IMAGES) {
-      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setPendingFiles((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
+  const pendingFocus = useRef<string | null>(null);
+  const imageGridRef = useRef<HTMLDivElement>(null);
+
+  // Applied after the reorder renders, since the button to focus does not exist
+  // under that label until then.
+  useEffect(() => {
+    const label = pendingFocus.current;
+    if (!label) return;
+    pendingFocus.current = null;
+    imageGridRef.current
+      ?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
+      ?.focus();
+  }, [images.displayedUrls]);
+
+  const handleFilesSelected = (files: FileList) => {
+    images.select(files);
+    // Cleared either way, so choosing the same file again still fires a change.
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
-  const handleRemovePendingFile = (index: number) => {
-    const url = pendingFiles[index]?.previewUrl;
-    if (url) URL.revokeObjectURL(url);
-    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
-  };
+  /*
+   * Moves an image and sends focus after it.
+   *
+   * The buttons are `disabled` at the ends and the item is keyed by url, so
+   * React reuses the same DOM node: press "move earlier" twice and on the
+   * second press the focused button becomes disabled under the cursor, the
+   * browser blurs it, and focus falls back to <body> - the next Tab restarts
+   * from the top of the document. So focus follows the image to its new
+   * position, and turns around when it has reached the end.
+   */
+  const moveAndKeepFocus = (index: number, delta: -1 | 1) => {
+    images.move(index, delta);
 
-  const handleDeleteImage = (index: number) => {
-    // Stage the deletion — the API call happens on save
-    setDisplayedUrls((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSetPrimary = (index: number) => {
-    setDisplayedUrls((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
+    const landed = index + delta;
+    const stuck = delta === 1 ? landed === images.displayedUrls.length - 1 : landed === 0;
+    const direction = stuck === (delta === 1) ? "earlier" : "later";
+    pendingFocus.current = `Move image ${landed + 1} ${direction}`;
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -300,17 +285,9 @@ export function AdminProductDetailPage() {
       let targetId = productId ?? pendingProductId;
 
       if (isEditMode && productId) {
-        // Flush staged deletions by URL — no index bookkeeping needed.
-        const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
-        for (const url of toDelete) {
-          await deleteImage(productId, url);
-        }
-        if (toDelete.length > 0) {
-          // Sync savedUrls so a retry doesn't re-send already-deleted URLs.
-          setSavedUrls(displayedUrls);
-        }
-        // Include the current display order so reordering is persisted.
-        await updateProduct(productId, { ...payload, image_urls: displayedUrls });
+        await images.flushDeletions(productId);
+        // The display order travels with the update, so a reorder persists.
+        await updateProduct(productId, { ...payload, image_urls: images.displayedUrls });
       } else if (pendingProductId) {
         // Product was created in a previous attempt — just update it.
         await updateProduct(pendingProductId, payload);
@@ -320,30 +297,10 @@ export function AdminProductDetailPage() {
         targetId = created.id;
       }
 
-      // Upload pending files now that we have a product ID.
-      // Track how many succeed so a retry doesn't re-upload confirmed files.
-      if (pendingFiles.length > 0 && targetId) {
-        let uploadedCount = 0;
-        try {
-          for (const { file, previewUrl } of pendingFiles) {
-            const ext = getExtension(file.name);
-            const { upload_url, image_url } = await getImagePresignedUrl(targetId, ext);
-            const uploadRes = await fetch(upload_url, {
-              method: "PUT",
-              body: file,
-              headers: { "Content-Type": file.type },
-            });
-            if (!uploadRes.ok) throw new Error(`Image upload failed (HTTP ${uploadRes.status})`);
-            await confirmImageUpload(targetId, image_url);
-            URL.revokeObjectURL(previewUrl);
-            uploadedCount++;
-          }
-        } finally {
-          // Prune successfully uploaded files so a retry only re-sends the rest.
-          if (uploadedCount > 0) {
-            setPendingFiles((prev) => prev.slice(uploadedCount));
-          }
-        }
+      // Only now, with an id to scope the S3 keys to. This is why creation has
+      // to happen first for a new product.
+      if (targetId) {
+        await images.uploadFor(targetId);
       }
 
       navigate("/admin/products");
@@ -379,7 +336,6 @@ export function AdminProductDetailPage() {
     return <PageLoading visible={load.visible} />;
   }
 
-  const pendingDeletionCount = savedUrls.filter((u) => !displayedUrls.includes(u)).length;
 
   return (
     <div className={styles.page}>
@@ -433,8 +389,9 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>Basic Information</h2>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Product Catalog ID</label>
+              <label className={styles.label} htmlFor="product-product-catalog-id">Product Catalog ID</label>
               <input
+                id="product-product-catalog-id"
                 className={`${styles.input} ${formErrors.cat_id ? styles.inputError : ""}`}
                 type="text"
                 value={form.cat_id}
@@ -445,8 +402,9 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Product Name</label>
+              <label className={styles.label} htmlFor="product-product-name">Product Name</label>
               <input
+                id="product-product-name"
                 className={`${styles.input} ${formErrors.name ? styles.inputError : ""}`}
                 type="text"
                 value={form.name}
@@ -457,8 +415,9 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Description</label>
+              <label className={styles.label} htmlFor="product-description">Description</label>
               <textarea
+                id="product-description"
                 className={`${styles.textarea} ${formErrors.description ? styles.inputError : ""}`}
                 value={form.description}
                 onChange={(e) => handleFieldChange("description", e.target.value)}
@@ -469,13 +428,20 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Tags</label>
+              {/*
+                A span, not a label. Tags are toggle buttons, and a <label>
+                forwards its activation to a form control - so this one was
+                pointing at the image file input in the section below and
+                clicking the word "Tags" opened a file picker. The chips are
+                named as a group instead.
+              */}
+              <span className={styles.label} id="product-tags-label">Tags</span>
               {availableTags.length === 0 ? (
                 <p style={{ fontSize: 13, color: "#9ca3af" }}>
                   No tags available. <a href="/admin/tags" style={{ color: "#16a34a" }}>Manage tags →</a>
                 </p>
               ) : (
-                <div className={styles.tagChips}>
+                <div className={styles.tagChips} role="group" aria-labelledby="product-tags-label">
                   {availableTags.map((tag) => {
                     const selected = form.tag_ids.includes(tag.id);
                     return (
@@ -498,31 +464,37 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>
               Product Images
               <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
-                ({displayedUrls.length + pendingFiles.length}/{MAX_IMAGES})
+                ({images.count}/{MAX_IMAGES})
               </span>
-              {pendingDeletionCount > 0 && (
+              {images.pendingDeletionCount > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 400, color: "#b45309", marginLeft: 8 }}>
-                  {pendingDeletionCount} pending deletion
+                  {images.pendingDeletionCount} pending deletion
                 </span>
               )}
             </h2>
 
             <div className={styles.fieldGroup}>
+              <label className={styles.label} htmlFor="product-image-file">
+                Add an image
+              </label>
               <input
+                id="product-image-file"
                 ref={fileInputRef}
                 className={styles.input}
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
-                disabled={displayedUrls.length + pendingFiles.length >= MAX_IMAGES}
+                // Several at once. Adding six images used to mean six separate
+                // trips through the file picker.
+                multiple
+                disabled={images.atLimit}
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileSelect(file);
+                  if (e.target.files?.length) handleFilesSelected(e.target.files);
                 }}
               />
             </div>
 
-            <div className={styles.imageGrid}>
-              {displayedUrls.map((url, i) => (
+            <div className={styles.imageGrid} ref={imageGridRef}>
+              {images.displayedUrls.map((url, i) => (
                 <div key={url} className={styles.imageItem}>
                   <img
                     src={url}
@@ -535,8 +507,9 @@ export function AdminProductDetailPage() {
                     <button
                       type="button"
                       className={styles.setPrimaryButton}
-                      onClick={() => handleSetPrimary(i)}
+                      onClick={() => images.makePrimary(i)}
                       title="Set as primary"
+                      aria-label={`Make image ${i + 1} the primary image`}
                     >
                       ★
                     </button>
@@ -544,14 +517,43 @@ export function AdminProductDetailPage() {
                   <button
                     type="button"
                     className={styles.deleteImageButton}
-                    onClick={() => handleDeleteImage(i)}
+                    onClick={() => images.stageDeletion(i)}
+                    aria-label={`Remove image ${i + 1}`}
                   >
                     ×
                   </button>
+
+                  {/*
+                    One step at a time. "Set as primary" could in principle reach
+                    any order - promote each image in reverse - but nobody works
+                    that out, so in practice it only ever chose the first image.
+                    Buttons rather than dragging, because these work from the
+                    keyboard without a second implementation.
+                  */}
+                  <div className={styles.moveControls}>
+                    <button
+                      type="button"
+                      className={styles.moveButton}
+                      onClick={() => moveAndKeepFocus(i, -1)}
+                      disabled={i === 0}
+                      aria-label={`Move image ${i + 1} earlier`}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.moveButton}
+                      onClick={() => moveAndKeepFocus(i, 1)}
+                      disabled={i === images.displayedUrls.length - 1}
+                      aria-label={`Move image ${i + 1} later`}
+                    >
+                      ›
+                    </button>
+                  </div>
                 </div>
               ))}
 
-              {pendingFiles.map(({ previewUrl }, i) => (
+              {images.pendingFiles.map(({ previewUrl }, i) => (
                 <div key={previewUrl} className={styles.imageItem}>
                   <img
                     src={previewUrl}
@@ -562,14 +564,14 @@ export function AdminProductDetailPage() {
                   <button
                     type="button"
                     className={styles.deleteImageButton}
-                    onClick={() => handleRemovePendingFile(i)}
+                    onClick={() => images.removePending(i)}
                   >
                     ×
                   </button>
                 </div>
               ))}
 
-              {displayedUrls.length === 0 && pendingFiles.length === 0 && (
+              {images.count === 0 && (
                 <div className={styles.imagePlaceholder}>
                   <img
                     src={DEFAULT_PRODUCT_IMAGE}
@@ -622,21 +624,19 @@ export function AdminProductDetailPage() {
                     </button>
                   </div>
 
+                  {/*
+                    No variant id field. It is a uuid the admin cannot act on -
+                    read-only, and on a new variant it only ever said
+                    "auto-generated". The catalog id is the identifier this
+                    business actually uses. The id is still carried in form
+                    state and in the payload, because update_product reconciles
+                    variants by it.
+                  */}
                   <div className={styles.variantGrid}>
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Variant ID</label>
+                      <label className={styles.label} htmlFor={`product-variant-catalog-id-${index}`}>Catalog ID</label>
                       <input
-                        className={styles.input}
-                        type="text"
-                        value={variant.id ?? ""}
-                        disabled
-                        placeholder="Auto-generated for new variants"
-                      />
-                    </div>
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Catalog ID</label>
-                      <input
+                        id={`product-variant-catalog-id-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_catalog_id`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.catalog_id}
@@ -651,8 +651,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Size Value</label>
+                      <label className={styles.label} htmlFor={`product-size-value-${index}`}>Size Value</label>
                       <input
+                        id={`product-size-value-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_size_value`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.size_value}
@@ -667,8 +668,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Size Unit</label>
+                      <label className={styles.label} htmlFor={`product-size-unit-${index}`}>Size Unit</label>
                       <input
+                        id={`product-size-unit-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_size_unit`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.size_unit}
@@ -683,8 +685,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Price</label>
+                      <label className={styles.label} htmlFor={`product-price-${index}`}>Price</label>
                       <input
+                        id={`product-price-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_price`] ? styles.inputError : ""}`}
                         type="number"
                         step="0.01"
@@ -700,8 +703,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Stock</label>
+                      <label className={styles.label} htmlFor={`product-stock-${index}`}>Stock</label>
                       <input
+                        id={`product-stock-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.stock}

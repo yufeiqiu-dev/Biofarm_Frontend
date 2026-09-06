@@ -32,24 +32,32 @@ export function OrderSuccessPage() {
   }, []);
 
   /*
-   * Waiting for the session before clearing, which is the whole fix.
+   * Cleared when the order is known to exist - not on arrival.
    *
-   * Stripe confirms with `redirect: "always"`, so arriving here is a full page
-   * load: the cart provider mounts fresh and Amplify restores the session
-   * asynchronously afterwards. Clearing on mount therefore ran while `user` was
-   * still null - and clearCart only removes the saved copy when it knows whose
-   * cart it is, so it emptied an already-empty in-memory cart, left storage
-   * alone, and the provider loaded the paid-for cart straight back out of it a
-   * moment later when the session arrived.
+   * Landing here is a Stripe redirect on redirect_status=succeeded, which means
+   * the card was authorised and nothing more. If the item sold out while the
+   * customer was paying, the webhook voids that authorisation and no order is
+   * ever created; clearing on arrival threw away the cart of someone who had
+   * bought nothing, leaving them no way to try again.
+   *
+   * Waiting for the order also keeps the older fix this replaces. Stripe
+   * confirms with `redirect: "always"`, so this is a full page load: the cart
+   * provider mounts fresh and Amplify restores the session asynchronously
+   * afterwards. Clearing on mount ran while `user` was still null - and
+   * clearCart only removes the saved copy when it knows whose cart it is, so it
+   * emptied an already-empty in-memory cart, left storage alone, and the
+   * provider loaded the paid-for cart straight back out of it a moment later.
+   * By the time an order has been fetched the session is necessarily there,
+   * because fetching it needed one.
    */
   useEffect(() => {
-    if (redirectStatus !== "succeeded") return;
+    if (!order) return;
     if (authLoading) return;
     if (didClear.current) return;
 
     didClear.current = true;
     clearCart();
-  }, [redirectStatus, authLoading, clearCart]);
+  }, [order, authLoading, clearCart]);
 
   useEffect(() => {
     if (redirectStatus !== "succeeded" || !paymentIntent) return;
@@ -87,6 +95,47 @@ export function OrderSuccessPage() {
 
   if (!order && !timedOut) {
     return <div className={styles.loading}>Confirming your order…</div>;
+  }
+
+  /*
+   * No order, and we have stopped waiting. This used to fall through to the
+   * layout below and render a green tick, "Order Placed!" and "Your payment was
+   * successful" - to someone whose authorisation had in all likelihood just been
+   * voided, while telling them to look in My Orders for something that would
+   * never arrive.
+   *
+   * Both causes are covered honestly here because the page genuinely cannot
+   * tell them apart: a slow webhook and a sold-out item look identical from the
+   * browser.
+   */
+  if (!order && timedOut) {
+    return (
+      <div className={styles.failed}>
+        <h1>We couldn&apos;t confirm your order</h1>
+        <p>
+          Your card was authorised, but we have not been able to confirm the
+          order itself.
+        </p>
+        <p>
+          Usually the confirmation is just running late and the order will appear
+          in My Orders shortly. Occasionally an item sells out while a payment is
+          going through — if that has happened the authorisation has already been
+          released and you have not been charged.
+        </p>
+        <p>
+          Your cart has been kept either way, so you can order again if you need
+          to.
+        </p>
+        <div className={styles.actions}>
+          <Link to="/orders" className={styles.btnPrimary}>
+            Check My Orders
+          </Link>
+          <Link to="/cart" className={styles.btnSecondary}>
+            Return to Cart
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   const subtotal = order
@@ -192,14 +241,6 @@ export function OrderSuccessPage() {
             {formatCardDisplay(order.card_brand, order.card_last4)}
           </p>
         </div>
-      )}
-
-      {/* Fallback when order not found */}
-      {timedOut && !order && (
-        <p className={styles.fallback}>
-          Your payment was received. Order details will appear in{" "}
-          <Link to="/orders">My Orders</Link> shortly.
-        </p>
       )}
 
       {/* Actions */}

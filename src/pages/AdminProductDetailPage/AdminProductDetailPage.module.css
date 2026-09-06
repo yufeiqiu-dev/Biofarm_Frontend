@@ -398,3 +398,40 @@
   padding: 2px 6px;
   border-radius: var(--radius-data);
 }
+
+/*
+ * Reordering, one step at a time.
+ *
+ * Top-left is the only free corner on a 100px tile: delete overhangs the
+ * top-right, and the Primary badge and the "make primary" button both overhang
+ * the bottom-centre. Putting these at the bottom-left overlapped that badge.
+ */
+.moveControls {
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.moveButton {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  line-height: 1;
+  font-size: 14px;
+  color: #fff;
+  background: rgba(15, 23, 42, 0.72);
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.moveButton:hover:not(:disabled) {
+  background: rgba(15, 23, 42, 0.92);
+}
+
+.moveButton:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

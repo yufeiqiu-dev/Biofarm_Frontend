@@ -1,0 +1,38 @@
+/* Shown only when there is more than one page - the component returns null
+   otherwise, so there is no empty-state styling to write. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-5);
+}
+
+.count {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  /* Tabular, so the numbers do not shuffle as you page through. */
+  font-variant-numeric: tabular-nums;
+}
+
+.button {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-container);
+  cursor: pointer;
+  transition: border-color 120ms ease, color 120ms ease;
+}
+
+.button:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.button:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}

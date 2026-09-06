@@ -35,6 +35,7 @@ export function AdminProductCard({ product, checked, onToggle }: Props) {
           checked={checked}
           onChange={() => onToggle(product.id)}
           onClick={(e) => e.stopPropagation()}
+          aria-label={`Select ${product.name}`}
         />
       </div>
 

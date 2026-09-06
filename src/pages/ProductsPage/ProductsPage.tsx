@@ -5,9 +5,14 @@ import { getTags } from "../../api/tag";
 import type { Product } from "../../types/product_type";
 import type { Tag } from "../../types/tag_type";
 import { ProductCard, ProductList } from "../../components/ProductCard";
+import { Pager } from "../../components/Pager";
 import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import shared from "../../styles/shared.module.css";
 import styles from "./ProductsPage.module.css";
+
+// Three rows of four on a wide screen, and a sensible amount to scroll on a
+// phone. Not a server concern - the whole catalogue is already in memory.
+const PRODUCTS_PER_PAGE = 12;
 
 export function ProductsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -18,6 +23,7 @@ export function ProductsPage() {
   const [allTags, setAllTags] = useState<Tag[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [page, setPage] = useState(0);
 
   useEffect(() => {
     void getTags().then(setAllTags).catch(() => {});
@@ -43,6 +49,35 @@ export function ProductsPage() {
     if (!activeTag) return allProducts;
     return allProducts.filter((p) => (p.tags ?? []).some((t) => t.name === activeTag));
   }, [allProducts, activeTag]);
+
+  /*
+   * Paged in the browser, deliberately.
+   *
+   * A reagent catalogue is hundreds of items, not millions, so fetching it
+   * whole is fine and the search already runs on the server. What is not fine
+   * is rendering three hundred cards at once: every one carries an image, and
+   * the page becomes slow to render and impossible to scan.
+   *
+   * Orders are the opposite case and are paged on the server - they grow
+   * without bound. See adminListOrders.
+   */
+  // Back to the first page whenever the list underneath changes. Filtering to a
+  // tag while on page three otherwise shows an empty grid, which reads as "no
+  // products" rather than "no page three".
+  const [pagedOver, setPagedOver] = useState({ tag: activeTag, search, count: displayedProducts.length });
+  if (
+    pagedOver.tag !== activeTag ||
+    pagedOver.search !== search ||
+    pagedOver.count !== displayedProducts.length
+  ) {
+    setPagedOver({ tag: activeTag, search, count: displayedProducts.length });
+    setPage(0);
+  }
+
+  const visibleProducts = displayedProducts.slice(
+    page * PRODUCTS_PER_PAGE,
+    (page + 1) * PRODUCTS_PER_PAGE,
+  );
 
   const load = useLoadingState(loading);
 
@@ -96,11 +131,20 @@ export function ProductsPage() {
       ) : displayedProducts.length === 0 ? (
         <p className={styles.empty}>No products found.</p>
       ) : (
-        <ProductList products={displayedProducts}>
-          {displayedProducts.map((p) => (
-            <ProductCard key={p.id} product={p} />
-          ))}
-        </ProductList>
+        <>
+          <ProductList products={visibleProducts}>
+            {visibleProducts.map((p) => (
+              <ProductCard key={p.id} product={p} />
+            ))}
+          </ProductList>
+          <Pager
+            page={page}
+            pageSize={PRODUCTS_PER_PAGE}
+            total={displayedProducts.length}
+            onPage={setPage}
+            label="Product list pages"
+          />
+        </>
       )}
     </div>
   );
