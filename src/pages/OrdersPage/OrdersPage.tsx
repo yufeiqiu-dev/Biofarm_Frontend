@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { getMyOrders } from "../../api/order";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import type { Order, OrderStatus } from "../../types/order_types";
 import styles from "./OrdersPage.module.css";
 
@@ -54,6 +55,7 @@ function matchesSearch(order: Order, query: string): boolean {
 export function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const load = useLoadingState(loading);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<OrderStatus | "all">("all");
@@ -79,7 +81,7 @@ export function OrdersPage() {
     });
   }, [orders, statusFilter, search]);
 
-  if (loading) return <div className={styles.page}><p>Loading orders...</p></div>;
+  if (load.pending) return <PageLoading label="Loading orders..." visible={load.visible} />;
   if (error) return <div className={styles.page}><p>Error: {error}</p></div>;
 
   return (
@@ -92,6 +94,7 @@ export function OrdersPage() {
             className={styles.searchInput}
             type="text"
             placeholder="Search by order # or product name…"
+            aria-label="Search your orders"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />

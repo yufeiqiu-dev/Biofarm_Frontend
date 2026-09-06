@@ -1,9 +1,39 @@
 import { apiRequest } from "./client";
 import type { AdminOrder } from "../types/order_types";
 
-export function adminListOrders(status?: string): Promise<AdminOrder[]> {
-  const query = status ? `?status=${encodeURIComponent(status)}` : "";
-  return apiRequest(`/admin/orders${query}`, { auth: true });
+/** One page of the admin order list, plus how many match in total. */
+export interface AdminOrderPage {
+  items: AdminOrder[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface AdminOrderQuery {
+  status?: string;
+  /** Matches order number, customer email, shipping name, user id or order id. */
+  q?: string;
+  limit?: number;
+  offset?: number;
+}
+
+/**
+ * Orders are the one list that grows without bound, so this is paged and
+ * searched on the server.
+ *
+ * Searching here rather than in the browser is not a preference: a client-side
+ * filter over a *page* silently searches that page and reports nothing for
+ * every other order, which looks identical to "no results".
+ */
+export function adminListOrders(query: AdminOrderQuery = {}): Promise<AdminOrderPage> {
+  const params = new URLSearchParams();
+  if (query.status) params.set("status", query.status);
+  if (query.q?.trim()) params.set("q", query.q.trim());
+  if (query.limit !== undefined) params.set("limit", String(query.limit));
+  if (query.offset) params.set("offset", String(query.offset));
+
+  const suffix = params.toString() ? `?${params}` : "";
+  return apiRequest(`/admin/orders${suffix}`, { auth: true });
 }
 
 export function adminGetOrder(orderId: string): Promise<AdminOrder> {

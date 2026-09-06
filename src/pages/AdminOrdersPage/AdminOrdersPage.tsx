@@ -1,8 +1,15 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminListOrders } from "../../api/admin_order";
+import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { Pager } from "../../components/Pager";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import type { AdminOrder, OrderStatus } from "../../types/order_types";
 import styles from "./AdminOrdersPage.module.css";
+
+// Matches the backend default. A page the server would not return is a page
+// the console should not ask for.
+const PAGE_SIZE = 50;
 
 const TABS: { label: string; value: string | null }[] = [
   { label: "All", value: null },
@@ -22,8 +29,8 @@ const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   cancelled: styles.badgeCancelled,
 };
 
-// Module-level so the memo below is not handed a new array on the renders
-// where no result for the active tab has arrived yet.
+// Module-level, so the renders where no result for the active request has
+// arrived yet are not handed a fresh array each pass.
 const EMPTY_ORDERS: AdminOrder[] = [];
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -51,23 +58,55 @@ export function AdminOrdersPage() {
   // The cascading render: it also called setLoading and setError synchronously
   // in the effect body, so every tab change rendered twice before any request
   // was even sent. Loading is derived here instead - there is nothing to store.
+  const [page, setPage] = useState(0);
+
+  // Typing is not a request per keystroke. Without the delay the answers can
+  // also arrive out of order and leave the list showing results for a prefix of
+  // what was typed.
+  const query = useDebouncedValue(search, 300);
+
+  // Back to the first page whenever the question changes. Searching from page
+  // three otherwise asks for offset 100 of a two-row result and renders an
+  // empty page that looks like "no matches".
+  const [askedFor, setAskedFor] = useState({ tab: activeTab, query });
+  if (askedFor.tab !== activeTab || askedFor.query !== query) {
+    setAskedFor({ tab: activeTab, query });
+    setPage(0);
+  }
+
+  const offset = page * PAGE_SIZE;
+
+  // One piece of state carrying which request it answers. The key has to cover
+  // every input, not just the tab: with only the tab, a slow response for one
+  // search term would be accepted as the answer to another.
   const [result, setResult] = useState<{
-    tab: string | null;
+    key: string;
     orders: AdminOrder[];
+    total: number;
     error: string | null;
   } | null>(null);
 
+  const requestKey = `${activeTab ?? "all"}|${query}|${offset}`;
+
   useEffect(() => {
     let ignore = false;
-    adminListOrders(activeTab ?? undefined)
-      .then((orders) => {
-        if (!ignore) setResult({ tab: activeTab, orders, error: null });
+    adminListOrders({
+      status: activeTab ?? undefined,
+      q: query || undefined,
+      limit: PAGE_SIZE,
+      offset,
+    })
+      .then((body) => {
+        if (!ignore) {
+          setResult({ key: requestKey, orders: body.items, total: body.total, error: null });
+        }
       })
       .catch((e) => {
         if (!ignore) {
           setResult({
-            tab: activeTab,
+            key: requestKey,
             orders: [],
+            total: 0,
             error: e instanceof Error ? e.message : "Failed to load orders.",
           });
         }
@@ -75,34 +114,52 @@ export function AdminOrdersPage() {
     return () => {
       ignore = true;
     };
-  }, [activeTab]);
+  }, [activeTab, query, offset, requestKey]);
 
-  const isCurrent = result !== null && result.tab === activeTab;
+  const isCurrent = result !== null && result.key === requestKey;
   const loading = !isCurrent;
-  const orders = isCurrent ? result.orders : EMPTY_ORDERS;
+  const load = useLoadingState(loading);
+  const filtered = isCurrent ? result.orders : EMPTY_ORDERS;
   const error = isCurrent ? result.error : null;
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return orders;
-    return orders.filter((o) => {
-      if (o.order_number.toLowerCase().includes(q)) return true;
-      if (o.customer_email.toLowerCase().includes(q)) return true;
-      if (o.shipping_name.toLowerCase().includes(q)) return true;
-      if (o.user_id.toLowerCase().includes(q)) return true;
-      if (o.id.toLowerCase().includes(q)) return true;
-      return false;
-    });
-  }, [orders, search]);
+  /*
+   * The rows are cleared between requests, but the count is not.
+   *
+   * Pager renders nothing when total is at or below one page, so zeroing this
+   * while a request was in flight removed the whole control from the DOM on
+   * every page turn. Three things went wrong with that: `busy` could never
+   * disable a button that no longer existed, keyboard focus sitting on "Next"
+   * was destroyed and dumped back on the body, and a failed request left the
+   * count at zero for good - stranding an admin on page two with an error and
+   * no way back to page one.
+   *
+   * Keeping the last count means the controls stay put while the next page
+   * loads, which is also what makes `busy` meaningful.
+   */
+  const [lastKnownTotal, setLastKnownTotal] = useState(0);
+  if (isCurrent && result.error === null && result.total !== lastKnownTotal) {
+    setLastKnownTotal(result.total);
+  }
+  const total = isCurrent && result.error === null ? result.total : lastKnownTotal;
+
 
   return (
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1>Orders</h1>
+        {/*
+          "account email" rather than just "email" because those are now two
+          different things: the order carries where the customer asked mail to
+          go, and the search also resolves their account address against
+          Cognito. Support hears about this precisely when the first one was
+          typed wrong, so the address the admin has in front of them is the
+          account one - and nothing would tell them that works.
+        */}
         <input
           className={styles.searchInput}
           type="search"
-          placeholder="Search by order #, email, or customer ID…"
+          placeholder="Search by order #, name, account email, or customer ID…"
+          aria-label="Search orders"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -122,8 +179,8 @@ export function AdminOrdersPage() {
 
       {error && <p style={{ color: "#dc2626" }}>Error: {error}</p>}
 
-      {loading ? (
-        <p>Loading...</p>
+      {load.pending ? (
+        <PageLoading compact visible={load.visible} />
       ) : filtered.length === 0 ? (
         <p>{search ? "No orders match your search." : "No orders found."}</p>
       ) : (
@@ -162,6 +219,15 @@ export function AdminOrdersPage() {
           </tbody>
         </table>
       )}
+
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPage={setPage}
+        busy={load.pending}
+        label="Order list pages"
+      />
     </div>
   );
 }

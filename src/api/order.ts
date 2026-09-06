@@ -8,12 +8,17 @@ import type {
 
 export function createPaymentIntent(
   cart: CheckoutCartItem[],
-  shipping: CheckoutShipping
+  shipping: CheckoutShipping,
+  /**
+   * Where the customer wants order mail sent. Omitted falls back to the address
+   * on their Cognito account, which is the verified one.
+   */
+  contactEmail?: string
 ): Promise<PaymentIntentResponse> {
   return apiRequest("/orders/payment-intent", {
     method: "POST",
     auth: true,
-    body: JSON.stringify({ cart, shipping }),
+    body: JSON.stringify({ cart, shipping, contact_email: contactEmail }),
   });
 }
 

@@ -58,6 +58,17 @@ export function setSessionGetter(getter: SessionGetter | null) {
   sessionGetter = getter;
 }
 
+/** An HTTP failure, carrying the status so callers can distinguish them. */
+export class ApiError extends Error {
+  readonly status: number;
+
+  constructor(message: string, status: number) {
+    super(message);
+    this.name = "ApiError";
+    this.status = status;
+  }
+}
+
 export async function apiRequest<T>(
     path: string,
     options: RequestOptions = {}
@@ -141,7 +152,13 @@ export async function apiRequest<T>(
         // ignore JSON parse failure
       }
 
-      throw new Error(errorMessage);
+      // An ApiError rather than an Error so a caller can tell failures apart
+      // without parsing the message. It matters wherever two statuses mean
+      // genuinely different things - a resolved account being absent (404) is a
+      // normal fact about an old order, while Cognito being unreachable (502) is
+      // not, and showing the second as the first makes every customer look
+      // deleted. Still an Error, so nothing that only reads .message changes.
+      throw new ApiError(errorMessage, response.status);
     }
 
     if (response.status === 204 || response.status === 205) {
