@@ -11,6 +11,7 @@ import {
 } from "../../api/admin_order";
 import type { AdminOrder } from "../../types/order_types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import { formatCardDisplay } from "../../utils/card";
 import styles from "./AdminOrderDetailPage.module.css";
 
@@ -115,6 +116,7 @@ export function AdminOrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<AdminOrder | null>(null);
   const [loading, setLoading] = useState(true);
+  const load = useLoadingState(loading);
   const [actionLoading, setActionLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -174,7 +176,7 @@ export function AdminOrderDetailPage() {
     setTrackingError(null);
   };
 
-  if (loading) return <div className={styles.page}><p>Loading...</p></div>;
+  if (load.pending) return <PageLoading visible={load.visible} />;
   if (!order) return <div className={styles.page}><p>Order not found.</p></div>;
 
   const canConfirm = order.status === "awaiting_fulfillment";

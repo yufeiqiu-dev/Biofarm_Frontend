@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminListOrders } from "../../api/admin_order";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import type { AdminOrder, OrderStatus } from "../../types/order_types";
 import styles from "./AdminOrdersPage.module.css";
 
@@ -79,6 +80,7 @@ export function AdminOrdersPage() {
 
   const isCurrent = result !== null && result.tab === activeTab;
   const loading = !isCurrent;
+  const load = useLoadingState(loading);
   const orders = isCurrent ? result.orders : EMPTY_ORDERS;
   const error = isCurrent ? result.error : null;
 
@@ -122,8 +124,8 @@ export function AdminOrdersPage() {
 
       {error && <p style={{ color: "#dc2626" }}>Error: {error}</p>}
 
-      {loading ? (
-        <p>Loading...</p>
+      {load.pending ? (
+        <PageLoading compact visible={load.visible} />
       ) : filtered.length === 0 ? (
         <p>{search ? "No orders match your search." : "No orders found."}</p>
       ) : (

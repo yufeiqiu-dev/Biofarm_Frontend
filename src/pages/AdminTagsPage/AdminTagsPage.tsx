@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { getAdminTags, createTag, deleteTag } from "../../api/admin_tag";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import type { Tag } from "../../types/tag_type";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminTagsPage.module.css";
@@ -8,6 +9,7 @@ export function AdminTagsPage() {
   const [tags, setTags] = useState<Tag[]>([]);
   const [newName, setNewName] = useState("");
   const [loading, setLoading] = useState(true);
+  const load = useLoadingState(loading);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [confirmTag, setConfirmTag] = useState<Tag | null>(null);
@@ -67,8 +69,8 @@ export function AdminTagsPage() {
 
       {error && <p className={styles.error}>{error}</p>}
 
-      {loading ? (
-        <p className={styles.hint}>Loading…</p>
+      {load.pending ? (
+        <PageLoading compact visible={load.visible} />
       ) : tags.length === 0 ? (
         <p className={styles.hint}>No tags yet.</p>
       ) : (

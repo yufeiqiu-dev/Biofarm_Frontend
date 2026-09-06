@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { getMyOrder, cancelMyOrder } from "../../api/order";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order, OrderStatus } from "../../types/order_types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
@@ -91,6 +92,7 @@ export function OrderDetailPage() {
   const { orderId } = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(true);
+  const load = useLoadingState(loading);
   const [error, setError] = useState<string | null>(null);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
@@ -117,7 +119,7 @@ export function OrderDetailPage() {
     }
   };
 
-  if (loading) return <div className={styles.page}><p>Loading...</p></div>;
+  if (load.pending) return <PageLoading visible={load.visible} />;
   if (error && !order) return <div className={styles.page}><p>Error: {error}</p></div>;
   if (!order) return <div className={styles.page}><p>Order not found.</p></div>;
 

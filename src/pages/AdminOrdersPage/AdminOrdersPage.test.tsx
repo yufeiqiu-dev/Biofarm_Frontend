@@ -83,15 +83,24 @@ describe('AdminOrdersPage', () => {
     expect(screen.queryByText('#5162839407')).not.toBeInTheDocument();
   });
 
-  it('shows loading until the response for the selected tab arrives', async () => {
+  it('claims nothing about the orders while the response is in flight', async () => {
+    // Asserting on behaviour rather than on the word "Loading...", which was the
+    // placeholder this page used before it adopted the shared loading state.
+    // That state deliberately draws nothing for the first 250ms, so a load
+    // faster than a quarter second never flashes a spinner - which means the
+    // durable property is what is *not* shown: no table, and no "no orders"
+    // empty state, since either would read as a definite answer.
     let resolve!: (orders: AdminOrder[]) => void;
     vi.mocked(adminListOrders).mockReturnValue(new Promise((r) => { resolve = r; }));
 
     renderWithProviders(<AdminOrdersPage />, { user: createMockAdminUser() });
 
-    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expect(screen.queryByText(/no orders found/i)).not.toBeInTheDocument();
+
     await act(async () => { resolve([makeOrder()]); });
-    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+
+    expect(screen.getByRole('table')).toBeInTheDocument();
   });
 
   it('surfaces a failure instead of showing an empty list', async () => {
