@@ -10,6 +10,8 @@ import {
   adminUpdateTracking,
 } from "../../api/admin_order";
 import type { AdminOrder } from "../../types/order_types";
+import { getAdminAccount, type AdminAccount } from "../../api/admin_user";
+import { ApiError } from "../../api/client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import { formatCardDisplay } from "../../utils/card";
@@ -128,6 +130,15 @@ export function AdminOrderDetailPage() {
   const [trackingError, setTrackingError] = useState<string | null>(null);
   const trackingInputRef = useRef<HTMLInputElement>(null);
 
+  /*
+   * "missing" and "unavailable" are deliberately different states. An account
+   * deleted from the pool is a normal thing for an order to outlive; Cognito
+   * being unreachable is not, and collapsing the two would make every customer
+   * look deleted the moment the lookup failed.
+   */
+  const [account, setAccount] =
+    useState<AdminAccount | "loading" | "missing" | "unavailable">("loading");
+
   useEffect(() => {
     if (!orderId) return;
     adminGetOrder(orderId)
@@ -135,6 +146,23 @@ export function AdminOrderDetailPage() {
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order?.user_id) return;
+    let active = true;
+
+    getAdminAccount(order.user_id)
+      .then((found) => active && setAccount(found))
+      .catch((e) => {
+        if (!active) return;
+        // Never surfaced through `error`: failing to name the customer must not
+        // look like failing to load the order, which is the banner that would
+        // otherwise appear above the fulfilment controls.
+        setAccount(e instanceof ApiError && e.status === 404 ? "missing" : "unavailable");
+      });
+
+    return () => { active = false; };
+  }, [order?.user_id]);
 
   const handleAction = async (action: () => Promise<AdminOrder>) => {
     setActionLoading(true);
@@ -199,10 +227,47 @@ export function AdminOrderDetailPage() {
         <h3>Customer</h3>
         <div className={styles.metaGrid}>
           <div>
-            <div className={styles.metaLabel}>Email</div>
+            <div className={styles.metaLabel}>Order mail</div>
             <div className={styles.metaValue}>
               {order.customer_email || (
-                <code style={{ fontSize: "0.75rem", color: "#9ca3af" }}>{order.user_id}</code>
+                <span style={{ color: "#9ca3af" }}>—</span>
+              )}
+            </div>
+          </div>
+          {/*
+            The account, resolved from the Cognito sub.
+            
+            Order mail is where the customer asked confirmations to go, which
+            need not be their own address - a lab ordering against a shared
+            purchasing address is the ordinary case. So that column no longer
+            says who placed the order, and user_id on its own is a uuid.
+          */}
+          <div>
+            <div className={styles.metaLabel}>Account</div>
+            <div className={styles.metaValue}>
+              {account === "loading" && (
+                <span style={{ color: "#9ca3af" }}>Looking up…</span>
+              )}
+              {account === "missing" && (
+                <span style={{ color: "#9ca3af" }} title={order.user_id}>
+                  Deleted account
+                </span>
+              )}
+              {account === "unavailable" && (
+                <span style={{ color: "#9ca3af" }} title={order.user_id}>
+                  Could not reach Cognito
+                </span>
+              )}
+              {typeof account === "object" && account !== null && (
+                <span title={order.user_id}>
+                  {account.email || account.username}
+                  {account.name && (
+                    <span style={{ color: "#6b7280" }}> · {account.name}</span>
+                  )}
+                  {!account.enabled && (
+                    <span style={{ color: "#b91c1c" }}> · disabled</span>
+                  )}
+                </span>
               )}
             </div>
           </div>
