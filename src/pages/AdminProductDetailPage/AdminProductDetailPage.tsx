@@ -1,14 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay, PageLoading, useLoadingState } from "../../components/LoadingSpinner";
-import {
-  createProduct,
-  deleteProduct,
-  updateProduct,
-  getImagePresignedUrl,
-  confirmImageUpload,
-  deleteImage,
-} from "../../api/admin_product";
+import { createProduct, deleteProduct, updateProduct } from "../../api/admin_product";
 import { getProductById } from "../../api/product";
 import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
@@ -16,6 +9,7 @@ import { useReminder } from "../../context/useReminder";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
+import { MAX_IMAGES, useProductImages } from "./useProductImages";
 
 type AdminVariantForm = {
   id?: string;
@@ -91,13 +85,6 @@ function validateForm(form: AdminProductForm): Record<string, string> {
   return errors;
 }
 
-const ALLOWED_EXTENSIONS = new Set(["jpg", "jpeg", "png", "webp"]);
-const MAX_IMAGES = 10;
-
-function getExtension(filename: string): string {
-  return filename.split(".").pop()?.toLowerCase() ?? "";
-}
-
 export function AdminProductDetailPage() {
   const navigate = useNavigate();
   const { productId } = useParams();
@@ -107,11 +94,11 @@ export function AdminProductDetailPage() {
 
   const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
-  // displayedUrls = confirmed in DB; savedUrls = DB state at last load/save
-  const [displayedUrls, setDisplayedUrls] = useState<string[]>([]);
-  const [savedUrls, setSavedUrls] = useState<string[]>([]);
-  // pendingFiles = selected but not yet uploaded; previewUrl is a local blob URL
-  const [pendingFiles, setPendingFiles] = useState<{ file: File; previewUrl: string }[]>([]);
+  const images = useProductImages(showReminder);
+  // Destructured because the effect below needs it as a dependency, and the
+  // hook's return object is rebuilt every render - depending on the whole thing
+  // would reload the product on every keystroke. `reset` itself is stable.
+  const { reset: resetImages } = images;
   const [loading, setLoading] = useState(isEditMode);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -122,14 +109,6 @@ export function AdminProductDetailPage() {
   const load = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
-
-  // Keep a ref to pendingFiles so the unmount cleanup can revoke all blob URLs
-  // even when the user navigates away without saving.
-  const pendingFilesRef = useRef<{ file: File; previewUrl: string }[]>([]);
-  pendingFilesRef.current = pendingFiles;
-  useEffect(() => {
-    return () => pendingFilesRef.current.forEach(({ previewUrl }) => URL.revokeObjectURL(previewUrl));
-  }, []);
 
   useEffect(() => {
     void getAdminTags().then(setAvailableTags).catch(() => {});
@@ -159,9 +138,7 @@ export function AdminProductDetailPage() {
             stock: String(variant.stock),
           })),
         });
-        const urls = product.image_urls ?? [];
-        setDisplayedUrls(urls);
-        setSavedUrls(urls);
+        resetImages(product.image_urls ?? []);
       } catch (error) {
         console.error("Failed to load product", error);
         setSaveError(
@@ -173,7 +150,7 @@ export function AdminProductDetailPage() {
     };
 
     void loadProduct();
-  }, [isEditMode, productId]);
+  }, [isEditMode, productId, resetImages]);
 
   const handleFieldChange = (
     field: keyof AdminProductForm,
@@ -236,34 +213,9 @@ export function AdminProductDetailPage() {
   };
 
   const handleFileSelect = (file: File) => {
-    const ext = getExtension(file.name);
-    if (!ALLOWED_EXTENSIONS.has(ext)) {
-      showReminder({ message: "Only jpg, jpeg, png, and webp files are allowed." });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    if (displayedUrls.length + pendingFiles.length >= MAX_IMAGES) {
-      showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
-    }
-    setPendingFiles((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
+    images.select(file);
+    // Cleared either way, so choosing the same file again still fires a change.
     if (fileInputRef.current) fileInputRef.current.value = "";
-  };
-
-  const handleRemovePendingFile = (index: number) => {
-    const url = pendingFiles[index]?.previewUrl;
-    if (url) URL.revokeObjectURL(url);
-    setPendingFiles((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleDeleteImage = (index: number) => {
-    // Stage the deletion — the API call happens on save
-    setDisplayedUrls((prev) => prev.filter((_, i) => i !== index));
-  };
-
-  const handleSetPrimary = (index: number) => {
-    setDisplayedUrls((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -300,17 +252,9 @@ export function AdminProductDetailPage() {
       let targetId = productId ?? pendingProductId;
 
       if (isEditMode && productId) {
-        // Flush staged deletions by URL — no index bookkeeping needed.
-        const toDelete = savedUrls.filter((url) => !displayedUrls.includes(url));
-        for (const url of toDelete) {
-          await deleteImage(productId, url);
-        }
-        if (toDelete.length > 0) {
-          // Sync savedUrls so a retry doesn't re-send already-deleted URLs.
-          setSavedUrls(displayedUrls);
-        }
-        // Include the current display order so reordering is persisted.
-        await updateProduct(productId, { ...payload, image_urls: displayedUrls });
+        await images.flushDeletions(productId);
+        // The display order travels with the update, so a reorder persists.
+        await updateProduct(productId, { ...payload, image_urls: images.displayedUrls });
       } else if (pendingProductId) {
         // Product was created in a previous attempt — just update it.
         await updateProduct(pendingProductId, payload);
@@ -320,30 +264,10 @@ export function AdminProductDetailPage() {
         targetId = created.id;
       }
 
-      // Upload pending files now that we have a product ID.
-      // Track how many succeed so a retry doesn't re-upload confirmed files.
-      if (pendingFiles.length > 0 && targetId) {
-        let uploadedCount = 0;
-        try {
-          for (const { file, previewUrl } of pendingFiles) {
-            const ext = getExtension(file.name);
-            const { upload_url, image_url } = await getImagePresignedUrl(targetId, ext);
-            const uploadRes = await fetch(upload_url, {
-              method: "PUT",
-              body: file,
-              headers: { "Content-Type": file.type },
-            });
-            if (!uploadRes.ok) throw new Error(`Image upload failed (HTTP ${uploadRes.status})`);
-            await confirmImageUpload(targetId, image_url);
-            URL.revokeObjectURL(previewUrl);
-            uploadedCount++;
-          }
-        } finally {
-          // Prune successfully uploaded files so a retry only re-sends the rest.
-          if (uploadedCount > 0) {
-            setPendingFiles((prev) => prev.slice(uploadedCount));
-          }
-        }
+      // Only now, with an id to scope the S3 keys to. This is why creation has
+      // to happen first for a new product.
+      if (targetId) {
+        await images.uploadFor(targetId);
       }
 
       navigate("/admin/products");
@@ -379,7 +303,6 @@ export function AdminProductDetailPage() {
     return <PageLoading visible={load.visible} />;
   }
 
-  const pendingDeletionCount = savedUrls.filter((u) => !displayedUrls.includes(u)).length;
 
   return (
     <div className={styles.page}>
@@ -508,11 +431,11 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>
               Product Images
               <span style={{ fontSize: 13, fontWeight: 400, color: "#667085", marginLeft: 8 }}>
-                ({displayedUrls.length + pendingFiles.length}/{MAX_IMAGES})
+                ({images.count}/{MAX_IMAGES})
               </span>
-              {pendingDeletionCount > 0 && (
+              {images.pendingDeletionCount > 0 && (
                 <span style={{ fontSize: 12, fontWeight: 400, color: "#b45309", marginLeft: 8 }}>
-                  {pendingDeletionCount} pending deletion
+                  {images.pendingDeletionCount} pending deletion
                 </span>
               )}
             </h2>
@@ -527,7 +450,7 @@ export function AdminProductDetailPage() {
                 className={styles.input}
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
-                disabled={displayedUrls.length + pendingFiles.length >= MAX_IMAGES}
+                disabled={images.atLimit}
                 onChange={(e) => {
                   const file = e.target.files?.[0];
                   if (file) handleFileSelect(file);
@@ -536,7 +459,7 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.imageGrid}>
-              {displayedUrls.map((url, i) => (
+              {images.displayedUrls.map((url, i) => (
                 <div key={url} className={styles.imageItem}>
                   <img
                     src={url}
@@ -549,7 +472,7 @@ export function AdminProductDetailPage() {
                     <button
                       type="button"
                       className={styles.setPrimaryButton}
-                      onClick={() => handleSetPrimary(i)}
+                      onClick={() => images.makePrimary(i)}
                       title="Set as primary"
                     >
                       ★
@@ -558,14 +481,14 @@ export function AdminProductDetailPage() {
                   <button
                     type="button"
                     className={styles.deleteImageButton}
-                    onClick={() => handleDeleteImage(i)}
+                    onClick={() => images.stageDeletion(i)}
                   >
                     ×
                   </button>
                 </div>
               ))}
 
-              {pendingFiles.map(({ previewUrl }, i) => (
+              {images.pendingFiles.map(({ previewUrl }, i) => (
                 <div key={previewUrl} className={styles.imageItem}>
                   <img
                     src={previewUrl}
@@ -576,14 +499,14 @@ export function AdminProductDetailPage() {
                   <button
                     type="button"
                     className={styles.deleteImageButton}
-                    onClick={() => handleRemovePendingFile(i)}
+                    onClick={() => images.removePending(i)}
                   >
                     ×
                   </button>
                 </div>
               ))}
 
-              {displayedUrls.length === 0 && pendingFiles.length === 0 && (
+              {images.count === 0 && (
                 <div className={styles.imagePlaceholder}>
                   <img
                     src={DEFAULT_PRODUCT_IMAGE}
