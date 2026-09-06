@@ -636,19 +636,15 @@ export function AdminProductDetailPage() {
                     </button>
                   </div>
 
+                  {/*
+                    No variant id field. It is a uuid the admin cannot act on -
+                    read-only, and on a new variant it only ever said
+                    "auto-generated". The catalog id is the identifier this
+                    business actually uses. The id is still carried in form
+                    state and in the payload, because update_product reconciles
+                    variants by it.
+                  */}
                   <div className={styles.variantGrid}>
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-variant-id-${index}`}>Variant ID</label>
-                      <input
-                        id={`product-variant-id-${index}`}
-                        className={styles.input}
-                        type="text"
-                        value={variant.id ?? ""}
-                        disabled
-                        placeholder="Auto-generated for new variants"
-                      />
-                    </div>
-
                     <div className={styles.fieldGroup}>
                       <label className={styles.label} htmlFor={`product-variant-catalog-id-${index}`}>Catalog ID</label>
                       <input
