@@ -147,10 +147,18 @@ export function AdminOrdersPage() {
     <div className={styles.page}>
       <div className={styles.pageHeader}>
         <h1>Orders</h1>
+        {/*
+          "account email" rather than just "email" because those are now two
+          different things: the order carries where the customer asked mail to
+          go, and the search also resolves their account address against
+          Cognito. Support hears about this precisely when the first one was
+          typed wrong, so the address the admin has in front of them is the
+          account one - and nothing would tell them that works.
+        */}
         <input
           className={styles.searchInput}
           type="search"
-          placeholder="Search by order #, email, or customer ID…"
+          placeholder="Search by order #, name, account email, or customer ID…"
           aria-label="Search orders"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
