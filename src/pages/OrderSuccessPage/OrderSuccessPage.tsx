@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useCartSideBar } from "../../context/useCartSideBar";
 import { useAuth } from "../../auth/useAuth";
-import { getMyOrderByPaymentIntent } from "../../api/order";
+import { getMyOrder, getMyOrderByPaymentIntent } from "../../api/order";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order } from "../../types/order_types";
 import styles from "./OrderSuccessPage.module.css";
@@ -19,6 +19,10 @@ export function OrderSuccessPage() {
   const { clearCart } = useCartSideBar();
   const { loading: authLoading } = useAuth();
   const paymentIntent = searchParams.get("payment_intent");
+  // Bypass mode creates the order inline and sends its id directly. Real Stripe
+  // sends a PaymentIntent id and the order does not exist until the webhook
+  // lands, which is what the polling below is for.
+  const orderId = searchParams.get("order_id");
   const redirectStatus = searchParams.get("redirect_status");
 
   const [order, setOrder] = useState<Order | null>(null);
@@ -60,7 +64,19 @@ export function OrderSuccessPage() {
   }, [order, authLoading, clearCart]);
 
   useEffect(() => {
-    if (redirectStatus !== "succeeded" || !paymentIntent) return;
+    if (redirectStatus !== "succeeded") return;
+
+    // Already created — fetch it once rather than polling for something that is
+    // not going to appear later than now.
+    if (orderId) {
+      let active = true;
+      getMyOrder(orderId)
+        .then((o) => active && setOrder(o))
+        .catch(() => active && setTimedOut(true));
+      return () => { active = false; };
+    }
+
+    if (!paymentIntent) return;
 
     let active = true;
     const startedAt = Date.now();
@@ -81,7 +97,7 @@ export function OrderSuccessPage() {
 
     poll();
     return () => { active = false; };
-  }, [paymentIntent, redirectStatus]);
+  }, [paymentIntent, orderId, redirectStatus]);
 
   if (redirectStatus !== "succeeded") {
     return (

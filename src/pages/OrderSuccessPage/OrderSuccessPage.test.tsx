@@ -11,11 +11,13 @@ import { setupLocalStorageStub } from '../../test/localStorageStub';
 
 vi.mock('../../api/order', () => ({
   getMyOrderByPaymentIntent: vi.fn(),
+  getMyOrder: vi.fn(),
 }));
 
 const fetchOrder = vi.mocked(
   (await import('../../api/order')).getMyOrderByPaymentIntent,
 );
+const fetchOrderById = vi.mocked((await import('../../api/order')).getMyOrder);
 
 /** The order the webhook would have created. */
 function anOrder() {
@@ -199,4 +201,59 @@ describe('OrderSuccessPage when no order ever appears', () => {
     expect(screen.getByTestId('count')).toHaveTextContent('1');
     expect(savedCartItems()).toHaveLength(1);
   }, 20000);
+});
+
+/*
+ * Bypass mode creates the order inline and redirects with its id. It used to
+ * send that id in a parameter called `payment_intent`, which it is not - the
+ * bypass PaymentIntent id is `pi_bypass_…` - so the page polled for an intent
+ * that could never match and gave up every time.
+ *
+ * That was invisible while the page claimed success regardless. Once it started
+ * telling the truth, every local checkout ended on "we couldn't confirm your
+ * order" for an order that had been created synchronously.
+ */
+describe('OrderSuccessPage in bypass mode', () => {
+  setupLocalStorageStub();
+
+  beforeEach(() => {
+    localStorage.setItem(
+      `cart:${user.user_id}`,
+      JSON.stringify([
+        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
+      ]),
+    );
+  });
+
+  function renderWithOrderId(authValue: AuthContextValue) {
+    return render(
+      <MemoryRouter initialEntries={['/checkout/success?order_id=o1&redirect_status=succeeded']}>
+        <AuthContext.Provider value={authValue}>
+          <ReminderContext.Provider value={{ showReminder: vi.fn(), hideReminder: vi.fn(), reminder: null } as never}>
+            <CartSideBarProvider>
+              <CartProbe />
+              <OrderSuccessPage />
+            </CartSideBarProvider>
+          </ReminderContext.Provider>
+        </AuthContext.Provider>
+      </MemoryRouter>,
+    );
+  }
+
+  it('shows the order without waiting for a webhook', async () => {
+    fetchOrderById.mockResolvedValue(anOrder());
+    renderWithOrderId(auth({ user, isAuthenticated: true }));
+
+    expect(await screen.findByText(/order placed/i)).toBeInTheDocument();
+    expect(fetchOrder, 'polled for a payment intent that does not exist').not.toHaveBeenCalled();
+  });
+
+  it('empties the cart, since the order really was created', async () => {
+    fetchOrderById.mockResolvedValue(anOrder());
+    renderWithOrderId(auth({ user, isAuthenticated: true }));
+
+    await waitFor(() => {
+      expect(screen.getByTestId('count')).toHaveTextContent('0');
+    });
+  });
 });
