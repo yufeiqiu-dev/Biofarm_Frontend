@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import {
@@ -28,7 +28,14 @@ const US_STATES = [
 
 const STEP_LABELS = ["Contact", "Shipping", "Review", "Payment"];
 
-type ContactForm = { name: string; phone: string };
+type ContactForm = { name: string; phone: string; email: string };
+
+/*
+ * Enough to catch a typo, and no more. Nothing short of sending to an address
+ * proves it is real, so this only exists to stop an obvious mistake reaching a
+ * confirmation email nobody receives. The backend applies the same rule.
+ */
+const EMAIL_PATTERN = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 type ShippingForm = {
   address1: string;
   address2: string;
@@ -72,8 +79,8 @@ function ContactStep({
   onChange: (v: ContactForm) => void;
   onNext: () => void;
 }) {
-  const { user } = useAuth();
-  const hasEmail = !!user?.email;
+  const emailValid = EMAIL_PATTERN.test(contact.email.trim());
+  const emailTouched = contact.email.trim().length > 0;
 
   return (
     <div className={styles.card}>
@@ -82,14 +89,25 @@ function ContactStep({
         <label className={styles.label} htmlFor="checkout-email">Email *</label>
         <input
           id="checkout-email"
+          type="email"
           className={styles.input}
-          value={user?.email ?? ""}
-          disabled
+          value={contact.email}
+          onChange={(e) => onChange({ ...contact, email: e.target.value })}
+          placeholder="purchasing@lab.edu"
         />
-        {!hasEmail && (
-          <p className={styles.fieldError}>
-            No email is associated with your account. Please update your account email before checking out.
-          </p>
+        {/*
+          Editable, and prefilled with the account address. It used to be
+          disabled, which meant an account with no email could not check out at
+          all, and a lab ordering against a shared purchasing address had no way
+          to say so. Order mail is a notification rather than a credential -
+          every order is scoped by the Cognito sub, and knowing an address
+          reaches nothing - so the customer's word is good enough for where it
+          goes.
+        */}
+        {emailTouched && !emailValid ? (
+          <p className={styles.fieldError}>Enter a valid email address.</p>
+        ) : (
+          <p className={styles.fieldHint}>Order confirmations will be sent here.</p>
         )}
       </div>
       <div className={styles.formGroup}>
@@ -116,7 +134,7 @@ function ContactStep({
         <button
           className={styles.btnPrimary}
           onClick={onNext}
-          disabled={!hasEmail || !contact.name.trim() || !contact.phone.trim()}
+          disabled={!emailValid || !contact.name.trim() || !contact.phone.trim()}
         >
           Continue →
         </button>
@@ -386,9 +404,20 @@ function PaymentForm({
 export function CheckoutPage() {
   const navigate = useNavigate();
   const { cartItems } = useCartSideBar();
+  const { user } = useAuth();
 
   const [step, setStep] = useState(0);
-  const [contact, setContact] = useState<ContactForm>({ name: "", phone: "" });
+  const [contact, setContact] = useState<ContactForm>({ name: "", phone: "", email: "" });
+
+  /*
+   * Prefilled rather than defaulted, because `user` is null on the first render
+   * while Amplify restores the session. Only fills an untouched field, so it
+   * cannot overwrite an address the customer has already typed.
+   */
+  useEffect(() => {
+    if (!user?.email) return;
+    setContact((prev) => (prev.email ? prev : { ...prev, email: user.email as string }));
+  }, [user?.email]);
   const [shipping, setShipping] = useState<ShippingForm>({
     address1: "",
     address2: "",
@@ -428,7 +457,8 @@ export function CheckoutPage() {
       };
       const { client_secret, order_id, subtotal_cents, tax_amount_cents } = await createPaymentIntent(
         cartPayload,
-        shippingPayload
+        shippingPayload,
+        contact.email.trim() || undefined
       );
 
       setSubtotalCents(subtotal_cents);
