@@ -103,3 +103,39 @@
 .badgeShipped { background: var(--status-shipped-wash); color: var(--status-shipped-text); }
 .badgeDelivered { background: var(--status-shipped-wash); color: var(--status-shipped-text); }
 .badgeCancelled { background: var(--status-cancelled-wash); color: var(--status-cancelled-text); }
+
+/* Paging controls, shown only when there is more than one page. */
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
+}
+
+.pagerCount {
+  margin-right: auto;
+  font-size: var(--text-sm);
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.pagerButton {
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--text-sm);
+  color: var(--ink);
+  background: var(--surface);
+  border: var(--border);
+  border-radius: var(--radius-container);
+  cursor: pointer;
+}
+
+.pagerButton:hover:not(:disabled) {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.pagerButton:disabled {
+  color: var(--muted);
+  cursor: not-allowed;
+}
