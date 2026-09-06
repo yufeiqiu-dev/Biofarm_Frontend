@@ -10,8 +10,41 @@ import { createMockUser } from '../../test/mocks/mockUser';
 import { setupLocalStorageStub } from '../../test/localStorageStub';
 
 vi.mock('../../api/order', () => ({
-  getMyOrderByPaymentIntent: vi.fn().mockRejectedValue(new Error('not yet')),
+  getMyOrderByPaymentIntent: vi.fn(),
 }));
+
+const fetchOrder = vi.mocked(
+  (await import('../../api/order')).getMyOrderByPaymentIntent,
+);
+
+/** The order the webhook would have created. */
+function anOrder() {
+  return {
+    id: 'o1',
+    order_number: 1042,
+    status: 'awaiting_fulfillment',
+    created_at: new Date().toISOString(),
+    total_amount: 285,
+    tax_amount: 24.94,
+    card_brand: 'visa',
+    card_last4: '4242',
+    shipping_name: 'Jane Smith',
+    shipping_address1: '123 Main St',
+    shipping_city: 'Springfield',
+    shipping_state: 'IL',
+    shipping_zip: '62701',
+    items: [
+      {
+        id: 'i1',
+        variant_id: 'v1',
+        product_name: 'Anti-Tau',
+        variant_label: '50 ug',
+        unit_price: 285,
+        quantity: 1,
+      },
+    ],
+  } as never;
+}
 
 const user = createMockUser();
 
@@ -83,7 +116,8 @@ describe('OrderSuccessPage clearing the cart', () => {
     );
   });
 
-  it('empties the cart when the session is already known', async () => {
+  it('empties the cart once the order is confirmed', async () => {
+    fetchOrder.mockResolvedValue(anOrder());
     renderAt(auth({ user, isAuthenticated: true }));
 
     await waitFor(() => {
@@ -95,6 +129,7 @@ describe('OrderSuccessPage clearing the cart', () => {
   it('still empties it when the session resolves after the redirect', async () => {
     // The real sequence. Stripe sends the browser back, the page renders before
     // Amplify has restored the session, and the user appears a moment later.
+    fetchOrder.mockResolvedValue(anOrder());
     const { rerender } = renderAt(auth({ loading: true }));
 
     rerender(
@@ -115,4 +150,53 @@ describe('OrderSuccessPage clearing the cart', () => {
     });
     expect(savedCartItems()).toEqual([]);
   });
+});
+
+/*
+ * Arriving here is a Stripe redirect on redirect_status=succeeded, which means
+ * the card was authorised - not that an order exists. If the item sold out while
+ * the customer was paying, the webhook voids that authorisation and creates
+ * nothing.
+ *
+ * The page used to render a green tick, "Order Placed!" and "Your payment was
+ * successful" to exactly that person, tell them to look in My Orders for
+ * something that would never arrive, and empty their cart on the way.
+ */
+describe('OrderSuccessPage when no order ever appears', () => {
+  setupLocalStorageStub();
+
+  beforeEach(() => {
+    localStorage.setItem(
+      `cart:${user.user_id}`,
+      JSON.stringify([
+        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
+      ]),
+    );
+    fetchOrder.mockRejectedValue(new Error('not found'));
+  });
+
+  it('does not claim the order was placed', async () => {
+    renderAt(auth({ user, isAuthenticated: true }));
+
+    await screen.findByRole('heading', { name: /couldn.t confirm your order/i }, { timeout: 15000 });
+
+    expect(screen.queryByText(/order placed/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/payment was successful/i)).not.toBeInTheDocument();
+  }, 20000);
+
+  it('says the money is not taken if the item sold out', async () => {
+    renderAt(auth({ user, isAuthenticated: true }));
+
+    await screen.findByRole('heading', { name: /couldn.t confirm your order/i }, { timeout: 15000 });
+    expect(screen.getByText(/have not been charged/i)).toBeInTheDocument();
+  }, 20000);
+
+  it('keeps the cart, so they can order again', async () => {
+    renderAt(auth({ user, isAuthenticated: true }));
+
+    await screen.findByRole('heading', { name: /couldn.t confirm your order/i }, { timeout: 15000 });
+
+    expect(screen.getByTestId('count')).toHaveTextContent('1');
+    expect(savedCartItems()).toHaveLength(1);
+  }, 20000);
 });
