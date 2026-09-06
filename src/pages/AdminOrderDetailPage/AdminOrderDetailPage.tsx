@@ -287,6 +287,9 @@ export function AdminOrderDetailPage() {
                   type="text"
                   value={trackingDraft}
                   placeholder="Enter tracking number"
+                  // The visible "Tracking" text is a span, not a label, so it
+                  // names nothing as far as a screen reader is concerned.
+                  aria-label="Tracking number"
                   onChange={(e) => setTrackingDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") void saveTracking();

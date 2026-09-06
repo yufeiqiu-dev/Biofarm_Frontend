@@ -168,6 +168,7 @@ export function AdminProductsPage() {
         <div className={styles.searchWrapper}>
           <SearchBar
             placeholder="Search products in admin..."
+            aria-label="Search products"
             basePath="/admin/products"
           />
         </div>

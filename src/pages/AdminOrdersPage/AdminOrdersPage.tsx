@@ -132,6 +132,7 @@ export function AdminOrdersPage() {
           className={styles.searchInput}
           type="search"
           placeholder="Search by order #, email, or customer ID…"
+          aria-label="Search orders"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />

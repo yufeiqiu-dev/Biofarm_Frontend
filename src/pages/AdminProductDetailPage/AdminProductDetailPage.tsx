@@ -433,8 +433,9 @@ export function AdminProductDetailPage() {
             <h2 className={styles.sectionTitle}>Basic Information</h2>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Product Catalog ID</label>
+              <label className={styles.label} htmlFor="product-product-catalog-id">Product Catalog ID</label>
               <input
+                id="product-product-catalog-id"
                 className={`${styles.input} ${formErrors.cat_id ? styles.inputError : ""}`}
                 type="text"
                 value={form.cat_id}
@@ -445,8 +446,9 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Product Name</label>
+              <label className={styles.label} htmlFor="product-product-name">Product Name</label>
               <input
+                id="product-product-name"
                 className={`${styles.input} ${formErrors.name ? styles.inputError : ""}`}
                 type="text"
                 value={form.name}
@@ -457,8 +459,9 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Description</label>
+              <label className={styles.label} htmlFor="product-description">Description</label>
               <textarea
+                id="product-description"
                 className={`${styles.textarea} ${formErrors.description ? styles.inputError : ""}`}
                 value={form.description}
                 onChange={(e) => handleFieldChange("description", e.target.value)}
@@ -469,7 +472,7 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label}>Tags</label>
+              <label className={styles.label} htmlFor="product-tags">Tags</label>
               {availableTags.length === 0 ? (
                 <p style={{ fontSize: 13, color: "#9ca3af" }}>
                   No tags available. <a href="/admin/tags" style={{ color: "#16a34a" }}>Manage tags →</a>
@@ -509,6 +512,7 @@ export function AdminProductDetailPage() {
 
             <div className={styles.fieldGroup}>
               <input
+                id="product-tags"
                 ref={fileInputRef}
                 className={styles.input}
                 type="file"
@@ -624,8 +628,9 @@ export function AdminProductDetailPage() {
 
                   <div className={styles.variantGrid}>
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Variant ID</label>
+                      <label className={styles.label} htmlFor={`product-variant-id-${index}`}>Variant ID</label>
                       <input
+                        id={`product-variant-id-${index}`}
                         className={styles.input}
                         type="text"
                         value={variant.id ?? ""}
@@ -635,8 +640,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Catalog ID</label>
+                      <label className={styles.label} htmlFor={`product-variant-catalog-id-${index}`}>Catalog ID</label>
                       <input
+                        id={`product-variant-catalog-id-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_catalog_id`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.catalog_id}
@@ -651,8 +657,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Size Value</label>
+                      <label className={styles.label} htmlFor={`product-size-value-${index}`}>Size Value</label>
                       <input
+                        id={`product-size-value-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_size_value`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.size_value}
@@ -667,8 +674,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Size Unit</label>
+                      <label className={styles.label} htmlFor={`product-size-unit-${index}`}>Size Unit</label>
                       <input
+                        id={`product-size-unit-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_size_unit`] ? styles.inputError : ""}`}
                         type="text"
                         value={variant.size_unit}
@@ -683,8 +691,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Price</label>
+                      <label className={styles.label} htmlFor={`product-price-${index}`}>Price</label>
                       <input
+                        id={`product-price-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_price`] ? styles.inputError : ""}`}
                         type="number"
                         step="0.01"
@@ -700,8 +709,9 @@ export function AdminProductDetailPage() {
                     </div>
 
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label}>Stock</label>
+                      <label className={styles.label} htmlFor={`product-stock-${index}`}>Stock</label>
                       <input
+                        id={`product-stock-${index}`}
                         className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
                         type="number"
                         value={variant.stock}

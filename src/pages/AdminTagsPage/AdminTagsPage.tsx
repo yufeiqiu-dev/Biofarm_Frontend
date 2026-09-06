@@ -60,6 +60,7 @@ export function AdminTagsPage() {
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="e.g. tool-antibodies"
+          aria-label="New tag name"
           disabled={saving}
         />
         <button type="submit" className={styles.addButton} disabled={saving || !newName.trim()}>

@@ -94,6 +94,7 @@ export function OrdersPage() {
             className={styles.searchInput}
             type="text"
             placeholder="Search by order # or product name…"
+            aria-label="Search your orders"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
           />
