@@ -212,8 +212,8 @@ export function AdminProductDetailPage() {
     }));
   };
 
-  const handleFileSelect = (file: File) => {
-    images.select(file);
+  const handleFilesSelected = (files: FileList) => {
+    images.select(files);
     // Cleared either way, so choosing the same file again still fires a change.
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
@@ -450,10 +450,12 @@ export function AdminProductDetailPage() {
                 className={styles.input}
                 type="file"
                 accept=".jpg,.jpeg,.png,.webp"
+                // Several at once. Adding six images used to mean six separate
+                // trips through the file picker.
+                multiple
                 disabled={images.atLimit}
                 onChange={(e) => {
-                  const file = e.target.files?.[0];
-                  if (file) handleFileSelect(file);
+                  if (e.target.files?.length) handleFilesSelected(e.target.files);
                 }}
               />
             </div>
@@ -474,6 +476,7 @@ export function AdminProductDetailPage() {
                       className={styles.setPrimaryButton}
                       onClick={() => images.makePrimary(i)}
                       title="Set as primary"
+                      aria-label={`Make image ${i + 1} the primary image`}
                     >
                       ★
                     </button>
@@ -482,9 +485,38 @@ export function AdminProductDetailPage() {
                     type="button"
                     className={styles.deleteImageButton}
                     onClick={() => images.stageDeletion(i)}
+                    aria-label={`Remove image ${i + 1}`}
                   >
                     ×
                   </button>
+
+                  {/*
+                    One step at a time. "Set as primary" could in principle reach
+                    any order - promote each image in reverse - but nobody works
+                    that out, so in practice it only ever chose the first image.
+                    Buttons rather than dragging, because these work from the
+                    keyboard without a second implementation.
+                  */}
+                  <div className={styles.moveControls}>
+                    <button
+                      type="button"
+                      className={styles.moveButton}
+                      onClick={() => images.move(i, -1)}
+                      disabled={i === 0}
+                      aria-label={`Move image ${i + 1} earlier`}
+                    >
+                      ‹
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.moveButton}
+                      onClick={() => images.move(i, 1)}
+                      disabled={i === images.displayedUrls.length - 1}
+                      aria-label={`Move image ${i + 1} later`}
+                    >
+                      ›
+                    </button>
+                  </div>
                 </div>
               ))}
 

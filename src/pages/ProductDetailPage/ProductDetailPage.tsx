@@ -6,6 +6,7 @@ import { getProductById } from "../../api/product";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import { AddToCartButton } from "../../components/AddToCartButton";
+import { ImageLightbox } from "../../components/ImageLightbox";
 import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import {
   formatPriceSpan,
@@ -46,6 +47,7 @@ export function ProductDetailPage() {
   }, [productId]);
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [viewerOpen, setViewerOpen] = useState(false);
 
   const selectedVariant =
     product?.variants.find((variant) => variant.id === selectedVariantId) ??
@@ -215,14 +217,32 @@ export function ProductDetailPage() {
         <aside className={styles.aside}>
           {activeImage && (
             <figure className={styles.figure}>
-              <img
-                src={activeImage}
-                alt={product.name}
-                className={styles.image}
-                onError={(e) => {
-                  e.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
-                }}
-              />
+              {/*
+                A button, not an image with a click handler. For an antibody
+                this picture is the validation data, and at 320px the bands
+                cannot be read - so opening it full size is a real action and
+                needs to be reachable from the keyboard.
+              */}
+              <button
+                type="button"
+                className={styles.imageButton}
+                onClick={() => setViewerOpen(true)}
+                aria-label={`View ${product.name} full size`}
+              >
+                <img
+                  src={activeImage}
+                  alt={product.name}
+                  className={styles.image}
+                  onError={(e) => {
+                    e.currentTarget.src = DEFAULT_PRODUCT_IMAGE;
+                  }}
+                />
+              </button>
+              {images.length > 1 && (
+                <p className={styles.imageCount}>
+                  {selectedImageIndex + 1} of {images.length}
+                </p>
+              )}
               {images.length > 1 && (
                 <div className={styles.thumbnails}>
                   {images.map((url, i) => (
@@ -287,6 +307,16 @@ export function ProductDetailPage() {
           </div>
         </aside>
       </div>
+
+      {viewerOpen && activeImage && (
+        <ImageLightbox
+          images={images}
+          index={selectedImageIndex}
+          onIndexChange={setSelectedImageIndex}
+          onClose={() => setViewerOpen(false)}
+          productName={product.name}
+        />
+      )}
     </div>
   );
 }

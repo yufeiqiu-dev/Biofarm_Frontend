@@ -56,18 +56,50 @@ export function useProductImages(showReminder: (r: { message: string }) => void)
     setSavedUrls(urls);
   }, []);
 
+  /**
+   * Queues one or more chosen files.
+   *
+   * Takes a list rather than a single file because the picker allows several at
+   * once, and because the limit has to be counted against what this call is
+   * itself adding - checking `pendingFiles.length` per file would let a
+   * multi-select sail past the maximum, since that state does not update until
+   * the batch is done.
+   */
   const select = useCallback(
-    (file: File): boolean => {
-      if (!ALLOWED_EXTENSIONS.has(getExtension(file.name))) {
+    (files: File[] | FileList) => {
+      const chosen = Array.from(files);
+      if (chosen.length === 0) return;
+
+      const accepted: PendingFile[] = [];
+      let room = MAX_IMAGES - (displayedUrls.length + pendingFiles.length);
+      let rejectedType = false;
+      let rejectedRoom = false;
+
+      for (const file of chosen) {
+        if (!ALLOWED_EXTENSIONS.has(getExtension(file.name))) {
+          rejectedType = true;
+          continue;
+        }
+        if (room <= 0) {
+          rejectedRoom = true;
+          continue;
+        }
+        accepted.push({ file, previewUrl: URL.createObjectURL(file) });
+        room--;
+      }
+
+      // One message rather than one per file: selecting ten of the wrong thing
+      // should not produce ten toasts.
+      if (rejectedType) {
         showReminder({ message: "Only jpg, jpeg, png, and webp files are allowed." });
-        return false;
       }
-      if (displayedUrls.length + pendingFiles.length >= MAX_IMAGES) {
+      if (rejectedRoom) {
         showReminder({ message: `Maximum ${MAX_IMAGES} images allowed.` });
-        return false;
       }
-      setPendingFiles((prev) => [...prev, { file, previewUrl: URL.createObjectURL(file) }]);
-      return true;
+
+      if (accepted.length > 0) {
+        setPendingFiles((prev) => [...prev, ...accepted]);
+      }
     },
     [displayedUrls.length, pendingFiles.length, showReminder],
   );
@@ -87,6 +119,25 @@ export function useProductImages(showReminder: (r: { message: string }) => void)
 
   const makePrimary = useCallback((index: number) => {
     setDisplayedUrls((prev) => [prev[index], ...prev.filter((_, i) => i !== index)]);
+  }, []);
+
+  /**
+   * Swaps an image with its neighbour.
+   *
+   * "Set as primary" alone could technically reach any order - promote each
+   * image in reverse - but nobody works that out, so in practice it only chose
+   * the first image. Moving one step at a time is what makes an arbitrary order
+   * actually achievable, and unlike dragging it works from the keyboard for
+   * free.
+   */
+  const move = useCallback((index: number, delta: -1 | 1) => {
+    setDisplayedUrls((prev) => {
+      const target = index + delta;
+      if (target < 0 || target >= prev.length) return prev;
+      const next = [...prev];
+      [next[index], next[target]] = [next[target], next[index]];
+      return next;
+    });
   }, []);
 
   /**
@@ -162,6 +213,7 @@ export function useProductImages(showReminder: (r: { message: string }) => void)
     removePending,
     stageDeletion,
     makePrimary,
+    move,
     flushDeletions,
     uploadFor,
   };
