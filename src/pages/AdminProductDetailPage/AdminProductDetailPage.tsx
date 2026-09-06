@@ -472,13 +472,20 @@ export function AdminProductDetailPage() {
             </div>
 
             <div className={styles.fieldGroup}>
-              <label className={styles.label} htmlFor="product-tags">Tags</label>
+              {/*
+                A span, not a label. Tags are toggle buttons, and a <label>
+                forwards its activation to a form control - so this one was
+                pointing at the image file input in the section below and
+                clicking the word "Tags" opened a file picker. The chips are
+                named as a group instead.
+              */}
+              <span className={styles.label} id="product-tags-label">Tags</span>
               {availableTags.length === 0 ? (
                 <p style={{ fontSize: 13, color: "#9ca3af" }}>
                   No tags available. <a href="/admin/tags" style={{ color: "#16a34a" }}>Manage tags →</a>
                 </p>
               ) : (
-                <div className={styles.tagChips}>
+                <div className={styles.tagChips} role="group" aria-labelledby="product-tags-label">
                   {availableTags.map((tag) => {
                     const selected = form.tag_ids.includes(tag.id);
                     return (
@@ -511,8 +518,11 @@ export function AdminProductDetailPage() {
             </h2>
 
             <div className={styles.fieldGroup}>
+              <label className={styles.label} htmlFor="product-image-file">
+                Add an image
+              </label>
               <input
-                id="product-tags"
+                id="product-image-file"
                 ref={fileInputRef}
                 className={styles.input}
                 type="file"

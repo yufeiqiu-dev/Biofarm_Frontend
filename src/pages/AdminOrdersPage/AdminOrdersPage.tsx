@@ -29,8 +29,8 @@ const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   cancelled: styles.badgeCancelled,
 };
 
-// Module-level so the memo below is not handed a new array on the renders
-// where no result for the active tab has arrived yet.
+// Module-level, so the renders where no result for the active request has
+// arrived yet are not handed a fresh array each pass.
 const EMPTY_ORDERS: AdminOrder[] = [];
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -120,8 +120,27 @@ export function AdminOrdersPage() {
   const loading = !isCurrent;
   const load = useLoadingState(loading);
   const filtered = isCurrent ? result.orders : EMPTY_ORDERS;
-  const total = isCurrent ? result.total : 0;
   const error = isCurrent ? result.error : null;
+
+  /*
+   * The rows are cleared between requests, but the count is not.
+   *
+   * Pager renders nothing when total is at or below one page, so zeroing this
+   * while a request was in flight removed the whole control from the DOM on
+   * every page turn. Three things went wrong with that: `busy` could never
+   * disable a button that no longer existed, keyboard focus sitting on "Next"
+   * was destroyed and dumped back on the body, and a failed request left the
+   * count at zero for good - stranding an admin on page two with an error and
+   * no way back to page one.
+   *
+   * Keeping the last count means the controls stay put while the next page
+   * loads, which is also what makes `busy` meaningful.
+   */
+  const [lastKnownTotal, setLastKnownTotal] = useState(0);
+  if (isCurrent && result.error === null && result.total !== lastKnownTotal) {
+    setLastKnownTotal(result.total);
+  }
+  const total = isCurrent && result.error === null ? result.total : lastKnownTotal;
 
 
   return (

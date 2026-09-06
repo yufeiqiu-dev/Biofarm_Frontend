@@ -162,6 +162,46 @@ describe('AdminOrdersPage', () => {
     );
   });
 
+
+  it('keeps the pager on screen while the next page loads', async () => {
+    // It used to vanish: the total was zeroed for the whole in-flight window and
+    // Pager renders nothing at one page, so every page turn removed the control
+    // from the DOM - destroying keyboard focus and making `busy` pointless.
+    let resolve!: (body: ReturnType<typeof page>) => void;
+    vi.mocked(adminListOrders)
+      .mockResolvedValueOnce(page([makeOrder()], 200))
+      .mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+
+    renderWithProviders(<AdminOrdersPage />, { user: createMockAdminUser() });
+    await screen.findByText('$21.74');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    // Still there, and disabled rather than gone.
+    await waitFor(() =>
+      expect(screen.getByRole('button', { name: 'Next' })).toBeDisabled(),
+    );
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeInTheDocument();
+
+    await act(async () => { resolve(page([makeOrder()], 200)); });
+  });
+
+  it('leaves a way back when a page fails to load', async () => {
+    // A failed request used to zero the total permanently, stranding the admin
+    // on page two with an error and no Previous button.
+    vi.mocked(adminListOrders)
+      .mockResolvedValueOnce(page([makeOrder()], 200))
+      .mockRejectedValueOnce(new Error('backend unreachable'));
+
+    renderWithProviders(<AdminOrdersPage />, { user: createMockAdminUser() });
+    await screen.findByText('$21.74');
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+
+    expect(await screen.findByText(/backend unreachable/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Previous' })).toBeEnabled();
+  });
+
   it('surfaces a failure instead of showing an empty list', async () => {
     vi.mocked(adminListOrders).mockImplementation(async () => {
       throw new Error('backend unreachable');

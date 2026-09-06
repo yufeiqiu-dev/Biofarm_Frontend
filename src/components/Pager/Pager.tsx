@@ -30,6 +30,22 @@ export function Pager({ page, pageSize, total, onPage, label, busy = false }: Pr
   const firstShown = total === 0 ? 0 : page * pageSize + 1;
   const lastShown = Math.min((page + 1) * pageSize, total);
 
+  /*
+   * Back to the top of the list on every page turn.
+   *
+   * The controls sit below the list, so you press them while scrolled to its
+   * end - and without this the next page arrives with its *last* rows under the
+   * cursor, so reading items 13-24 in order means scrolling back up first. Most
+   * obvious on the product grid, which is taller than the viewport.
+   *
+   * `auto` rather than `smooth`: this is a jump to new content, not an
+   * animation, and prefers-reduced-motion should not have to opt out of it.
+   */
+  const goTo = (next: number) => {
+    onPage(next);
+    window.scrollTo({ top: 0, behavior: "auto" });
+  };
+
   return (
     <nav className={styles.pager} aria-label={label}>
       <span className={styles.count}>
@@ -38,7 +54,7 @@ export function Pager({ page, pageSize, total, onPage, label, busy = false }: Pr
       <button
         type="button"
         className={styles.button}
-        onClick={() => onPage(Math.max(0, page - 1))}
+        onClick={() => goTo(Math.max(0, page - 1))}
         disabled={page === 0 || busy}
       >
         Previous
@@ -46,7 +62,7 @@ export function Pager({ page, pageSize, total, onPage, label, busy = false }: Pr
       <button
         type="button"
         className={styles.button}
-        onClick={() => onPage(Math.min(lastPage, page + 1))}
+        onClick={() => goTo(Math.min(lastPage, page + 1))}
         disabled={page >= lastPage || busy}
       >
         Next
