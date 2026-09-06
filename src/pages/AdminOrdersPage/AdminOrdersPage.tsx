@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { adminListOrders } from "../../api/admin_order";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
+import { Pager } from "../../components/Pager";
 import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import type { AdminOrder, OrderStatus } from "../../types/order_types";
 import styles from "./AdminOrdersPage.module.css";
@@ -122,9 +123,6 @@ export function AdminOrdersPage() {
   const total = isCurrent ? result.total : 0;
   const error = isCurrent ? result.error : null;
 
-  const lastPage = Math.max(0, Math.ceil(total / PAGE_SIZE) - 1);
-  const firstShown = total === 0 ? 0 : offset + 1;
-  const lastShown = Math.min(offset + filtered.length, total);
 
   return (
     <div className={styles.page}>
@@ -194,34 +192,14 @@ export function AdminOrdersPage() {
         </table>
       )}
 
-      {/*
-        Shown whenever there is more than one page. The count is what makes the
-        controls honest - "Next" with no idea how many there are is a button you
-        press until it stops doing anything.
-      */}
-      {total > PAGE_SIZE && (
-        <nav className={styles.pager} aria-label="Order list pages">
-          <span className={styles.pagerCount}>
-            {firstShown}–{lastShown} of {total}
-          </span>
-          <button
-            type="button"
-            className={styles.pagerButton}
-            onClick={() => setPage((p) => Math.max(0, p - 1))}
-            disabled={page === 0 || load.pending}
-          >
-            Previous
-          </button>
-          <button
-            type="button"
-            className={styles.pagerButton}
-            onClick={() => setPage((p) => Math.min(lastPage, p + 1))}
-            disabled={page >= lastPage || load.pending}
-          >
-            Next
-          </button>
-        </nav>
-      )}
+      <Pager
+        page={page}
+        pageSize={PAGE_SIZE}
+        total={total}
+        onPage={setPage}
+        busy={load.pending}
+        label="Order list pages"
+      />
     </div>
   );
 }
