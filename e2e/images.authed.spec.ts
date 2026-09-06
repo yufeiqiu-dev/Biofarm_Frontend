@@ -1,4 +1,4 @@
-import { test, expect, type Page } from "@playwright/test";
+import { test, expect, type APIRequestContext, type Page } from "@playwright/test";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -15,7 +15,28 @@ import path from "node:path";
  * sent yet, so the fixture product is left exactly as it was found.
  */
 
-const PRODUCT_WITH_TWO_IMAGES = "e7a5ed44-691c-4e49-ae3c-87e2d9a0e304";
+const API_URL = process.env.E2E_API_URL ?? "http://127.0.0.1:8000/api/v1";
+
+/**
+ * Finds a product with at least `minImages` images.
+ *
+ * Discovered rather than hard-coded, the way the other specs pick their
+ * fixtures: a literal uuid only exists in the database it was copied from, so
+ * on CI or after a re-seed every test in the file would fail in beforeEach
+ * against a load-failure page, which reads as the feature being broken rather
+ * than the fixture being absent.
+ */
+async function findProduct(request: APIRequestContext, minImages: number, maxImages = Infinity) {
+  const response = await request.get(`${API_URL}/products`);
+  if (!response.ok()) return null;
+  const body = await response.json();
+  const items = Array.isArray(body) ? body : (body.items ?? []);
+  const match = items.find((p: { image_urls?: string[] }) => {
+    const n = p.image_urls?.length ?? 0;
+    return n >= minImages && n <= maxImages;
+  });
+  return match?.id ?? null;
+}
 
 /** A real file on disk, since a file input cannot be given a fake one. */
 function makeImageFile(name: string): string {
@@ -36,8 +57,15 @@ async function imageCount(page: Page): Promise<number> {
 }
 
 test.describe("admin product images", () => {
+  let productId: string | null = null;
+
+  test.beforeAll(async ({ request }) => {
+    productId = await findProduct(request, 2);
+  });
+
   test.beforeEach(async ({ page }) => {
-    await page.goto(`/admin/products/${PRODUCT_WITH_TWO_IMAGES}`);
+    test.skip(!productId, "needs a product with 2+ images; seed one to run these");
+    await page.goto(`/admin/products/${productId}`);
     await expect(page.getByLabel("Product Name")).toBeVisible();
   });
 
@@ -96,6 +124,20 @@ test.describe("admin product images", () => {
     ).toBeDisabled();
   });
 
+  test("focus follows the image it moved", async ({ page }) => {
+    // The buttons are `disabled` at the ends and the item is keyed by url, so
+    // React reuses the DOM node: without this, the button under the cursor
+    // becomes disabled, the browser blurs it, and focus falls to <body> - the
+    // next Tab restarts from the top of the document.
+    const later = page.getByRole("button", { name: "Move image 1 later" });
+    await later.focus();
+    await page.keyboard.press("Enter");
+
+    // It landed last, so its own direction is spent and focus turns around.
+    const count = await page.locator('[class*="imageItem"]').count();
+    await expect(page.getByRole("button", { name: `Move image ${count} earlier` })).toBeFocused();
+  });
+
   test("reordering sends nothing on its own", async ({ page }) => {
     const sent: string[] = [];
     await page.route("**/api/v1/admin/products/**", (route) => {
@@ -111,8 +153,15 @@ test.describe("admin product images", () => {
 });
 
 test.describe("customer image viewer", () => {
+  let productId: string | null = null;
+
+  test.beforeAll(async ({ request }) => {
+    productId = await findProduct(request, 2);
+  });
+
   test.beforeEach(async ({ page }) => {
-    await page.goto(`/products/${PRODUCT_WITH_TWO_IMAGES}`);
+    test.skip(!productId, "needs a product with 2+ images; seed one to run these");
+    await page.goto(`/products/${productId}`);
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
   });
 
@@ -168,5 +217,53 @@ test.describe("customer image viewer", () => {
     await page.keyboard.press("Escape");
     // Returned to what opened it, rather than dumped at the top of the page.
     await expect(opener).toBeFocused();
+  });
+});
+
+test.describe("viewer layout", () => {
+  test("a single image is centred, not shoved against the left edge", async ({
+    page,
+    request,
+  }) => {
+    // The arrows are conditional, and the figure had no explicit grid column,
+    // so with no arrows to place it auto-placed into column 1 - the `auto`
+    // track - leaving the 1fr column empty beside it. Measured 23px of gap on
+    // one side and 778px on the other, on the commonest kind of product there
+    // is.
+    const single = await findProduct(request, 1, 1);
+    test.skip(!single, "needs a product with exactly 1 image");
+
+    await page.goto(`/products/${single}`);
+    await page.getByRole("button", { name: /view .* full size/i }).click();
+
+    const viewer = page.getByRole("dialog");
+    await expect(viewer).toBeVisible();
+    await expect(viewer.getByRole("button", { name: "Next image" })).toHaveCount(0);
+
+    const box = (await viewer.getByRole("img").boundingBox())!;
+    const viewport = page.viewportSize()!;
+    const left = box.x;
+    const right = viewport.width - (box.x + box.width);
+
+    expect(Math.abs(left - right), `centred: ${left}px left vs ${right}px right`).toBeLessThan(4);
+  });
+
+  test("the arrows are reachable on a phone", async ({ page, request }) => {
+    // They used to be display:none here, for a swipe handler that was never
+    // written - so the caption promised "1 of 2" and a phone had no way at all
+    // to reach the second image.
+    const multi = await findProduct(request, 2);
+    test.skip(!multi, "needs a product with 2+ images");
+
+    await page.setViewportSize({ width: 375, height: 700 });
+    await page.goto(`/products/${multi}`);
+    await page.getByRole("button", { name: /view .* full size/i }).click();
+
+    const viewer = page.getByRole("dialog");
+    const next = viewer.getByRole("button", { name: "Next image" });
+    await expect(next).toBeVisible();
+
+    await next.click();
+    await expect(viewer.getByText(/^2 of \d+$/)).toBeVisible();
   });
 });

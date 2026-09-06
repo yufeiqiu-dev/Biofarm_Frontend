@@ -212,10 +212,43 @@ export function AdminProductDetailPage() {
     }));
   };
 
+  const pendingFocus = useRef<string | null>(null);
+  const imageGridRef = useRef<HTMLDivElement>(null);
+
+  // Applied after the reorder renders, since the button to focus does not exist
+  // under that label until then.
+  useEffect(() => {
+    const label = pendingFocus.current;
+    if (!label) return;
+    pendingFocus.current = null;
+    imageGridRef.current
+      ?.querySelector<HTMLButtonElement>(`button[aria-label="${label}"]`)
+      ?.focus();
+  }, [images.displayedUrls]);
+
   const handleFilesSelected = (files: FileList) => {
     images.select(files);
     // Cleared either way, so choosing the same file again still fires a change.
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  /*
+   * Moves an image and sends focus after it.
+   *
+   * The buttons are `disabled` at the ends and the item is keyed by url, so
+   * React reuses the same DOM node: press "move earlier" twice and on the
+   * second press the focused button becomes disabled under the cursor, the
+   * browser blurs it, and focus falls back to <body> - the next Tab restarts
+   * from the top of the document. So focus follows the image to its new
+   * position, and turns around when it has reached the end.
+   */
+  const moveAndKeepFocus = (index: number, delta: -1 | 1) => {
+    images.move(index, delta);
+
+    const landed = index + delta;
+    const stuck = delta === 1 ? landed === images.displayedUrls.length - 1 : landed === 0;
+    const direction = stuck === (delta === 1) ? "earlier" : "later";
+    pendingFocus.current = `Move image ${landed + 1} ${direction}`;
   };
 
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -460,7 +493,7 @@ export function AdminProductDetailPage() {
               />
             </div>
 
-            <div className={styles.imageGrid}>
+            <div className={styles.imageGrid} ref={imageGridRef}>
               {images.displayedUrls.map((url, i) => (
                 <div key={url} className={styles.imageItem}>
                   <img
@@ -501,7 +534,7 @@ export function AdminProductDetailPage() {
                     <button
                       type="button"
                       className={styles.moveButton}
-                      onClick={() => images.move(i, -1)}
+                      onClick={() => moveAndKeepFocus(i, -1)}
                       disabled={i === 0}
                       aria-label={`Move image ${i + 1} earlier`}
                     >
@@ -510,7 +543,7 @@ export function AdminProductDetailPage() {
                     <button
                       type="button"
                       className={styles.moveButton}
-                      onClick={() => images.move(i, 1)}
+                      onClick={() => moveAndKeepFocus(i, 1)}
                       disabled={i === images.displayedUrls.length - 1}
                       aria-label={`Move image ${i + 1} later`}
                     >

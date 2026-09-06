@@ -15,7 +15,14 @@
   background: rgba(15, 23, 42, 0.92);
 }
 
+/*
+ * grid-column is explicit because the arrows are conditional. With no arrows -
+ * a single-image product - the figure auto-placed into column 1, the `auto`
+ * track, and sat flush left with the 1fr column empty beside it: measured at
+ * 23px of gap on one side and 778px on the other.
+ */
 .figure {
+  grid-column: 2;
   margin: 0;
   display: grid;
   justify-items: center;
@@ -81,11 +88,22 @@
 .previous { grid-column: 1; }
 .next { grid-column: 3; }
 
+/*
+ * The arrows stay on small screens. They were hidden here for "swipe
+ * territory", but no swipe handler was ever written and a phone has no arrow
+ * keys - so the caption promised "1 of 4" while the only way to reach image 2
+ * was to close the viewer and tap a thumbnail. Smaller, and the padding tightens
+ * to pay for them.
+ */
 @media (max-width: 640px) {
   .backdrop {
-    grid-template-columns: 1fr;
-    padding: var(--space-4);
+    gap: var(--space-2);
+    padding: var(--space-3);
   }
-  .previous, .next { display: none; }  /* swipe territory; arrows would crowd it */
+  .step {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: 1.25rem;
+  }
   .image { max-height: 70vh; }
 }

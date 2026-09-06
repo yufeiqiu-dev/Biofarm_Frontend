@@ -1,7 +1,8 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { ImageLightbox } from './ImageLightbox';
+import { DEFAULT_PRODUCT_IMAGE } from '../../constants/product';
 
 const images = ['https://cdn.test/a.jpg', 'https://cdn.test/b.jpg', 'https://cdn.test/c.jpg'];
 
@@ -87,5 +88,40 @@ describe('ImageLightbox', () => {
       <ImageLightbox images={[images[0]]} index={0} onIndexChange={vi.fn()} onClose={vi.fn()} productName="Anti-Tau" />,
     );
     expect(screen.queryByRole('button', { name: /next image/i })).not.toBeInTheDocument();
+  });
+
+  it('keeps Tab inside the viewer', async () => {
+    // aria-modal only tells a screen reader the rest of the page is inert. A
+    // sighted keyboard user would otherwise tab past the last arrow into the
+    // variant radios and "Add to cart" behind the backdrop, and activate a
+    // control they cannot see.
+    open(0);
+    const close = screen.getByRole('button', { name: 'Close image viewer' });
+    const next = screen.getByRole('button', { name: 'Next image' });
+
+    next.focus();
+    await userEvent.keyboard('{Tab}');
+    expect(close).toHaveFocus();
+
+    await userEvent.keyboard('{Shift>}{Tab}{/Shift}');
+    expect(next).toHaveFocus();
+  });
+
+  it('falls back to the placeholder when the full-size image is missing', () => {
+    // The page image behind falls back the same way, so without this the
+    // shopper sees a normal placeholder, clicks it, and gets a broken glyph on
+    // a near-black backdrop.
+    open(0);
+    const img = screen.getByRole('img');
+    fireEvent.error(img);
+    expect(img).toHaveAttribute('src', DEFAULT_PRODUCT_IMAGE);
+  });
+
+  it('does not loop when the placeholder itself fails', () => {
+    open(0);
+    const img = screen.getByRole('img');
+    fireEvent.error(img);
+    fireEvent.error(img);
+    expect(img).toHaveAttribute('src', DEFAULT_PRODUCT_IMAGE);
   });
 });
