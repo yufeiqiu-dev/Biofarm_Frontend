@@ -87,7 +87,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
-    sessionStorage.setItem(REDIRECT_PATH_KEY, getCurrentPath());
+    // Cleared, not stored. "Put me back where I was" is sign-in's idea and it
+    // does not survive the trip here: the page you are on when you sign out is
+    // frequently the one you can no longer see. An admin signing out of
+    // /admin/orders was sent straight back to it, where AdminRoute correctly
+    // refused them - so signing out ended by accusing you of an authorisation
+    // failure for doing exactly what you meant to.
+    sessionStorage.removeItem(REDIRECT_PATH_KEY);
     await amplifySignOut();
   }, []);
 

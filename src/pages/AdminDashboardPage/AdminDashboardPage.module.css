@@ -1,0 +1,147 @@
+.page {
+  padding: var(--space-5);
+  max-width: 1100px;
+}
+
+.page h1 {
+  margin: 0 0 var(--space-5);
+}
+
+.section {
+  margin-bottom: var(--space-6);
+}
+
+.section h2 {
+  font-size: var(--text-md);
+  margin: 0 0 var(--space-3);
+}
+
+.sectionNote,
+.more {
+  font-size: var(--text-sm);
+  color: var(--muted);
+  margin: var(--space-2) 0 0;
+}
+
+.allClear {
+  color: var(--muted);
+  margin: 0;
+}
+
+.error {
+  color: var(--danger);
+}
+
+/* Tiles wrap rather than scroll: on a narrow screen a row of numbers that runs
+   off the edge hides exactly the one nobody looked at. */
+.tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.tile {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 8rem;
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
+  background: var(--surface);
+  text-decoration: none;
+  color: inherit;
+}
+
+.tile:hover {
+  border-color: var(--muted);
+}
+
+/* Anything waiting a day or more. The colour is the only thing on the page that
+   says "this one, now" without the admin reading a number. */
+.tileUrgent {
+  border-color: var(--low-stock);
+}
+
+.tileValue {
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tileLabel {
+  font-size: var(--text-sm);
+}
+
+.tileHint {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.stockList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
+  background: var(--surface);
+}
+
+.stockRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: 1px solid var(--rule);
+}
+
+.stockRow:last-child {
+  border-bottom: none;
+}
+
+.stockLink {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  text-decoration: none;
+  color: inherit;
+  min-width: 0;
+}
+
+.stockLink:hover .stockName {
+  text-decoration: underline;
+}
+
+.stockName {
+  font-weight: 500;
+}
+
+.stockVariant {
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.stockLow {
+  color: var(--low-stock);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.stockOut {
+  color: var(--danger);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* Says out loud where the real money lives, so nothing on this page is mistaken
+   for an accounting figure. */
+.stripeLink {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.stripeLink:hover {
+  color: inherit;
+}

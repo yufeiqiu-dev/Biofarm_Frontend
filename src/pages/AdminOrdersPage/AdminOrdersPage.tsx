@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { adminListOrders } from "../../api/admin_order";
 import { useDebouncedValue } from "../../hooks/useDebouncedValue";
 import { Pager } from "../../components/Pager";
@@ -44,7 +44,37 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
 
 export function AdminOrdersPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<string | null>("awaiting_fulfillment");
+  /*
+   * The tab comes from the URL, so a link can point at one.
+   *
+   * It was local state with a fixed default, which meant /admin/orders?status=confirmed
+   * silently showed Awaiting Fulfillment - the dashboard's "0 to ship" tile
+   * looked like a filter and was ignored. Selecting a tab writes the parameter
+   * back, so the view is also shareable and survives a reload.
+   *
+   * Validated against TABS: an unknown status in the URL falls back rather than
+   * selecting nothing and rendering an empty list that looks like "no orders".
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get("status");
+  // No parameter at all is not the same as ?status=all. TABS contains a null
+  // value for the "All" tab, so a bare `TABS.some(t => t.value === requested)`
+  // matched `null` and quietly made the unfiltered view the default.
+  const activeTab =
+    requested === null
+      ? "awaiting_fulfillment"
+      : requested === "all"
+        ? null
+        : TABS.some((t) => t.value === requested)
+          ? requested
+          : "awaiting_fulfillment";
+
+  const setActiveTab = (value: string | null) => {
+    const next = new URLSearchParams(searchParams);
+    if (value) next.set("status", value);
+    else next.set("status", "all");
+    setSearchParams(next, { replace: true });
+  };
   const [search, setSearch] = useState("");
 
   // One piece of state carrying which tab it answers, rather than separate
