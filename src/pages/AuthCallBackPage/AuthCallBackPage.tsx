@@ -10,7 +10,14 @@ export function AuthCallBackPage() {
 
   useEffect(() => {
     if (loading) return;
-    navigate(safeRedirect(sessionStorage.getItem("RedirectPath")), { replace: true });
+
+    // Read once and removed. It is a one-shot value, and leaving it behind
+    // meant the next person to sign in on this tab inherited the last one's
+    // destination - including an admin page they have no access to.
+    const stored = sessionStorage.getItem("RedirectPath");
+    sessionStorage.removeItem("RedirectPath");
+
+    navigate(safeRedirect(stored), { replace: true });
   }, [loading, navigate]);
 
   return <PageLoading label="Signing you in..." />;

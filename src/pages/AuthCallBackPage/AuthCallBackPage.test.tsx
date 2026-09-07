@@ -70,4 +70,19 @@ describe('AuthCallBackPage redirect target', () => {
   it('keeps a query string and hash, which are legitimate', async () => {
     expect(await landsOn('/products?tag=antibody#top')).toBe('/products?tag=antibody#top');
   });
+
+  it('consumes the stored path rather than leaving it behind', async () => {
+    // One-shot. Left behind, the next person to sign in on this tab inherits
+    // the last one's destination - including an admin page they cannot open.
+    await landsOn('/orders/123');
+    expect(sessionStorage.getItem('RedirectPath')).toBeNull();
+  });
+
+  it('sends an admin who just signed out to the home page', async () => {
+    // signOut clears the key, so the callback has nothing to return them to.
+    // It used to store the current path, so signing out of /admin/orders went
+    // straight back there - where AdminRoute refused them and the sign-out
+    // ended on "Unauthorized. Admin user required."
+    expect(await landsOn(null)).toBe('/');
+  });
 });
