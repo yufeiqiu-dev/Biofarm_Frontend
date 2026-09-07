@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, fireEvent, screen, waitFor } from '@testing-library/react';
 import { AdminOrdersPage } from './AdminOrdersPage';
 import { renderWithProviders } from '../../test/renderWithProviders';
@@ -209,5 +209,57 @@ describe('AdminOrdersPage', () => {
     renderWithProviders(<AdminOrdersPage />, { user: createMockAdminUser() });
 
     expect(await screen.findByText(/backend unreachable/)).toBeInTheDocument();
+  });
+});
+
+/*
+ * The status tab comes from the URL.
+ *
+ * It was local state with a fixed default, so /admin/orders?status=confirmed
+ * silently showed Awaiting Fulfillment. The dashboard links to exactly those
+ * URLs - "0 to ship" pointed at a filter that was ignored, which is the failure
+ * of a dashboard that reports a problem and then makes you go and find it.
+ */
+describe('AdminOrdersPage status in the url', () => {
+  beforeEach(() => {
+    vi.mocked(adminListOrders).mockReset();
+    vi.mocked(adminListOrders).mockResolvedValue({ items: [], total: 0, limit: 20, offset: 0 });
+  });
+
+  function openAt(search: string) {
+    return renderWithProviders(<AdminOrdersPage />, {
+      user: createMockAdminUser(),
+      initialEntries: [`/admin/orders${search}`],
+    });
+  }
+
+  it('selects the tab the url asks for', async () => {
+    openAt('?status=confirmed');
+    await waitFor(() => expect(adminListOrders).toHaveBeenCalled());
+    expect(vi.mocked(adminListOrders).mock.calls[0][0]).toMatchObject({ status: 'confirmed' });
+  });
+
+  it('defaults to awaiting fulfillment with no parameter', async () => {
+    openAt('');
+    await waitFor(() => expect(adminListOrders).toHaveBeenCalled());
+    expect(vi.mocked(adminListOrders).mock.calls[0][0]).toMatchObject({
+      status: 'awaiting_fulfillment',
+    });
+  });
+
+  it('shows every order when the url says all', async () => {
+    openAt('?status=all');
+    await waitFor(() => expect(adminListOrders).toHaveBeenCalled());
+    expect(vi.mocked(adminListOrders).mock.calls[0][0]?.status).toBeUndefined();
+  });
+
+  it('falls back rather than filtering on nonsense', async () => {
+    // An unknown status would otherwise select no tab and render an empty list
+    // that reads as "you have no orders".
+    openAt('?status=not-a-status');
+    await waitFor(() => expect(adminListOrders).toHaveBeenCalled());
+    expect(vi.mocked(adminListOrders).mock.calls[0][0]).toMatchObject({
+      status: 'awaiting_fulfillment',
+    });
   });
 });
