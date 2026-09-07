@@ -465,7 +465,14 @@ export function CheckoutPage() {
       setTaxAmountCents(tax_amount_cents);
 
       if (STRIPE_BYPASS) {
-        window.location.href = `/checkout/success?payment_intent=${order_id ?? "bypass"}&redirect_status=succeeded`;
+        // order_id, in a parameter named order_id. It used to go out as
+        // `payment_intent`, which it is not: bypass mode creates the order
+        // inline and its PaymentIntent id is `pi_bypass_…`, so the success page
+        // polled for an intent that could never match and gave up every time.
+        // That was invisible while the page claimed success regardless; now
+        // that it tells the truth, it would report a failed order for one that
+        // was created synchronously.
+        window.location.href = `/checkout/success?order_id=${order_id}&redirect_status=succeeded`;
         return;
       }
 

@@ -15,6 +15,7 @@ import { OrderSuccessPage } from "./pages/OrderSuccessPage";
 import { NotFoundPage } from "./pages/NotFoundPage";
 import { AdminRoute } from "./components/AdminRoute.tsx";
 import { PrivateRoute } from "./components/PrivateRoute";
+import { AdminDashboardPage } from "./pages/AdminDashboardPage";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
 import { AdminProductDetailPage } from "./pages/AdminProductDetailPage/AdminProductDetailPage.tsx";
 import { AdminTagsPage } from "./pages/AdminTagsPage";
@@ -71,6 +72,15 @@ export default function App() {
             </AdminRoute>
           }
         >
+          {/*
+            /admin used to fall through to the 404 page.
+
+            An explicit path, not an index route: this parent is a pathless
+            layout, so `index` matches the *parent's* path - which is "/". That
+            put the dashboard on the home page behind AdminRoute, which
+            redirects to "/", and the storefront stopped loading entirely.
+          */}
+          <Route path="/admin" element={<AdminDashboardPage />} />
           <Route path="/admin/products" element={<AdminProductsPage />} />
           <Route
             path="/admin/products/new"
