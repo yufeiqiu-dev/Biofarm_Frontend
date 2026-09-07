@@ -2,7 +2,13 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getAdminStats, type AdminStats } from "../../api/admin_stats";
 import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
+import { OrderChart } from "./OrderChart";
 import styles from "./AdminDashboardPage.module.css";
+
+/** Whole dollars: this is for judging the size of a queue, not for accounting. */
+function formatMoney(value: number): string {
+  return `$${value.toLocaleString(undefined, { maximumFractionDigits: 0 })}`;
+}
 
 /** "4h" / "2d" — a duration nobody has to divide in their head. */
 function age(hours: number): string {
@@ -82,7 +88,7 @@ export function AdminDashboardPage() {
     );
   }
 
-  const { queue, volume, top_products, catalogue } = stats;
+  const { queue, volume, top_products, catalogue, daily } = stats;
   const nothingWaiting = queue.to_confirm === 0 && queue.to_ship === 0;
 
   return (
@@ -125,6 +131,26 @@ export function AdminDashboardPage() {
               to="/admin/orders?status=shipped"
             />
           </div>
+        )}
+
+        {/*
+          The queue priced, so an afternoon's work is distinguishable from ten
+          minutes'. Deliberately not called revenue and deliberately not next to
+          one: Stripe is authoritative for money, and anything computed here
+          drifts from it on fees, refunds and disputes.
+        */}
+        {queue.queue_value > 0 && (
+          <p className={styles.sectionNote}>
+            {formatMoney(queue.queue_value)} of goods awaiting shipment, before tax.{" "}
+            <a
+              className={styles.stripeLink}
+              href="https://dashboard.stripe.com/payments"
+              target="_blank"
+              rel="noreferrer"
+            >
+              Payments are in Stripe →
+            </a>
+          </p>
         )}
       </section>
 
@@ -188,11 +214,27 @@ export function AdminDashboardPage() {
       <section className={styles.section} aria-labelledby="volume">
         <h2 id="volume">Orders</h2>
         <div className={styles.tiles}>
-          <Tile label="Today" value={volume.today} to="/admin/orders" />
-          <Tile label="Last 7 days" value={volume.last_7_days} to="/admin/orders" />
-          <Tile label="Last 30 days" value={volume.last_30_days} to="/admin/orders" />
-          <Tile label="All time" value={volume.all_time} to="/admin/orders" />
+          {/*
+            ?status=all, not a bare path. Since the order list derives its tab
+            from the URL, a bare /admin/orders means "no parameter" and falls
+            back to Awaiting Fulfillment - so "All time: 412" landed on a list
+            of the three orders awaiting confirmation, the tile and its
+            destination contradicting each other. This is the same bug the tab
+            change fixed for the queue tiles, still live for these four.
+          */}
+          <Tile label="Today" value={volume.today} to="/admin/orders?status=all" />
+          <Tile label="Last 7 days" value={volume.last_7_days} to="/admin/orders?status=all" />
+          <Tile label="Last 30 days" value={volume.last_30_days} to="/admin/orders?status=all" />
+          <Tile label="All time" value={volume.all_time} to="/admin/orders?status=all" />
         </div>
+        {/*
+          Optional chaining because the repos deploy independently and there is
+          no ErrorBoundary: a frontend shipped ahead of its backend gets a
+          successful /admin/stats with no `daily`, and `daily.length` would
+          throw in render and blank the whole admin tree - with the network tab
+          showing a perfectly healthy request.
+        */}
+        {daily?.length ? <OrderChart daily={daily} /> : null}
         <p className={styles.sectionNote}>Dates in {stats.timezone}. Cancelled orders excluded.</p>
       </section>
 

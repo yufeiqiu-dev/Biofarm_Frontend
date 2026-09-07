@@ -1,0 +1,73 @@
+.figure {
+  margin: 0;
+  padding: var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-container);
+  background: var(--surface);
+}
+
+/* Scales with the column rather than scrolling: a chart you have to drag
+   sideways is not a glance. */
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+.axis {
+  stroke: var(--rule);
+  stroke-width: 1;
+}
+
+/* --rule is a hairline colour and disappeared behind the line at this size. The
+   bars are context, not the emphasis, but they still have to be legible. */
+.bar {
+  fill: #cbd5e1;
+}
+
+/* The growth line is the emphasis; the bars are context behind it. */
+.line {
+  fill: none;
+  stroke: #6366f1;
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.tick {
+  font-size: 10px;
+  fill: var(--muted);
+}
+
+.tickTotal {
+  font-size: 10px;
+  fill: #6366f1;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+  font-size: var(--text-sm);
+  color: var(--muted);
+}
+
+.keyBar,
+.keyLine {
+  display: inline-block;
+  width: 14px;
+  border-radius: 2px;
+}
+
+.keyBar {
+  height: 10px;
+  background: #cbd5e1;
+}
+
+.keyLine {
+  height: 2px;
+  background: #6366f1;
+  margin-left: var(--space-3);
+}

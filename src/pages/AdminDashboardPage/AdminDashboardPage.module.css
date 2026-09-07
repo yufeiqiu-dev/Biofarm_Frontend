@@ -134,3 +134,14 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* Says out loud where the real money lives, so nothing on this page is mistaken
+   for an accounting figure. */
+.stripeLink {
+  color: var(--muted);
+  text-decoration: underline;
+}
+
+.stripeLink:hover {
+  color: inherit;
+}

@@ -6,6 +6,15 @@ export interface AdminQueue {
   in_transit: number;
   /** null when nothing is waiting. */
   oldest_awaiting_hours: number | null;
+  /**
+   * Everything unshipped, priced pre-tax - awaiting_fulfillment and confirmed
+   * together, which is why it is named for the queue rather than for
+   * "awaiting": the two fields above mean awaiting_fulfillment alone.
+   *
+   * Not revenue and not a payout figure. Stripe is authoritative for money;
+   * this exists so an admin can tell an afternoon's work from ten minutes'.
+   */
+  queue_value: number;
 }
 
 export interface AdminVolume {
@@ -46,11 +55,19 @@ export interface AdminCatalogue {
   invisible_products: AdminInvisibleProduct[];
 }
 
+export interface AdminDailyPoint {
+  date: string;
+  orders: number;
+  /** Counted from the shop's first order, not the window's start. */
+  cumulative: number;
+}
+
 export interface AdminStats {
   timezone: string;
   generated_at: string;
   queue: AdminQueue;
   volume: AdminVolume;
+  daily: AdminDailyPoint[];
   top_products: AdminTopProduct[];
   catalogue: AdminCatalogue;
 }
