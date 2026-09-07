@@ -138,6 +138,63 @@ test.describe("admin product images", () => {
     await expect(page.getByRole("button", { name: `Move image ${count} earlier` })).toBeFocused();
   });
 
+  test("an image can be dragged to a new position", async ({ page }) => {
+    /*
+     * Only a real browser can answer this. The implementation uses Pointer
+     * Events with pointer capture - not the HTML5 drag API, which does not fire
+     * on touch at all - and jsdom implements neither, so a unit test exercises
+     * the arithmetic and not the gesture.
+     *
+     * dragTo rather than hand-rolled mouse.move steps: it drives the same
+     * pointerdown/pointermove/pointerup, and a hand-written sequence proved
+     * fiddly to get past the movement threshold reliably.
+     */
+    const tiles = page.locator('[class*="imageItem"]');
+    const originalFirst = await tiles.first().locator("img").getAttribute("src");
+
+    await tiles.first().dragTo(tiles.nth(1));
+
+    await expect(tiles.nth(1).locator("img")).toHaveAttribute("src", originalFirst!);
+  });
+
+  test("dragging to the front makes an image primary", async ({ page }) => {
+    // image_urls[0] is the display image, so a drag to the front is a promotion
+    // - the same thing the star button does.
+    const tiles = page.locator('[class*="imageItem"]');
+    const originalLast = await tiles.last().locator("img").getAttribute("src");
+
+    await tiles.last().dragTo(tiles.first());
+
+    await expect(tiles.first().locator("img")).toHaveAttribute("src", originalLast!);
+    await expect(tiles.first().getByText("Primary")).toBeVisible();
+  });
+
+  test("a click on a control is not swallowed by the drag", async ({ page }) => {
+    // The delete, primary and arrow buttons live inside the draggable tile.
+    // Starting a drag from one would eat the click that was actually intended.
+    const before = await imageCount(page);
+
+    await page.getByRole("button", { name: "Remove image 1" }).click();
+
+    await expect
+      .poll(() => imageCount(page), { message: "the delete never happened" })
+      .toBe(before - 1);
+  });
+
+  test("dragging sends nothing until Save", async ({ page }) => {
+    const sent: string[] = [];
+    await page.route("**/api/v1/admin/products/**", (route) => {
+      if (route.request().method() !== "GET") sent.push(route.request().method());
+      return route.continue();
+    });
+
+    const tiles = page.locator('[class*="imageItem"]');
+    await tiles.first().dragTo(tiles.nth(1));
+    await page.waitForTimeout(400);
+
+    expect(sent, "a drag is staged, like a deletion").toEqual([]);
+  });
+
   test("reordering sends nothing on its own", async ({ page }) => {
     const sent: string[] = [];
     await page.route("**/api/v1/admin/products/**", (route) => {

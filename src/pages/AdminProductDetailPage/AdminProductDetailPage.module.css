@@ -275,6 +275,11 @@
 }
 
 .imageItem {
+  /* touch-action: none is what makes this work on a tablet at all. Without it
+     the browser claims the gesture for scrolling the moment a finger moves, and
+     the pointermove events never arrive. */
+  touch-action: none;
+  cursor: grab;
   position: relative;
   width: 100px;
   height: 100px;
@@ -434,4 +439,15 @@
 .moveButton:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* The tile being dragged. Lifted rather than hidden, because the grid reorders
+   live underneath it - what is on screen is already what will be saved, so the
+   only thing left to show is which one is in hand. */
+.imageItemDragging {
+  cursor: grabbing;
+  opacity: 0.65;
+  transform: scale(1.04);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
+  z-index: 2;
 }

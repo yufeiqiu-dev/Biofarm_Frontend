@@ -10,6 +10,7 @@ import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
 import { MAX_IMAGES, useProductImages } from "./useProductImages";
+import { useDragReorder } from "./useDragReorder";
 
 type AdminVariantForm = {
   id?: string;
@@ -214,6 +215,24 @@ export function AdminProductDetailPage() {
 
   const pendingFocus = useRef<string | null>(null);
   const imageGridRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * Saved and pending images share one grid, so they share one index space:
+   * pending tiles sit at savedCount + i.
+   *
+   * A drag that crosses between them is ignored rather than reinterpreted. A
+   * chosen file has no URL until it has been uploaded, so it cannot take a
+   * place among the saved ones - and silently dropping it back where it started
+   * is more honest than appearing to move it and then not.
+   */
+  const drag = useDragReorder((from, to) => {
+    const savedCount = images.displayedUrls.length;
+    const bothSaved = from < savedCount && to < savedCount;
+    const bothPending = from >= savedCount && to >= savedCount;
+
+    if (bothSaved) images.reorder(from, to);
+    else if (bothPending) images.reorderPending(from - savedCount, to - savedCount);
+  }, imageGridRef);
 
   // Applied after the reorder renders, since the button to focus does not exist
   // under that label until then.
@@ -495,7 +514,13 @@ export function AdminProductDetailPage() {
 
             <div className={styles.imageGrid} ref={imageGridRef}>
               {images.displayedUrls.map((url, i) => (
-                <div key={url} className={styles.imageItem}>
+                <div
+                  key={url}
+                  className={`${styles.imageItem} ${
+                    drag.draggingIndex === i ? styles.imageItemDragging : ""
+                  }`}
+                  {...drag.tileProps(i)}
+                >
                   <img
                     src={url}
                     alt={`Product image ${i + 1}`}
@@ -554,7 +579,15 @@ export function AdminProductDetailPage() {
               ))}
 
               {images.pendingFiles.map(({ previewUrl }, i) => (
-                <div key={previewUrl} className={styles.imageItem}>
+                <div
+                  key={previewUrl}
+                  className={`${styles.imageItem} ${
+                    drag.draggingIndex === images.displayedUrls.length + i
+                      ? styles.imageItemDragging
+                      : ""
+                  }`}
+                  {...drag.tileProps(images.displayedUrls.length + i)}
+                >
                   <img
                     src={previewUrl}
                     alt={`Pending image ${i + 1}`}
