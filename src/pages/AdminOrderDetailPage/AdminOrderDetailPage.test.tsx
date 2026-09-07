@@ -46,7 +46,7 @@ function anOrder() {
     shipping_state: 'IL',
     shipping_zip: '62701',
     items: [],
-  } as never;
+  };
 }
 
 /*
@@ -59,7 +59,7 @@ function anOrder() {
  */
 describe('AdminOrderDetailPage account lookup', () => {
   beforeEach(() => {
-    getOrder.mockReset().mockResolvedValue(anOrder());
+    getOrder.mockReset().mockResolvedValue(anOrder() as never);
     getAccount.mockReset();
   });
 
@@ -133,5 +133,75 @@ describe('AdminOrderDetailPage account lookup', () => {
     await screen.findByText(/could not reach cognito/i);
     // The order itself loaded, so the fulfilment controls must still be usable.
     expect(screen.getByText(/1042/)).toBeInTheDocument();
+  });
+});
+
+/*
+ * Shipping is charged now, so every place a total is shown has to include it -
+ * and show the line. A total that does not match its own rows is an admin
+ * reconciling against Stripe and finding a difference with no explanation.
+ */
+describe('AdminOrderDetailPage shipping', () => {
+  beforeEach(() => {
+    getOrder.mockReset();
+    getAccount.mockReset().mockRejectedValue(new ApiError('no account', 404));
+  });
+
+  function render() {
+    return renderWithProviders(<AdminOrderDetailPage />, {
+      user: createMockAdminUser(),
+      initialEntries: ['/admin/orders/o1'],
+    });
+  }
+
+  it('shows shipping as its own line and in the total', async () => {
+    getOrder.mockResolvedValue({
+      ...anOrder(),
+      items: [
+        {
+          id: 'i1',
+          variant_id: 'v1',
+          product_name: 'Anti-Tau',
+          variant_label: '50 ug',
+          unit_price: 100,
+          quantity: 1,
+        },
+      ],
+      tax_amount: 8.75,
+      shipping_amount: 25,
+    } as never);
+
+    render();
+
+    expect(await screen.findByText('Shipping')).toBeInTheDocument();
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    // 100 + 25 + 8.75
+    expect(screen.getByText('$133.75')).toBeInTheDocument();
+  });
+
+  it('omits the line on an order placed before shipping was charged', async () => {
+    getOrder.mockResolvedValue({
+      ...anOrder(),
+      items: [
+        {
+          id: 'i1',
+          variant_id: 'v1',
+          product_name: 'Anti-Tau',
+          variant_label: '50 ug',
+          unit_price: 100,
+          quantity: 1,
+        },
+      ],
+      tax_amount: 0,
+      shipping_amount: 0,
+    } as never);
+
+    render();
+
+    await screen.findByText(/1042/);
+    expect(screen.queryByText('Shipping')).not.toBeInTheDocument();
+    // Subtotal and Total both read $100.00 with nothing added, so getByText
+    // would throw on the duplicate rather than assert anything.
+    expect(screen.getAllByText('$100.00').length).toBeGreaterThanOrEqual(2);
   });
 });

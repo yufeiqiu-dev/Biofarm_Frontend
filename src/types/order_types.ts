@@ -29,6 +29,9 @@ export interface Order {
   status: OrderStatus;
   total_amount: number;
   tax_amount: number;
+  /** What the customer paid to have it sent. Zero on orders placed before
+   *  shipping was charged, so an old order still adds up to what was taken. */
+  shipping_amount: number;
   card_brand: string;
   card_last4: string;
   shipping_name: string;
@@ -57,6 +60,7 @@ export interface PaymentIntentResponse {
   order_id?: string;
   subtotal_cents: number;
   tax_amount_cents: number;
+  shipping_amount_cents: number;
 }
 
 export interface CheckoutShipping {

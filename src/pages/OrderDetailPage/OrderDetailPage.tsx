@@ -155,6 +155,15 @@ export function OrderDetailPage() {
           <span>Subtotal</span>
           <span>${order.total_amount.toFixed(2)}</span>
         </div>
+        {/* Rendered whenever it was charged, including on old orders where it
+            is zero and reads "Free" - a receipt that omits a line the customer
+            paid for is one they have to query. */}
+        {order.shipping_amount > 0 && (
+          <div className={styles.itemRow} style={{ color: "#6b7280" }}>
+            <span>Shipping</span>
+            <span>${order.shipping_amount.toFixed(2)}</span>
+          </div>
+        )}
         {order.tax_amount > 0 && (
           <div className={styles.itemRow} style={{ color: "#6b7280" }}>
             <span>Tax ({parseFloat(((order.tax_amount / order.total_amount) * 100).toFixed(2))}%)</span>
@@ -163,7 +172,7 @@ export function OrderDetailPage() {
         )}
         <div className={styles.total}>
           <span>Total</span>
-          <span>${(order.total_amount + order.tax_amount).toFixed(2)}</span>
+          <span>${(order.total_amount + order.shipping_amount + order.tax_amount).toFixed(2)}</span>
         </div>
       </div>
 

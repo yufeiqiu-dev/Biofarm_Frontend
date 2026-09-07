@@ -16,6 +16,7 @@ function makeOrder(overrides: Partial<AdminOrder> = {}): AdminOrder {
     status: 'confirmed',
     total_amount: 19.99,
     tax_amount: 1.75,
+  shipping_amount: 0,
     card_brand: 'visa',
     card_last4: '4242',
     shipping_name: 'Jane Smith',

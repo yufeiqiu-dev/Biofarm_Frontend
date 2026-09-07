@@ -238,7 +238,7 @@ export function AdminOrdersPage() {
                 </td>
                 <td>{new Date(order.created_at).toLocaleDateString()}</td>
                 <td>{order.items.length}</td>
-                <td>${(order.total_amount + order.tax_amount).toFixed(2)}</td>
+                <td>${(order.total_amount + (order.shipping_amount ?? 0) + order.tax_amount).toFixed(2)}</td>
                 <td>
                   <span className={`${styles.badge} ${STATUS_BADGE_CLASS[order.status]}`}>
                     {STATUS_LABELS[order.status]}

@@ -316,11 +316,13 @@ function PaymentForm({
   onBack,
   subtotalCents,
   taxAmountCents,
+  shippingAmountCents,
 }: {
   clientSecret: string;
   onBack: () => void;
   subtotalCents: number;
   taxAmountCents: number;
+  shippingAmountCents: number;
 }) {
   const stripe = useStripe();
   const elements = useElements();
@@ -353,8 +355,9 @@ function PaymentForm({
   };
 
   const subtotal = subtotalCents / 100;
+  const shipping = shippingAmountCents / 100;
   const tax = taxAmountCents / 100;
-  const total = subtotal + tax;
+  const total = subtotal + shipping + tax;
   const taxPct = subtotalCents > 0
     ? parseFloat((taxAmountCents / subtotalCents * 100).toFixed(2))
     : 0;
@@ -366,6 +369,12 @@ function PaymentForm({
       <div className={styles.summaryRow} style={{ marginTop: "1.25rem", color: "#6b7280" }}>
         <span>Subtotal</span>
         <span>${subtotal.toFixed(2)}</span>
+      </div>
+      {/* Shown before the card is charged, always. A shipping cost that only
+          appears on the receipt is the reason people abandon carts. */}
+      <div className={styles.summaryRow} style={{ color: "#6b7280" }}>
+        <span>Shipping</span>
+        <span>{shipping > 0 ? `$${shipping.toFixed(2)}` : "Free"}</span>
       </div>
       <div className={styles.summaryRow} style={{ color: "#6b7280" }}>
         <span>Tax ({taxPct}%)</span>
@@ -429,6 +438,7 @@ export function CheckoutPage() {
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   const [subtotalCents, setSubtotalCents] = useState(0);
   const [taxAmountCents, setTaxAmountCents] = useState(0);
+  const [shippingAmountCents, setShippingAmountCents] = useState(0);
   const [piLoading, setPiLoading] = useState(false);
   const [piError, setPiError] = useState<string | null>(null);
 
@@ -455,7 +465,8 @@ export function CheckoutPage() {
         zip: shipping.zip,
         notes: shipping.notes || undefined,
       };
-      const { client_secret, order_id, subtotal_cents, tax_amount_cents } = await createPaymentIntent(
+      const { client_secret, order_id, subtotal_cents, tax_amount_cents, shipping_amount_cents } =
+        await createPaymentIntent(
         cartPayload,
         shippingPayload,
         contact.email.trim() || undefined
@@ -463,6 +474,7 @@ export function CheckoutPage() {
 
       setSubtotalCents(subtotal_cents);
       setTaxAmountCents(tax_amount_cents);
+      setShippingAmountCents(shipping_amount_cents);
 
       if (STRIPE_BYPASS) {
         // order_id, in a parameter named order_id. It used to go out as
@@ -525,6 +537,7 @@ export function CheckoutPage() {
             onBack={() => setStep(2)}
             subtotalCents={subtotalCents}
             taxAmountCents={taxAmountCents}
+            shippingAmountCents={shippingAmountCents}
           />
         </Elements>
       )}

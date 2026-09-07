@@ -215,7 +215,8 @@ export function AdminOrderDetailPage() {
 
   const subtotal = order.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
   const tax = order.tax_amount;
-  const total = subtotal + tax;
+  const shipping = order.shipping_amount ?? 0;
+  const total = subtotal + shipping + tax;
 
   return (
     <div className={styles.page}>
@@ -318,6 +319,15 @@ export function AdminOrderDetailPage() {
             <span>Subtotal</span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
+          {/* Without this row the total stopped matching Subtotal + Tax, and
+              the admin reconciling an order against Stripe would find a
+              difference with nothing on the page explaining it. */}
+          {shipping > 0 && (
+            <div className={styles.totalRow}>
+              <span>Shipping</span>
+              <span>${shipping.toFixed(2)}</span>
+            </div>
+          )}
           {tax > 0 && (
             <div className={styles.totalRow}>
               <span>Tax</span>
