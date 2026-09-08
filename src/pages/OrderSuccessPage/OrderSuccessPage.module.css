@@ -160,12 +160,6 @@
 
 /* ── Loading / fallback ── */
 
-.loading {
-  text-align: center;
-  padding: 4rem 1rem;
-  color: var(--muted);
-}
-
 .fallback {
   text-align: center;
   padding: 2rem 0 0;

@@ -2,7 +2,6 @@ import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay, PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import {
-  adjustVariantStock,
   createProduct,
   deleteProduct,
   updateProduct,
@@ -15,85 +14,9 @@ import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
 import { MAX_IMAGES, useProductImages } from "./useProductImages";
+import { StockAdjustDialog } from "./StockAdjustDialog";
+import { useProductForm } from "./useProductForm";
 import { useDragReorder } from "./useDragReorder";
-
-type AdminVariantForm = {
-  id?: string;
-  catalog_id: string;
-  size_value: string;
-  size_unit: string;
-  price: string;
-  stock: string;
-};
-
-type AdminProductForm = {
-  cat_id: string;
-  name: string;
-  description: string;
-  tag_ids: string[];
-  variants: AdminVariantForm[];
-};
-
-const createEmptyVariant = (): AdminVariantForm => ({
-  id: undefined,
-  catalog_id: "",
-  size_value: "",
-  size_unit: "",
-  price: "",
-  stock: "",
-});
-
-const createEmptyForm = (): AdminProductForm => ({
-  cat_id: "",
-  name: "",
-  description: "",
-  tag_ids: [],
-  variants: [],
-});
-
-function validateForm(form: AdminProductForm): Record<string, string> {
-  const errors: Record<string, string> = {};
-
-  if (!form.cat_id.trim()) {
-    errors.cat_id = "Product catalog ID is required.";
-  }
-  if (!form.name.trim()) {
-    errors.name = "Product name is required.";
-  }
-  if (!form.description.trim()) {
-    errors.description = "Product description is required.";
-  }
-
-  form.variants.forEach((variant, index) => {
-    if (!variant.catalog_id.trim()) {
-      errors[`variant_${index}_catalog_id`] = "Catalog ID is required.";
-    }
-    if (!variant.size_value.trim()) {
-      errors[`variant_${index}_size_value`] = "Size value is required.";
-    } else if (Number(variant.size_value) <= 0) {
-      errors[`variant_${index}_size_value`] = "Size value must be greater than 0.";
-    }
-    if (!variant.size_unit.trim()) {
-      errors[`variant_${index}_size_unit`] = "Size unit is required.";
-    }
-    if (!variant.price.trim()) {
-      errors[`variant_${index}_price`] = "Price is required.";
-    } else if (Number(variant.price) < 0) {
-      errors[`variant_${index}_price`] = "Price cannot be negative.";
-    }
-    // Only a new variant carries an opening count; an existing one's stock is
-    // not editable here at all.
-    if (!variant.id) {
-      if (!variant.stock.trim()) {
-        errors[`variant_${index}_stock`] = "Stock is required.";
-      } else if (Number(variant.stock) < 0) {
-        errors[`variant_${index}_stock`] = "Stock cannot be negative.";
-      }
-    }
-  });
-
-  return errors;
-}
 
 export function AdminProductDetailPage() {
   const navigate = useNavigate();
@@ -102,7 +25,17 @@ export function AdminProductDetailPage() {
   const isEditMode = Boolean(productId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
+  const {
+    form,
+    setForm,
+    formErrors,
+    handleFieldChange,
+    handleVariantChange,
+    handleAddVariant,
+    handleRemoveVariant,
+    handleToggleTag,
+    validate,
+  } = useProductForm(() => setSaveError(null));
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const images = useProductImages(showReminder);
   // Destructured because the effect below needs it as a dependency, and the
@@ -115,70 +48,37 @@ export function AdminProductDetailPage() {
   // Stores the product ID after a successful createProduct call, so a retry after
   // a partial upload failure reuses the same product instead of creating a duplicate.
   const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const load = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
   /*
-   * The stock adjustment in flight, if any.
+   * Which variant is being adjusted, if any. The dialog owns everything
+   * else about it - its inputs, its request, its errors.
    *
-   * Separate from the form's save: it writes immediately and on its own, which
-   * is the whole point. Deferring it to Save would put the count back in a
-   * payload written from a page rendered minutes ago, which is the overwrite
-   * this replaced.
+   * Separate from the form's deferred save because it writes immediately,
+   * which is the whole point: deferring it would put the count back into a
+   * payload written from a page rendered minutes ago.
    */
-  const [restocking, setRestocking] = useState<{ index: number; variantId: string } | null>(null);
-  const [restockDelta, setRestockDelta] = useState("");
-  const [restockReason, setRestockReason] = useState("");
-  const [restockError, setRestockError] = useState<string | null>(null);
-  const [restockBusy, setRestockBusy] = useState(false);
+  const [restockingVariantId, setRestockingVariantId] = useState<string | null>(null);
+  // Raised by the dialog while its request is in flight. The dialog disables
+  // its own Cancel and backdrop, but these buttons sit outside it and stay
+  // reachable by keyboard - and because the dialog is keyed by variant,
+  // pressing one mid-request unmounts the instance waiting for an answer.
+  const [adjustBusy, setAdjustBusy] = useState(false);
 
-  const applyRestock = async () => {
-    if (restocking === null) return;
-    const delta = Number(restockDelta);
-    // Whole units. The input is a bare type="number" outside any form, so no
-    // constraint validation runs and "2.5" reached the server, where pydantic
-    // refused it and the admin read "Input should be a valid integer".
-    if (!restockDelta.trim() || !Number.isInteger(delta) || delta === 0) {
-      setRestockError("Enter a whole number of units to add, or a negative one to remove.");
-      return;
-    }
-
-    setRestockBusy(true);
-    setRestockError(null);
-    try {
-      const updated = await adjustVariantStock(
-        productId!,
-        restocking.variantId,
-        delta,
-        restockReason,
-      );
-      // The server's count, not ours plus the delta. It applied the change to
-      // whatever the shelf actually held, which is the reason this is not a
-      // form field - anything sold while the page was open is already in it.
-      setForm((previous) => ({
-        ...previous,
-        // Matched on the variant's own id, not the row it was in. The dialog
-        // is aria-modal but the page behind it is not inert, so a keyboard user
-        // can tab out, remove a variant above this one, and tab back - after
-        // which the index points at a different row and the new count lands on
-        // the wrong variant.
-        variants: previous.variants.map((variant) =>
-          variant.id === restocking.variantId
-            ? { ...variant, stock: String(updated.stock) }
-            : variant,
-        ),
-      }));
-      setRestocking(null);
-      setRestockDelta("");
-      setRestockReason("");
-    } catch (error) {
-      setRestockError(
-        error instanceof Error ? error.message : "Could not adjust stock.",
-      );
-    } finally {
-      setRestockBusy(false);
-    }
+  const recordAdjustedStock = (variantId: string, stock: number) => {
+    setForm((previous) => ({
+      ...previous,
+      // Matched on the variant's own id, not the row it was in. The dialog
+      // is aria-modal but the page behind it is not inert, so a keyboard
+      // user can tab out, remove a variant above this one, and tab back -
+      // after which an index would point at a different row and the new
+      // count would land on the wrong variant.
+      variants: previous.variants.map((variant) =>
+        variant.id === variantId ? { ...variant, stock: String(stock) } : variant,
+      ),
+    }));
   };
+
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -211,7 +111,6 @@ export function AdminProductDetailPage() {
         });
         resetImages(product.image_urls ?? []);
       } catch (error) {
-        console.error("Failed to load product", error);
         setSaveError(
           error instanceof Error ? error.message : "Failed to load product."
         );
@@ -221,67 +120,10 @@ export function AdminProductDetailPage() {
     };
 
     void loadProduct();
-  }, [isEditMode, productId, resetImages]);
-
-  const handleFieldChange = (
-    field: keyof AdminProductForm,
-    value: string
-  ) => {
-    if (formErrors[field]) setFormErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
-    if (saveError) setSaveError(null);
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleVariantChange = (
-    index: number,
-    field: keyof AdminVariantForm,
-    value: string
-  ) => {
-    const key = `variant_${index}_${field}` as string;
-    if (formErrors[key]) setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
-    if (saveError) setSaveError(null);
-    setForm((prev) => ({
-      ...prev,
-      variants: prev.variants.map((variant, i) =>
-        i === index ? { ...variant, [field]: value } : variant
-      ),
-    }));
-  };
-
-  const handleAddVariant = () => {
-    setForm((prev) => ({ ...prev, variants: [...prev.variants, createEmptyVariant()] }));
-  };
-
-  const handleRemoveVariant = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      variants: prev.variants.filter((_, i) => i !== index),
-    }));
-    setFormErrors((prev) => {
-      const next = { ...prev };
-      Object.keys(next).forEach((key) => {
-        const m = key.match(/^variant_(\d+)_/);
-        if (!m) return;
-        const vi = parseInt(m[1], 10);
-        if (vi === index) {
-          delete next[key];
-        } else if (vi > index) {
-          next[key.replace(`variant_${vi}_`, `variant_${vi - 1}_`)] = next[key];
-          delete next[key];
-        }
-      });
-      return next;
-    });
-  };
-
-  const handleToggleTag = (tagId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      tag_ids: prev.tag_ids.includes(tagId)
-        ? prev.tag_ids.filter((id) => id !== tagId)
-        : [...prev.tag_ids, tagId],
-    }));
-  };
+  // setForm is a useState setter and never changes identity, but it now
+  // arrives from a custom hook where the linter cannot see that - and being
+  // right by accident is not worth the suppression.
+  }, [isEditMode, productId, resetImages, setForm]);
 
   const pendingFocus = useRef<string | null>(null);
   const imageGridRef = useRef<HTMLDivElement>(null);
@@ -343,9 +185,7 @@ export function AdminProductDetailPage() {
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const errors = validateForm(form);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    if (!validate()) {
       showReminder({ message: "Please fix errors in the form!" });
       return;
     }
@@ -412,7 +252,6 @@ export function AdminProductDetailPage() {
 
       navigate("/admin/products");
     } catch (error) {
-      console.error("Failed to save product", error);
       setSaveError(
         error instanceof Error ? error.message : "Failed to save product."
       );
@@ -430,7 +269,6 @@ export function AdminProductDetailPage() {
       await deleteProduct(productId);
       navigate("/admin/products");
     } catch (error) {
-      console.error("Failed to delete product", error);
       setSaveError(
         error instanceof Error ? error.message : "Failed to delete product."
       );
@@ -468,6 +306,13 @@ export function AdminProductDetailPage() {
             <button
               type="button"
               className={styles.deleteButton}
+              // Every way off this page is shut while a stock request is in
+              // flight, not just the dialog's own. The dialog has no focus trap
+              // and the page behind it is not inert, so a keyboard admin can
+              // tab out to any of these and leave - and unmounting the page
+              // drops the adjustment's answer on the floor: no error, no
+              // change, and every reason to think it worked.
+              disabled={adjustBusy}
               onClick={() => setConfirmDeleteOpen(true)}
             >
               Delete Product
@@ -876,19 +721,14 @@ export function AdminProductDetailPage() {
                             // they were indistinguishable by name - to a screen
                             // reader, and to getByRole in a test.
                             aria-label={`Adjust stock for ${variant.catalog_id || "this variant"}`}
-                            onClick={() => {
-                              // Reset here and only here, so the dialog always
-                              // opens clean whatever closed it last. Clearing on
-                              // dismissal instead meant every exit had to
-                              // remember - and the backdrop did not, so opening
-                              // this on another variant showed the previous
-                              // one's error over a pre-filled -5, one click from
-                              // taking five units off the wrong product.
-                              setRestockDelta("");
-                              setRestockReason("");
-                              setRestockError(null);
-                              setRestocking({ index, variantId: variant.id! });
-                            }}
+                            // Nothing to reset here: the dialog is keyed by
+                            // variant, so it is a fresh instance for each one
+                            // and cannot carry the last attempt's delta or
+                            // error across - which it did, when this page held
+                            // that state and only some of the ways out cleared
+                            // it.
+                            disabled={adjustBusy}
+                            onClick={() => setRestockingVariantId(variant.id!)}
                           >
                             Adjust
                           </button>
@@ -920,110 +760,37 @@ export function AdminProductDetailPage() {
           <button
             type="button"
             className={styles.cancelButton}
+            disabled={adjustBusy}
             onClick={() => navigate("/admin/products")}
           >
             Cancel
           </button>
 
-          <button type="submit" className={styles.saveButton}>
+          <button type="submit" className={styles.saveButton} disabled={adjustBusy}>
             {isEditMode ? "Save Changes" : "Create Product"}
           </button>
         </div>
       </form>
 
-      {/*
-        A change, never a new value. "Set stock to 40" would be the same
-        overwrite in a smaller box: the 40 would be reasoned from a number that
-        was already stale by the time it was read.
-      */}
-      {restocking !== null && (
-        <div
-          className={styles.restockBackdrop}
-          // Not while a request is in flight. Closing then left the rejection -
-          // "Cannot remove 5 from a stock of 2" - written into state that
-          // nothing renders, so the admin saw no error, the count was unchanged,
-          // and the only reasonable conclusion was that it had worked.
-          onClick={() => {
-            if (!restockBusy) setRestocking(null);
-          }}
-        >
-          <div
-            className={styles.restockDialog}
-            onClick={(e) => e.stopPropagation()}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="restock-title"
-          >
-            <h2 id="restock-title" className={styles.restockTitle}>Adjust stock</h2>
-            <p className={styles.restockBody}>
-              How many units arrived? Use a negative number for breakage or a
-              miscount. This is added to the current figure, so anything sold
-              while this page was open is already accounted for.
-              <br />
-              <strong>Not a physical count.</strong> Open orders have already
-              taken their units out of this number, so boxes still on the shelf
-              may be spoken for - entering the difference would sell them twice.
-            </p>
-            <label className={styles.label} htmlFor="restock-delta">
-              Units to add or remove
-            </label>
-            <input
-              id="restock-delta"
-              className={styles.input}
-              aria-describedby={restockError ? "restock-error" : undefined}
-              type="number"
-              step="1"
-              value={restockDelta}
-              autoFocus
-              onChange={(e) => setRestockDelta(e.target.value)}
-              placeholder="12"
-            />
-            <label className={styles.label} htmlFor="restock-reason">
-              Reason <span className={styles.optional}>(optional)</span>
-            </label>
-            <input
-              id="restock-reason"
-              className={styles.input}
-              type="text"
-              maxLength={200}
-              value={restockReason}
-              onChange={(e) => setRestockReason(e.target.value)}
-              placeholder="Delivery 4471, or breakage"
-            />
-            {/*
-              role="alert", because nothing else announces this. Blocking
-              dismissal while the request is in flight closed the "no feedback,
-              so assume it worked" hole for a sighted admin; without this the
-              same hole stays open on the audio channel, and making the count an
-              <output> sharpened it - the success now speaks and the refusal
-              stayed silent.
-            */}
-            {restockError && (
-              <p id="restock-error" className={styles.fieldError} role="alert">
-                {restockError}
-              </p>
-            )}
-            <div className={styles.restockActions}>
-              <button
-                type="button"
-                className={styles.cancelButton}
-                disabled={restockBusy}
-                onClick={() => setRestocking(null)}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                className={styles.saveButton}
-                disabled={restockBusy}
-                onClick={() => void applyRestock()}
-              >
-                {restockBusy ? "Saving…" : "Apply"}
-              </button>
-            </div>
-          </div>
-        </div>
+      {restockingVariantId !== null && (
+        <StockAdjustDialog
+          // Keyed by the variant, so switching between them remounts rather
+          // than rebinding. Without it React reconciles the same instance and
+          // its delta, reason and error survive the change - and the page
+          // behind is not inert and has no focus trap, so an admin can tab from
+          // this dialog to another variant's Adjust button and press Enter.
+          // That is exactly the carry-over the extraction was meant to make
+          // impossible, and moving the state into the component did not on its
+          // own achieve it.
+          key={restockingVariantId}
+          productId={productId!}
+          variantId={restockingVariantId}
+          onAdjusted={recordAdjustedStock}
+          onBusyChange={setAdjustBusy}
+          onClose={() => setRestockingVariantId(null)}
+        />
       )}
+
 
       <ConfirmDialog
         isOpen={confirmDeleteOpen}

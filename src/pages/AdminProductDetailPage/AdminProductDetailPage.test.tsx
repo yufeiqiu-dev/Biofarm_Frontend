@@ -421,6 +421,76 @@ describe('AdminProductDetailPage stock', () => {
     expect(screen.queryByText('99'), 'CAT-Z was removed').not.toBeInTheDocument();
   });
 
+  it('cannot be abandoned by switching variants mid-request', async () => {
+    /*
+     * The dialog disables its own Cancel and backdrop, but the page's other
+     * Adjust buttons sit outside it and stay reachable by keyboard. Since the
+     * dialog is keyed by variant, pressing one mid-request unmounts the instance
+     * waiting for an answer - so the rejection lands on a dead component and is
+     * dropped: no error, no change, and every reason to think it worked. That is
+     * the same hole the busy guard was added to close.
+     */
+    vi.mocked(getProductById).mockResolvedValue({
+      ...withVariant,
+      variants: [
+        { id: 'v0', catalog_id: 'CAT-Z', size_value: 10, size_unit: 'ug', price: 5, stock: 99 },
+        withVariant.variants[0],
+      ],
+    } as never);
+    let reject: (error: Error) => void = () => {};
+    vi.mocked(adjustVariantStock).mockReturnValue(
+      new Promise((_resolve, r) => { reject = r; }) as never,
+    );
+    renderEditPage();
+    await screen.findByText('4');
+
+    await userEvent.click(screen.getByRole('button', { name: /adjust stock for CAT-A/i }));
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    // Every door off the page, not just the dialog's own: leaving unmounts the
+    // page and the adjustment's answer is dropped with it.
+    expect(screen.getByRole('button', { name: /adjust stock for CAT-Z/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /save changes/i })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /delete product/i })).toBeDisabled();
+
+    reject(new Error('Cannot remove 5 from a stock of 2'));
+    expect(await screen.findByText(/cannot remove 5/i)).toBeInTheDocument();
+  });
+
+  it('does not carry one variant’s attempt onto another', async () => {
+    /*
+     * The dialog can be switched between variants without closing: the page
+     * behind it is not inert and there is no focus trap, so an admin can tab
+     * out to another variant's Adjust button and press Enter. Without a key,
+     * React reconciles the same instance and the typed delta and the error
+     * survive - one click from taking those units off the wrong variant.
+     */
+    vi.mocked(getProductById).mockResolvedValue({
+      ...withVariant,
+      variants: [
+        { id: 'v0', catalog_id: 'CAT-Z', size_value: 10, size_unit: 'ug', price: 5, stock: 99 },
+        withVariant.variants[0],
+      ],
+    } as never);
+    vi.mocked(adjustVariantStock).mockRejectedValue(
+      new Error('Cannot remove 5 from a stock of 2'),
+    );
+    renderEditPage();
+    await screen.findByText('4');
+
+    await userEvent.click(screen.getByRole('button', { name: /adjust stock for CAT-A/i }));
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+    await screen.findByText(/cannot remove 5/i);
+
+    // Straight to the other variant, without closing.
+    await userEvent.click(screen.getByRole('button', { name: /adjust stock for CAT-Z/i }));
+
+    expect(screen.getByLabelText(/units to add or remove/i)).toHaveValue(null);
+    expect(screen.queryByText(/cannot remove 5/i)).not.toBeInTheDocument();
+  });
+
   it('refuses a fractional adjustment before the server has to', async () => {
     // The input is a bare type="number" outside any form, so no constraint
     // validation runs. "2.5" reached the server, pydantic refused it, and the

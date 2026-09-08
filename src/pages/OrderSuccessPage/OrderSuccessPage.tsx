@@ -6,6 +6,7 @@ import { getMyOrder, getMyOrderByPaymentIntent } from "../../api/order";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order } from "../../types/order_types";
 import { taxRatePercent } from "../../utils/tax";
+import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import styles from "./OrderSuccessPage.module.css";
 
 const POLL_INTERVAL_MS = 1500;
@@ -28,6 +29,9 @@ export function OrderSuccessPage() {
 
   const [order, setOrder] = useState<Order | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  // Gates the indicator, not the content: the page holds this branch until the
+  // order arrives or the poll gives up either way.
+  const confirming = useLoadingState(!order && !timedOut);
   const didClear = useRef(false);
 
   useEffect(() => {
@@ -110,8 +114,26 @@ export function OrderSuccessPage() {
     );
   }
 
-  if (!order && !timedOut) {
-    return <div className={styles.loading}>Confirming your order…</div>;
+  // confirming.pending, not the raw flag. The hook holds `pending` true through
+  // the minimum display time precisely so the *content* waits too - gating only
+  // the spinner lets the page swap in the receipt the instant the request
+  // resolves, which reintroduces the blink the hold exists to prevent. Every
+  // other page in the app branches on pending for the same reason.
+  if (confirming.pending) {
+    /*
+     * The same reserved region every other page uses, rather than a bare line
+     * of text.
+     *
+     * The wait here is usually long - real Stripe mode polls until the webhook
+     * lands - but bypass mode fetches the order once and answers immediately,
+     * and that is the case this fixes: a one-line div appearing and vanishing
+     * inside 25ms, with the page collapsing to nothing and pulling the dark
+     * footer up under the navbar on the way.
+     *
+     * The region holds the height whether or not the spinner is drawn, so a
+     * fast answer holds the page open and shows nothing at all.
+     */
+    return <PageLoading label="Confirming your order…" visible={confirming.visible} />;
   }
 
   /*

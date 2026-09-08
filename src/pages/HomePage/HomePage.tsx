@@ -56,8 +56,7 @@ export function HomePage() {
 
         const cleanedProducts = data.filter((product) => product.variants.length > 0);
         setFeaturedProducts(cleanedProducts.slice(0, 4));
-      } catch (error) {
-        console.error("Failed to load featured products:", error);
+      } catch {
         setFeaturedError(true);
       } finally {
         setLoading(false);
