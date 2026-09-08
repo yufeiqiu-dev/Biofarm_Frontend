@@ -16,6 +16,7 @@ import { NotFoundPage } from "./pages/NotFoundPage";
 import { AdminRoute } from "./components/AdminRoute.tsx";
 import { PrivateRoute } from "./components/PrivateRoute";
 import { AdminDashboardPage } from "./pages/AdminDashboardPage";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { AdminProductsPage } from "./pages/AdminProductsPage";
 import { AdminProductDetailPage } from "./pages/AdminProductDetailPage/AdminProductDetailPage.tsx";
 import { AdminTagsPage } from "./pages/AdminTagsPage";
@@ -28,7 +29,21 @@ export default function App() {
       {/* Sits above the routes so it runs on every navigation, not per page. */}
       <ScrollToTop />
 
-      <Routes>
+      {/* Wrapped here rather than per page: a render throw anywhere below
+          unmounts the whole tree, and the point is that no single component
+          can take the app with it. */}
+      {/*
+        Not keyed on the path. Re-keying reset the caught error on navigation,
+        but it also destroyed and rebuilt everything below on *every*
+        navigation - Layout, Navbar, CartSideBar, the toast - which React Router
+        otherwise keeps mounted across sibling routes. The cart panel snapped
+        shut instead of sliding, and the navbar's scroll state reset each time.
+
+        The fallback offers a full navigation home instead, which both clears
+        the error and escapes a route that throws deterministically.
+      */}
+      <ErrorBoundary>
+        <Routes>
         {/* Public + authenticated customer routes */}
         <Route element={<Layout />}>
           <Route path="/" element={<HomePage />} />
@@ -99,8 +114,9 @@ export default function App() {
         </Route>
 
         {/* Catch-all 404 */}
-        <Route path="*" element={<NotFoundPage />} />
-      </Routes>
+          <Route path="*" element={<NotFoundPage />} />
+        </Routes>
+      </ErrorBoundary>
     </>
   );
 }

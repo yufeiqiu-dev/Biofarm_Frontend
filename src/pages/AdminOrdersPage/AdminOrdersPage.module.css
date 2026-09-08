@@ -103,3 +103,53 @@
 .badgeShipped { background: var(--status-shipped-wash); color: var(--status-shipped-text); }
 .badgeDelivered { background: var(--status-shipped-wash); color: var(--status-shipped-text); }
 .badgeCancelled { background: var(--status-cancelled-wash); color: var(--status-cancelled-text); }
+
+/*
+ * The card-hold banner. Arriving from a red dashboard tile, an admin needs to
+ * know these orders take the opposite action from the ones normally listed
+ * here - so the heading carries over and the advice is spelled out rather than
+ * left implicit in the tab bar.
+ */
+.holdNotice {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--status-cancelled-wash);
+  border-left: 3px solid var(--danger);
+  border-radius: var(--radius-data);
+  background: var(--danger-wash);
+}
+
+.holdHeading {
+  display: block;
+  color: var(--status-cancelled-text);
+  font-size: 0.9rem;
+}
+
+.holdAdvice {
+  margin: 0.25rem 0 0;
+  max-width: 62ch;
+  color: var(--ink);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
+.holdClear {
+  flex-shrink: 0;
+  padding: 0.4rem 0.75rem;
+  border: 1px solid var(--status-cancelled-text);
+  border-radius: var(--radius-data);
+  background: transparent;
+  color: var(--status-cancelled-text);
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.holdClear:hover {
+  background: var(--status-cancelled-wash);
+}

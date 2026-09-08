@@ -20,6 +20,35 @@ const TABS: { label: string; value: string | null }[] = [
   { label: "Cancelled", value: "cancelled" },
 ];
 
+/*
+ * The card-hold cohorts the dashboard tiles link to. The server owns the actual
+ * window; these are the labels and the whitelist.
+ *
+ * The advice differs between them, which is why they are two cohorts and not
+ * one "old orders" bucket - shipping an already-lapsed order fails at capture.
+ */
+const HOLDS: { value: string; heading: string; advice: string }[] = [
+  {
+    value: "expiring",
+    heading: "Card holds expiring",
+    advice:
+      // Hedged on which action, because the cohort is every live unshipped
+      // status and they do not share one. A confirmed order (confirmed before
+      // capture moved, so still holding an uncaptured hold) ships; an awaiting
+      // one confirms; a pending one can do neither - update_order_status
+      // rejects both transitions and the detail page renders neither button, so
+      // naming them told an admin to do something the console will not let them
+      // do. Cancel is the action available on all three.
+      "These authorisations run out within days. Move each order forward where you can, to take the money while it is still there; where you cannot, cancel to release the hold and return the stock.",
+  },
+  {
+    value: "expired",
+    heading: "Card holds expired",
+    advice:
+      "These authorisations have lapsed, so confirming or shipping will fail at capture. Cancel them to return the stock they are still holding.",
+  },
+];
+
 const STATUS_BADGE_CLASS: Record<OrderStatus, string> = {
   pending: styles.badgePending,
   awaiting_fulfillment: styles.badgeAwaiting,
@@ -57,12 +86,28 @@ export function AdminOrdersPage() {
    */
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get("status");
+  /*
+   * The card-hold cohorts, arriving from the dashboard tiles.
+   *
+   * Validated here rather than passed through, so a typo in a hand-edited URL
+   * cannot show every order under a heading promising only the at-risk ones.
+   */
+  const requestedHold = searchParams.get("hold");
+  const hold = HOLDS.some((h) => h.value === requestedHold) ? requestedHold : null;
   // No parameter at all is not the same as ?status=all. TABS contains a null
   // value for the "All" tab, so a bare `TABS.some(t => t.value === requested)`
   // matched `null` and quietly made the unfiltered view the default.
+  /*
+   * A hold cohort spans pending, awaiting_fulfillment *and* confirmed, so
+   * defaulting to the Awaiting Fulfillment tab would hide part of the very set
+   * the tile counted - the same "the link shows a subset of the count" bug the
+   * hold filter exists to fix. An explicit ?status= still wins.
+   */
   const activeTab =
     requested === null
-      ? "awaiting_fulfillment"
+      ? hold
+        ? null
+        : "awaiting_fulfillment"
       : requested === "all"
         ? null
         : TABS.some((t) => t.value === requested)
@@ -73,6 +118,24 @@ export function AdminOrdersPage() {
     const next = new URLSearchParams(searchParams);
     if (value) next.set("status", value);
     else next.set("status", "all");
+    // Picking a tab means "show me this instead". Keeping the hold filter would
+    // silently intersect the two and render an empty list that reads as "no
+    // orders" rather than "no orders matching both".
+    next.delete("hold");
+    setSearchParams(next, { replace: true });
+  };
+
+  const activeHold = HOLDS.find((h) => h.value === hold) ?? null;
+
+  const clearHold = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("hold");
+    // status=all explicitly, not just "no hold". A tile links here with no
+    // status parameter at all, and a bare delete left `requested === null`,
+    // which falls back to the Awaiting Fulfillment tab - so a button labelled
+    // "Show all orders" showed fewer, and the pending and confirmed orders the
+    // admin had been looking at disappeared with nothing to explain it.
+    next.set("status", "all");
     setSearchParams(next, { replace: true });
   };
   const [search, setSearch] = useState("");
@@ -98,9 +161,9 @@ export function AdminOrdersPage() {
   // Back to the first page whenever the question changes. Searching from page
   // three otherwise asks for offset 100 of a two-row result and renders an
   // empty page that looks like "no matches".
-  const [askedFor, setAskedFor] = useState({ tab: activeTab, query });
-  if (askedFor.tab !== activeTab || askedFor.query !== query) {
-    setAskedFor({ tab: activeTab, query });
+  const [askedFor, setAskedFor] = useState({ tab: activeTab, query, hold });
+  if (askedFor.tab !== activeTab || askedFor.query !== query || askedFor.hold !== hold) {
+    setAskedFor({ tab: activeTab, query, hold });
     setPage(0);
   }
 
@@ -116,13 +179,14 @@ export function AdminOrdersPage() {
     error: string | null;
   } | null>(null);
 
-  const requestKey = `${activeTab ?? "all"}|${query}|${offset}`;
+  const requestKey = `${activeTab ?? "all"}|${query}|${hold ?? ""}|${offset}`;
 
   useEffect(() => {
     let ignore = false;
     adminListOrders({
       status: activeTab ?? undefined,
       q: query || undefined,
+      hold: hold ?? undefined,
       limit: PAGE_SIZE,
       offset,
     })
@@ -144,7 +208,7 @@ export function AdminOrdersPage() {
     return () => {
       ignore = true;
     };
-  }, [activeTab, query, offset, requestKey]);
+  }, [activeTab, query, hold, offset, requestKey]);
 
   const isCurrent = result !== null && result.key === requestKey;
   const loading = !isCurrent;
@@ -207,12 +271,45 @@ export function AdminOrdersPage() {
         ))}
       </div>
 
+      {/*
+        Says what is being shown and what to do about it. Without it the list is
+        indistinguishable from an ordinary filtered view, and an admin arriving
+        from a red tile has no idea these orders need the opposite action from
+        the ones above them.
+      */}
+      {activeHold && (
+        <div className={styles.holdNotice} role="status">
+          <div>
+            <strong className={styles.holdHeading}>{activeHold.heading}</strong>
+            <p className={styles.holdAdvice}>{activeHold.advice}</p>
+          </div>
+          <button type="button" className={styles.holdClear} onClick={clearHold}>
+            Show all orders
+          </button>
+        </div>
+      )}
+
       {error && <p style={{ color: "#dc2626" }}>Error: {error}</p>}
 
       {load.pending ? (
         <PageLoading compact visible={load.visible} />
       ) : filtered.length === 0 ? (
-        <p>{search ? "No orders match your search." : "No orders found."}</p>
+        <p>
+          {/*
+            The reassuring line only when there is something to be reassured
+            about. A failed request also lands here with an empty list, so an
+            admin clicking the red "Card holds expired" tile during a backend
+            blip read "Error: Failed to fetch" directly above a confident claim
+            that the at-risk orders had been dealt with.
+          */}
+          {error
+            ? "Orders could not be loaded."
+            : search
+              ? "No orders match your search."
+              : activeHold
+                ? "Nothing in this cohort any more - it has been dealt with."
+                : "No orders found."}
+        </p>
       ) : (
         <table className={styles.table}>
           <thead>

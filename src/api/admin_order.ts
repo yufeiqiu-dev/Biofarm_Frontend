@@ -13,6 +13,13 @@ export interface AdminOrderQuery {
   status?: string;
   /** Matches order number, customer email, shipping name, user id or order id. */
   q?: string;
+  /**
+   * Narrows to orders by the state of their card authorisation - "expiring"
+   * (running out, still chargeable) or "expired" (past the window, so shipping
+   * fails at capture). The dashboard's card-hold tiles link here; the server
+   * defines the window, so the tile's count and this list cannot disagree.
+   */
+  hold?: string;
   limit?: number;
   offset?: number;
 }
@@ -29,6 +36,7 @@ export function adminListOrders(query: AdminOrderQuery = {}): Promise<AdminOrder
   const params = new URLSearchParams();
   if (query.status) params.set("status", query.status);
   if (query.q?.trim()) params.set("q", query.q.trim());
+  if (query.hold) params.set("hold", query.hold);
   if (query.limit !== undefined) params.set("limit", String(query.limit));
   if (query.offset) params.set("offset", String(query.offset));
 

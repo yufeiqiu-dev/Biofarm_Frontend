@@ -11,6 +11,7 @@ import { useAuth } from "../../auth/useAuth";
 import { useCartSideBar } from "../../context/useCartSideBar";
 import { createPaymentIntent } from "../../api/order";
 import type { CheckoutShipping } from "../../types/order_types";
+import { taxRatePercent } from "../../utils/tax";
 import styles from "./CheckoutPage.module.css";
 
 const STRIPE_BYPASS = import.meta.env.VITE_STRIPE_BYPASS === "true";
@@ -358,9 +359,8 @@ function PaymentForm({
   const shipping = shippingAmountCents / 100;
   const tax = taxAmountCents / 100;
   const total = subtotal + shipping + tax;
-  const taxPct = subtotalCents > 0
-    ? parseFloat((taxAmountCents / subtotalCents * 100).toFixed(2))
-    : 0;
+  // Goods + shipping is the taxed amount; see taxRatePercent for why.
+  const taxPct = taxRatePercent(taxAmountCents, subtotalCents + shippingAmountCents);
 
   return (
     <div className={styles.card}>
@@ -377,7 +377,7 @@ function PaymentForm({
         <span>{shipping > 0 ? `$${shipping.toFixed(2)}` : "Free"}</span>
       </div>
       <div className={styles.summaryRow} style={{ color: "#6b7280" }}>
-        <span>Tax ({taxPct}%)</span>
+        <span>Tax{taxPct !== null ? ` (${taxPct}%)` : ""}</span>
         <span>${tax.toFixed(2)}</span>
       </div>
       <div className={styles.summaryTotal}>

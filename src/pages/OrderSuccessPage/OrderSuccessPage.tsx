@@ -5,6 +5,7 @@ import { useAuth } from "../../auth/useAuth";
 import { getMyOrder, getMyOrderByPaymentIntent } from "../../api/order";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order } from "../../types/order_types";
+import { taxRatePercent } from "../../utils/tax";
 import styles from "./OrderSuccessPage.module.css";
 
 const POLL_INTERVAL_MS = 1500;
@@ -132,11 +133,21 @@ export function OrderSuccessPage() {
           Your card was authorised, but we have not been able to confirm the
           order itself.
         </p>
+        {/*
+          Does not promise which way the money went.
+
+          Sold out reaches the webhook from payment_intent.succeeded as well as
+          the capturable event, so the intent may already hold real money by the
+          time we release it - the void is attempted, refused, and a refund
+          issued instead. Sold out also means no order is ever created, so the
+          customer's polling times out and lands here: exactly the person being
+          told they were not charged, sometimes right after they were.
+        */}
         <p>
           Usually the confirmation is just running late and the order will appear
           in My Orders shortly. Occasionally an item sells out while a payment is
-          going through — if that has happened the authorisation has already been
-          released and you have not been charged.
+          going through — if that has happened we release the authorisation, and
+          refund it if your card was already charged.
         </p>
         <p>
           Your cart has been kept either way, so you can order again if you need
@@ -154,14 +165,33 @@ export function OrderSuccessPage() {
     );
   }
 
-  const subtotal = order
-    ? order.items.reduce((s, i) => s + i.unit_price * i.quantity, 0)
-    : null;
+  /*
+   * The recorded subtotal, not a fresh sum over the lines - the same rule the
+   * admin detail page follows.
+   *
+   * The grand total below comes from total_amount + shipping + tax, so
+   * re-deriving this one meant the receipt's own arithmetic held only while
+   * total_amount happened to equal the line sum. Anything that makes the lines
+   * an incomplete account of the order - a discount, an adjustment, a truncated
+   * items list - and Subtotal + Shipping + Tax stops adding up to Total, in one
+   * visible block, on the screen a customer reads straight after paying.
+   */
+  const subtotal = order ? order.total_amount : null;
   const tax = order ? order.tax_amount : null;
-  const total = order ? order.total_amount + order.tax_amount : null;
+  /*
+   * Shipping included, and shown on its own row below.
+   *
+   * The card is charged tax_result.total_cents, which is goods + shipping + the
+   * tax on both. Leaving the fee out of the receipt understated the charge on
+   * the one screen a customer reads immediately after paying - the same dropped
+   * shipping_amount the admin response had, on the other side of the till.
+   */
+  const shipping = order ? order.shipping_amount : null;
+  const total = order ? order.total_amount + order.shipping_amount + order.tax_amount : null;
+  // Goods + shipping is the taxed amount; see taxRatePercent for why.
   const taxPct =
-    subtotal && tax && subtotal > 0
-      ? parseFloat(((tax / subtotal) * 100).toFixed(2))
+    subtotal !== null && shipping !== null && tax !== null
+      ? taxRatePercent(tax, subtotal + shipping)
       : null;
   const placedDate = order
     ? new Date(order.created_at).toLocaleDateString("en-US", {
@@ -208,6 +238,12 @@ export function OrderSuccessPage() {
               <span>Subtotal</span>
               <span>{fmt(subtotal!)}</span>
             </div>
+            {shipping !== null && shipping > 0 && (
+              <div className={styles.totalRow}>
+                <span>Shipping</span>
+                <span>{fmt(shipping)}</span>
+              </div>
+            )}
             {tax !== null && tax > 0 && (
               <div className={styles.totalRow}>
                 <span>Tax{taxPct !== null ? ` (${taxPct}%)` : ""}</span>
