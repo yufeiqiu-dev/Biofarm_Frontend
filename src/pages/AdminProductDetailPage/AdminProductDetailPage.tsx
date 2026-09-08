@@ -1,7 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay, PageLoading, useLoadingState } from "../../components/LoadingSpinner";
-import { createProduct, deleteProduct, updateProduct } from "../../api/admin_product";
+import {
+  adjustVariantStock,
+  createProduct,
+  deleteProduct,
+  updateProduct,
+} from "../../api/admin_product";
 import { getProductById } from "../../api/product";
 import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
@@ -76,10 +81,14 @@ function validateForm(form: AdminProductForm): Record<string, string> {
     } else if (Number(variant.price) < 0) {
       errors[`variant_${index}_price`] = "Price cannot be negative.";
     }
-    if (!variant.stock.trim()) {
-      errors[`variant_${index}_stock`] = "Stock is required.";
-    } else if (Number(variant.stock) < 0) {
-      errors[`variant_${index}_stock`] = "Stock cannot be negative.";
+    // Only a new variant carries an opening count; an existing one's stock is
+    // not editable here at all.
+    if (!variant.id) {
+      if (!variant.stock.trim()) {
+        errors[`variant_${index}_stock`] = "Stock is required.";
+      } else if (Number(variant.stock) < 0) {
+        errors[`variant_${index}_stock`] = "Stock cannot be negative.";
+      }
     }
   });
 
@@ -109,6 +118,67 @@ export function AdminProductDetailPage() {
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const load = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /*
+   * The stock adjustment in flight, if any.
+   *
+   * Separate from the form's save: it writes immediately and on its own, which
+   * is the whole point. Deferring it to Save would put the count back in a
+   * payload written from a page rendered minutes ago, which is the overwrite
+   * this replaced.
+   */
+  const [restocking, setRestocking] = useState<{ index: number; variantId: string } | null>(null);
+  const [restockDelta, setRestockDelta] = useState("");
+  const [restockReason, setRestockReason] = useState("");
+  const [restockError, setRestockError] = useState<string | null>(null);
+  const [restockBusy, setRestockBusy] = useState(false);
+
+  const applyRestock = async () => {
+    if (restocking === null) return;
+    const delta = Number(restockDelta);
+    // Whole units. The input is a bare type="number" outside any form, so no
+    // constraint validation runs and "2.5" reached the server, where pydantic
+    // refused it and the admin read "Input should be a valid integer".
+    if (!restockDelta.trim() || !Number.isInteger(delta) || delta === 0) {
+      setRestockError("Enter a whole number of units to add, or a negative one to remove.");
+      return;
+    }
+
+    setRestockBusy(true);
+    setRestockError(null);
+    try {
+      const updated = await adjustVariantStock(
+        productId!,
+        restocking.variantId,
+        delta,
+        restockReason,
+      );
+      // The server's count, not ours plus the delta. It applied the change to
+      // whatever the shelf actually held, which is the reason this is not a
+      // form field - anything sold while the page was open is already in it.
+      setForm((previous) => ({
+        ...previous,
+        // Matched on the variant's own id, not the row it was in. The dialog
+        // is aria-modal but the page behind it is not inert, so a keyboard user
+        // can tab out, remove a variant above this one, and tab back - after
+        // which the index points at a different row and the new count lands on
+        // the wrong variant.
+        variants: previous.variants.map((variant) =>
+          variant.id === restocking.variantId
+            ? { ...variant, stock: String(updated.stock) }
+            : variant,
+        ),
+      }));
+      setRestocking(null);
+      setRestockDelta("");
+      setRestockReason("");
+    } catch (error) {
+      setRestockError(
+        error instanceof Error ? error.message : "Could not adjust stock.",
+      );
+    } finally {
+      setRestockBusy(false);
+    }
+  };
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -295,7 +365,12 @@ export function AdminProductDetailPage() {
           size_value: Number(variant.size_value),
           size_unit: variant.size_unit.trim(),
           price: Number(variant.price),
-          stock: Number(variant.stock),
+          // Only for a variant being inserted, which has no count to adjust
+          // yet. Sending it on an existing one is rejected by the server, and
+          // for good reason: this payload was read before the admin started
+          // typing, so it would overwrite whatever sold while the page was
+          // open. Restocking goes through adjustVariantStock.
+          ...(variant.id ? {} : { stock: Number(variant.stock) }),
         })),
       };
 
@@ -311,7 +386,20 @@ export function AdminProductDetailPage() {
         // Product was created in a previous attempt — just update it.
         await updateProduct(pendingProductId, payload);
       } else {
-        const created = await createProduct(payload);
+        // Built separately, because create requires an opening count on every
+        // variant and the shared payload only carries one where there is no id.
+        // Nothing here has an id - the product does not exist yet - but that is
+        // a fact about this branch, not something the shared shape can state.
+        const created = await createProduct({
+          ...payload,
+          variants: form.variants.map((variant) => ({
+            catalog_id: variant.catalog_id.trim(),
+            size_value: Number(variant.size_value),
+            size_unit: variant.size_unit.trim(),
+            price: Number(variant.price),
+            stock: Number(variant.stock),
+          })),
+        });
         setPendingProductId(created.id);
         targetId = created.id;
       }
@@ -735,18 +823,88 @@ export function AdminProductDetailPage() {
                       )}
                     </div>
 
+                    {/*
+                      Stock is editable only while the variant is being created.
+                      Once it exists the number is the shelf, and this form
+                      cannot be trusted to carry it: the page was rendered
+                      before the admin started typing, so saving would overwrite
+                      every sale made in between. Restocking applies a change
+                      instead - see the Restock control below.
+                    */}
                     <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-stock-${index}`}>Stock</label>
-                      <input
-                        id={`product-stock-${index}`}
-                        className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
-                        type="number"
-                        value={variant.stock}
-                        onChange={(e) =>
-                          handleVariantChange(index, "stock", e.target.value)
-                        }
-                        placeholder="100"
-                      />
+                      {variant.id ? (
+                        // No htmlFor: the readout is a span and a button, so it
+                        // pointed at an id nothing rendered - a dead click and
+                        // an orphaned label for a screen reader.
+                        <span className={styles.label} id={`product-stock-label-${index}`}>
+                          Available (not reserved)
+                          {/*
+                            Named per variant. Every row's label read the same,
+                            so a screen reader on a three-variant product
+                            announced "Available (not reserved) 4 … Available
+                            (not reserved) 12" with nothing tying either number
+                            to a variant - the complaint the Adjust button's
+                            label was added to fix, still true of the count it
+                            labels.
+                          */}
+                          {variant.catalog_id ? ` — ${variant.catalog_id}` : ""}
+                        </span>
+                      ) : (
+                        <label className={styles.label} htmlFor={`product-stock-${index}`}>
+                          Opening stock
+                        </label>
+                      )}
+                      {variant.id ? (
+                        <div className={styles.stockReadout}>
+                          {/*
+                            <output>, not a <span>. aria-labelledby on a bare
+                            span leaves the name uncomputed by assistive tech, so
+                            a screen reader announced a naked "4" - the same
+                            outcome as the orphaned label it replaced.
+                          */}
+                          <output
+                            className={styles.stockCount}
+                            aria-labelledby={`product-stock-label-${index}`}
+                          >
+                            {variant.stock}
+                          </output>
+                          <button
+                            type="button"
+                            className={styles.stockButton}
+                            // Named by its variant. With more than one, every
+                            // row rendered a button called just "Adjust", so
+                            // they were indistinguishable by name - to a screen
+                            // reader, and to getByRole in a test.
+                            aria-label={`Adjust stock for ${variant.catalog_id || "this variant"}`}
+                            onClick={() => {
+                              // Reset here and only here, so the dialog always
+                              // opens clean whatever closed it last. Clearing on
+                              // dismissal instead meant every exit had to
+                              // remember - and the backdrop did not, so opening
+                              // this on another variant showed the previous
+                              // one's error over a pre-filled -5, one click from
+                              // taking five units off the wrong product.
+                              setRestockDelta("");
+                              setRestockReason("");
+                              setRestockError(null);
+                              setRestocking({ index, variantId: variant.id! });
+                            }}
+                          >
+                            Adjust
+                          </button>
+                        </div>
+                      ) : (
+                        <input
+                          id={`product-stock-${index}`}
+                          className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
+                          type="number"
+                          value={variant.stock}
+                          onChange={(e) =>
+                            handleVariantChange(index, "stock", e.target.value)
+                          }
+                          placeholder="100"
+                        />
+                      )}
                       {formErrors[`variant_${index}_stock`] && (
                         <p className={styles.fieldError}>{formErrors[`variant_${index}_stock`]}</p>
                       )}
@@ -772,6 +930,100 @@ export function AdminProductDetailPage() {
           </button>
         </div>
       </form>
+
+      {/*
+        A change, never a new value. "Set stock to 40" would be the same
+        overwrite in a smaller box: the 40 would be reasoned from a number that
+        was already stale by the time it was read.
+      */}
+      {restocking !== null && (
+        <div
+          className={styles.restockBackdrop}
+          // Not while a request is in flight. Closing then left the rejection -
+          // "Cannot remove 5 from a stock of 2" - written into state that
+          // nothing renders, so the admin saw no error, the count was unchanged,
+          // and the only reasonable conclusion was that it had worked.
+          onClick={() => {
+            if (!restockBusy) setRestocking(null);
+          }}
+        >
+          <div
+            className={styles.restockDialog}
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="restock-title"
+          >
+            <h2 id="restock-title" className={styles.restockTitle}>Adjust stock</h2>
+            <p className={styles.restockBody}>
+              How many units arrived? Use a negative number for breakage or a
+              miscount. This is added to the current figure, so anything sold
+              while this page was open is already accounted for.
+              <br />
+              <strong>Not a physical count.</strong> Open orders have already
+              taken their units out of this number, so boxes still on the shelf
+              may be spoken for - entering the difference would sell them twice.
+            </p>
+            <label className={styles.label} htmlFor="restock-delta">
+              Units to add or remove
+            </label>
+            <input
+              id="restock-delta"
+              className={styles.input}
+              aria-describedby={restockError ? "restock-error" : undefined}
+              type="number"
+              step="1"
+              value={restockDelta}
+              autoFocus
+              onChange={(e) => setRestockDelta(e.target.value)}
+              placeholder="12"
+            />
+            <label className={styles.label} htmlFor="restock-reason">
+              Reason <span className={styles.optional}>(optional)</span>
+            </label>
+            <input
+              id="restock-reason"
+              className={styles.input}
+              type="text"
+              maxLength={200}
+              value={restockReason}
+              onChange={(e) => setRestockReason(e.target.value)}
+              placeholder="Delivery 4471, or breakage"
+            />
+            {/*
+              role="alert", because nothing else announces this. Blocking
+              dismissal while the request is in flight closed the "no feedback,
+              so assume it worked" hole for a sighted admin; without this the
+              same hole stays open on the audio channel, and making the count an
+              <output> sharpened it - the success now speaks and the refusal
+              stayed silent.
+            */}
+            {restockError && (
+              <p id="restock-error" className={styles.fieldError} role="alert">
+                {restockError}
+              </p>
+            )}
+            <div className={styles.restockActions}>
+              <button
+                type="button"
+                className={styles.cancelButton}
+                disabled={restockBusy}
+                onClick={() => setRestocking(null)}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                className={styles.saveButton}
+                disabled={restockBusy}
+                onClick={() => void applyRestock()}
+              >
+                {restockBusy ? "Saving…" : "Apply"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         isOpen={confirmDeleteOpen}

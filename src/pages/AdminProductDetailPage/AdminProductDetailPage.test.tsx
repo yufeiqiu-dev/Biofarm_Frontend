@@ -1,11 +1,16 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { Routes, Route } from 'react-router-dom';
 import { AdminProductDetailPage } from './AdminProductDetailPage';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { createMockAdminUser } from '../../test/mocks/mockUser';
-import { createProduct, updateProduct, deleteImage } from '../../api/admin_product';
+import {
+  adjustVariantStock,
+  createProduct,
+  updateProduct,
+  deleteImage,
+} from '../../api/admin_product';
 import { getProductById } from '../../api/product';
 
 vi.mock('../../api/admin_tag', () => ({
@@ -19,6 +24,7 @@ vi.mock('../../api/admin_product', () => ({
   getImagePresignedUrl: vi.fn(),
   confirmImageUpload: vi.fn(),
   deleteImage: vi.fn(),
+  adjustVariantStock: vi.fn(),
 }));
 
 vi.mock('../../api/product', () => ({
@@ -224,5 +230,240 @@ describe('AdminProductDetailPage', () => {
       await waitFor(() => expect(updateProduct).toHaveBeenCalled());
       expect(createProduct).toHaveBeenCalledTimes(1);
     });
+  });
+});
+/*
+ * Stock is adjusted, never overwritten.
+ *
+ * It used to be an ordinary field on this form, which is a read-modify-write
+ * over a whole product: the page reads every field, the admin edits one, and it
+ * writes them all back. The count in that payload was read before they started
+ * typing, so every sale made while the page was open was silently reverted -
+ * proven against Postgres as shelf 4, customer buys 2, admin edits only the
+ * price, system says 4 and the shelf holds 2.
+ */
+describe('AdminProductDetailPage stock', () => {
+  const withVariant = {
+    id: 'test-id',
+    cat_id: 'CAT',
+    name: 'Existing Product',
+    description: 'A description',
+    tags: [],
+    image_urls: [],
+    variants: [
+      { id: 'v1', catalog_id: 'CAT-A', size_value: 50, size_unit: 'ug', price: 285, stock: 4 },
+    ],
+  };
+
+  beforeEach(() => {
+    vi.mocked(getProductById).mockResolvedValue(withVariant as never);
+    vi.mocked(adjustVariantStock).mockReset();
+    vi.mocked(updateProduct).mockClear();
+  });
+
+  async function openAdjustDialog() {
+    renderEditPage();
+    await screen.findByText('4');
+    await userEvent.click(screen.getByRole('button', { name: /adjust/i }));
+  }
+
+  it('shows the count as a fact, not as something to type over', async () => {
+    renderEditPage();
+
+    expect(await screen.findByText('4')).toBeInTheDocument();
+    expect(screen.queryByDisplayValue('4')).not.toBeInTheDocument();
+  });
+
+  it('does not send stock when the product is saved', async () => {
+    // The server rejects it on an existing variant, and this is why: the
+    // payload was read before the admin started typing.
+    renderEditPage();
+    await screen.findByText('4');
+
+    await userEvent.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => expect(vi.mocked(updateProduct)).toHaveBeenCalled());
+    const payload = vi.mocked(updateProduct).mock.calls[0][1];
+    expect(payload.variants![0]).not.toHaveProperty('stock');
+  });
+
+  it('sends a change rather than a new value', async () => {
+    vi.mocked(adjustVariantStock).mockResolvedValue({ stock: 16 } as never);
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '12');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    await waitFor(() =>
+      expect(vi.mocked(adjustVariantStock)).toHaveBeenCalledWith('test-id', 'v1', 12, ''),
+    );
+  });
+
+  it('shows the count the server came back with, not ours plus the delta', async () => {
+    // A sale landed while the page was open, so the server applied the delivery
+    // to 2 rather than the 4 on screen. Trusting our own arithmetic here would
+    // put the stale number straight back.
+    vi.mocked(adjustVariantStock).mockResolvedValue({ stock: 14 } as never);
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '12');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    expect(await screen.findByText('14')).toBeInTheDocument();
+    expect(screen.queryByText('16')).not.toBeInTheDocument();
+  });
+
+  it('accepts a negative adjustment for breakage', async () => {
+    vi.mocked(adjustVariantStock).mockResolvedValue({ stock: 1 } as never);
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-3');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    await waitFor(() =>
+      expect(vi.mocked(adjustVariantStock)).toHaveBeenCalledWith('test-id', 'v1', -3, ''),
+    );
+  });
+
+  it('refuses an empty or zero adjustment without calling the server', async () => {
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '0');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    expect(await screen.findByText(/enter a whole number of units/i)).toBeInTheDocument();
+    expect(vi.mocked(adjustVariantStock)).not.toHaveBeenCalled();
+  });
+
+  it('sends the reason, so the log records why the count moved', async () => {
+    // The server accepted a reason and logged it while nothing ever sent one,
+    // so every real adjustment recorded "reason=-" and the audit trail the
+    // endpoint was justified by did not exist.
+    vi.mocked(adjustVariantStock).mockResolvedValue({ stock: 16 } as never);
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '12');
+    await userEvent.type(screen.getByLabelText(/reason/i), 'Delivery 4471');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    await waitFor(() =>
+      expect(vi.mocked(adjustVariantStock)).toHaveBeenCalledWith(
+        'test-id', 'v1', 12, 'Delivery 4471',
+      ),
+    );
+  });
+
+  it('does not let the dialog be dismissed mid-request', async () => {
+    /*
+     * Closing while the request was in flight wrote the rejection into state
+     * nothing renders: no error shown, the count unchanged, and the only
+     * reasonable conclusion for the admin was that it had worked.
+     */
+    let reject: (error: Error) => void = () => {};
+    vi.mocked(adjustVariantStock).mockReturnValue(
+      new Promise((_resolve, r) => { reject = r; }) as never,
+    );
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    const dialog = within(screen.getByRole('dialog'));
+    expect(dialog.getByRole('button', { name: /cancel/i })).toBeDisabled();
+    reject(new Error('Cannot remove 5 from a stock of 2'));
+    expect(await screen.findByText(/cannot remove 5/i)).toBeInTheDocument();
+  });
+
+  it('announces a refusal rather than leaving the dialog silent', async () => {
+    // Blocking dismissal mid-request closed "no feedback, so assume it worked"
+    // for a sighted admin. Making the count an <output> then made the success
+    // speak, which sharpened the asymmetry: the refusal still said nothing.
+    vi.mocked(adjustVariantStock).mockRejectedValue(
+      new Error('Cannot remove 5 from a stock of 2'),
+    );
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent(/cannot remove 5/i);
+    expect(screen.getByLabelText(/units to add or remove/i)).toHaveAttribute(
+      'aria-describedby',
+      'restock-error',
+    );
+  });
+
+  it('writes the new count onto the variant it adjusted, not the row it was in', async () => {
+    // The dialog is aria-modal but the page behind it is not inert, so a
+    // keyboard user can tab out, remove a variant above this one, and tab back.
+    // Matching by index then lands the count on a different variant.
+    vi.mocked(getProductById).mockResolvedValue({
+      ...withVariant,
+      variants: [
+        { id: 'v0', catalog_id: 'CAT-Z', size_value: 10, size_unit: 'ug', price: 5, stock: 99 },
+        withVariant.variants[0],
+      ],
+    } as never);
+    vi.mocked(adjustVariantStock).mockResolvedValue({ stock: 14 } as never);
+    renderEditPage();
+    await screen.findByText('4');
+
+    await userEvent.click(screen.getByRole('button', { name: /adjust stock for CAT-A/i }));
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '12');
+
+    // The variant above is removed while the dialog is open, so CAT-A is no
+    // longer at the index the dialog recorded.
+    await userEvent.click(screen.getAllByRole('button', { name: /^remove$/i })[0]);
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    expect(await screen.findByText('14')).toBeInTheDocument();
+    expect(screen.queryByText('99'), 'CAT-Z was removed').not.toBeInTheDocument();
+  });
+
+  it('refuses a fractional adjustment before the server has to', async () => {
+    // The input is a bare type="number" outside any form, so no constraint
+    // validation runs. "2.5" reached the server, pydantic refused it, and the
+    // admin read "Input should be a valid integer".
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '2.5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    expect(await screen.findByText(/whole number/i)).toBeInTheDocument();
+    expect(vi.mocked(adjustVariantStock)).not.toHaveBeenCalled();
+  });
+
+  it('opens clean rather than carrying the last attempt over', async () => {
+    /*
+     * Dismissing by clicking the backdrop left the typed delta and the error
+     * behind, so opening the dialog on another variant showed the previous
+     * one's error above a pre-filled -5 - one click from taking five units off
+     * the wrong product.
+     */
+    vi.mocked(adjustVariantStock).mockRejectedValue(new Error('Cannot remove 5 from a stock of 2'));
+    await openAdjustDialog();
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+    await screen.findByText(/cannot remove 5/i);
+
+    await userEvent.click(screen.getByRole('dialog').parentElement!);
+    await userEvent.click(screen.getByRole('button', { name: /adjust/i }));
+
+    expect(screen.getByLabelText(/units to add or remove/i)).toHaveValue(null);
+    expect(screen.queryByText(/cannot remove 5/i)).not.toBeInTheDocument();
+  });
+
+  it('reports a refused adjustment instead of pretending it worked', async () => {
+    vi.mocked(adjustVariantStock).mockRejectedValue(
+      new Error('Cannot remove 5 from a stock of 2'),
+    );
+    await openAdjustDialog();
+
+    await userEvent.type(screen.getByLabelText(/units to add or remove/i), '-5');
+    await userEvent.click(screen.getByRole('button', { name: /^apply$/i }));
+
+    expect(await screen.findByText(/cannot remove 5 from a stock of 2/i)).toBeInTheDocument();
+    expect(screen.getByText('4')).toBeInTheDocument();
   });
 });
