@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
+import { PageLoading } from "../../components/LoadingSpinner";
 import { useAuth } from "../../auth/useAuth";
 import { useCartSideBar } from "../../context/useCartSideBar";
 import { createPaymentIntent } from "../../api/order";
@@ -21,7 +22,7 @@ const stripePromise = STRIPE_BYPASS
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { cartItems } = useCartSideBar();
+  const { cartItems, loading: cartLoading, failed: cartFailed } = useCartSideBar();
   const { user } = useAuth();
 
   const [step, setStep] = useState(0);
@@ -51,8 +52,40 @@ export function CheckoutPage() {
   const [piLoading, setPiLoading] = useState(false);
   const [piError, setPiError] = useState<string | null>(null);
 
-  if (cartItems.length === 0) {
+  /*
+   * An empty basket belongs on the cart page - but only once we know it is
+   * empty.
+   *
+   * This used to navigate during render, which was survivable while the basket
+   * came out of localStorage synchronously: it was never briefly empty. Now it
+   * is fetched, so the first render of every checkout has no items yet, and
+   * navigating there put React into an infinite update loop - render, navigate,
+   * render - before the basket had a chance to arrive.
+   */
+  useEffect(() => {
+    if (cartLoading) return;
+    // Not on a basket we failed to read: an unknown basket is not an empty one,
+    // and bouncing to /cart would show the same nothing there.
+    if (cartFailed) return;
+    if (cartItems.length > 0) return;
     navigate("/cart");
+  }, [cartLoading, cartFailed, cartItems.length, navigate]);
+
+  if (cartLoading) {
+    return <PageLoading label="Loading your cart…" />;
+  }
+
+  if (cartFailed) {
+    return (
+      <div className={styles.page}>
+        <p>We could not load your cart just now. Please refresh the page.</p>
+      </div>
+    );
+  }
+
+  if (cartItems.length === 0) {
+    // The effect above is on its way to the cart page; rendering the wizard
+    // against an empty basket in the meantime would flash a $0.00 order.
     return null;
   }
 

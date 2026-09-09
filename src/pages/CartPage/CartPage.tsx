@@ -2,10 +2,11 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../../components/CartProductCard";
+import { PageLoading } from "../../components/LoadingSpinner";
 import styles from "./CartPage.module.css";
 
 export function CartPage() {
-  const { cartItems, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
+  const { cartItems, loading, failed, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
   const { isAuthenticated, signIn } = useAuth();
   const navigate = useNavigate();
 
@@ -20,11 +21,43 @@ export function CartPage() {
     navigate("/checkout");
   };
 
+  if (loading) {
+    // The basket is fetched now, so it is briefly empty on every load. Showing
+    // "your cart is empty" in that window is a dead end a customer can act on
+    // before their basket has even arrived.
+    return (
+      <div className={styles.page}>
+        <PageLoading label="Loading your cart…" />
+      </div>
+    );
+  }
+
+  if (failed) {
+    // Not "empty". Sending someone off to browse for things they have already
+    // chosen is worse than admitting we could not read their basket.
+    return (
+      <div className={styles.page}>
+        <div className={styles.empty}>
+          <div className={styles.emptyIcon}>🛒</div>
+          <p>We could not load your cart just now.</p>
+          <button
+            type="button"
+            className={styles.shopLink}
+            onClick={() => window.location.reload()}
+          >
+            Try again
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   if (cartItems.length === 0) {
-    // A signed-out shopper always has an empty cart - it is stored per user and
-    // cleared on sign-out - so "your cart is empty" is true but unhelpful, and
-    // offering only "browse products" makes this a dead end for someone who had
-    // items a moment ago. Say which of the two situations they are in.
+    // A signed-out shopper always sees an empty cart - it is kept per customer
+    // on the server and is not this browser's to show - so "your cart is
+    // empty" is true but unhelpful, and offering only "browse products" makes
+    // this a dead end for someone who had items a moment ago. Say which of the
+    // two situations they are in.
     return (
       <div className={styles.page}>
         <div className={styles.empty}>

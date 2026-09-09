@@ -168,3 +168,18 @@
 .checkoutBtn:hover {
   background: var(--status-delivered-text);
 }
+
+/*
+ * The stock warning. Said in the basket rather than discovered at checkout: the
+ * server reports it on every read, and until this rendered it the customer's
+ * first signal was a 400 from the Review step.
+ */
+.unavailableNotice {
+  margin: 0;
+  padding: 0.7rem 1rem;
+  background: var(--danger-wash);
+  border-left: 3px solid var(--danger);
+  color: var(--status-cancelled-text);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}

@@ -8,6 +8,7 @@ import { AuthContext, type AuthContextValue } from '../../auth/useAuth';
 import { ReminderContext } from '../../context/useReminder';
 import { createMockUser } from '../../test/mocks/mockUser';
 import { setupLocalStorageStub } from '../../test/localStorageStub';
+import { clearServerCart, getCart } from '../../api/cart';
 
 vi.mock('../../api/order', () => ({
   getMyOrderByPaymentIntent: vi.fn(),
@@ -71,9 +72,24 @@ function auth(overrides: Partial<AuthContextValue>): AuthContextValue {
  * so asserting on the items rather than on the key avoids pinning an
  * implementation detail that does not matter.
  */
-function savedCartItems(): unknown[] {
-  const raw = localStorage.getItem(`cart:${user.user_id}`);
-  return raw ? JSON.parse(raw) : [];
+/*
+ * The basket is saved on the server, so "was it cleared" is a request rather
+ * than a localStorage key. The server also empties it in the same commit as the
+ * order for the webhook path; this call is what covers bypass mode, where the
+ * order is created inline and there is no webhook to do it.
+ */
+/*
+ * The basket is saved on the server, so "was it cleared" is a request rather
+ * than a localStorage key. The server also empties it in the same commit as the
+ * order for the webhook path; this call is what covers bypass mode, where the
+ * order is created inline and there is no webhook to do it.
+ *
+ * Waited for rather than read once. The count reaching zero proves nothing on
+ * its own - it starts at zero, because the saved basket arrives a tick later -
+ * so asserting on it immediately passes before the page has cleared anything.
+ */
+function waitForServerClear() {
+  return waitFor(() => expect(vi.mocked(clearServerCart)).toHaveBeenCalled());
 }
 
 function CartProbe() {
@@ -111,22 +127,28 @@ describe('OrderSuccessPage clearing the cart', () => {
   setupLocalStorageStub();
 
   beforeEach(() => {
-    localStorage.setItem(
-      `cart:${user.user_id}`,
-      JSON.stringify([
-        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
-      ]),
-    );
+    vi.mocked(getCart).mockResolvedValue({
+      items: [
+        {
+          variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
+          size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
+          available: 5, over_stock: false,
+        },
+      ],
+      subtotal: 285,
+      unavailable: [],
+    });
   });
 
   it('empties the cart once the order is confirmed', async () => {
     fetchOrder.mockResolvedValue(anOrder());
     renderAt(auth({ user, isAuthenticated: true }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId('count')).toHaveTextContent('0');
-    });
-    expect(savedCartItems()).toEqual([]);
+    // The basket loads first, so its disappearance is a real change rather
+    // than the state it started in.
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    await waitForServerClear();
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('0'));
   });
 
   it('still empties it when the session resolves after the redirect', async () => {
@@ -148,10 +170,11 @@ describe('OrderSuccessPage clearing the cart', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('count')).toHaveTextContent('0');
-    });
-    expect(savedCartItems()).toEqual([]);
+    // The basket loads first, so its disappearance is a real change rather
+    // than the state it started in.
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    await waitForServerClear();
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('0'));
   });
 });
 
@@ -169,12 +192,17 @@ describe('OrderSuccessPage when no order ever appears', () => {
   setupLocalStorageStub();
 
   beforeEach(() => {
-    localStorage.setItem(
-      `cart:${user.user_id}`,
-      JSON.stringify([
-        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
-      ]),
-    );
+    vi.mocked(getCart).mockResolvedValue({
+      items: [
+        {
+          variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
+          size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
+          available: 5, over_stock: false,
+        },
+      ],
+      subtotal: 285,
+      unavailable: [],
+    });
     fetchOrder.mockRejectedValue(new Error('not found'));
   });
 
@@ -208,8 +236,11 @@ describe('OrderSuccessPage when no order ever appears', () => {
 
     await screen.findByRole('heading', { name: /couldn.t confirm your order/i }, { timeout: 15000 });
 
-    expect(screen.getByTestId('count')).toHaveTextContent('1');
-    expect(savedCartItems()).toHaveLength(1);
+    // The basket is still there, and untouched on the server. Losing it to a
+    // checkout that never produced an order would be worse than the problem
+    // saving it server-side was meant to solve.
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    expect(vi.mocked(clearServerCart)).not.toHaveBeenCalled();
   }, 20000);
 });
 
@@ -227,12 +258,17 @@ describe('OrderSuccessPage in bypass mode', () => {
   setupLocalStorageStub();
 
   beforeEach(() => {
-    localStorage.setItem(
-      `cart:${user.user_id}`,
-      JSON.stringify([
-        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
-      ]),
-    );
+    vi.mocked(getCart).mockResolvedValue({
+      items: [
+        {
+          variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
+          size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
+          available: 5, over_stock: false,
+        },
+      ],
+      subtotal: 285,
+      unavailable: [],
+    });
   });
 
   function renderWithOrderId(authValue: AuthContextValue) {

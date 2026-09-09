@@ -9,6 +9,23 @@ export type CartSideBarContextValue = {
   increaseQuantity: (itemId: string) => void;
   decreaseQuantity: (itemId: string) => void;
   clearCart: () => void;
+  /**
+   * Catalogue numbers the customer cannot currently have in full.
+   *
+   * Reported rather than trimmed: quietly shrinking a basket on a page load is
+   * how someone buys fewer than they meant and only finds out from the receipt.
+   */
+  unavailable: string[];
+  /** True while the saved basket is being fetched for the first time. */
+  loading: boolean;
+  /**
+   * True when the basket could not be read at all.
+   *
+   * Distinct from an empty basket, and the distinction matters: telling a
+   * customer their cart is empty when it is merely unknown sends them off to
+   * browse for things they have already chosen.
+   */
+  failed: boolean;
   toggleCartSideBar: () => void;
   openCartSideBar: () => void;
   closeCartSideBar: () => void;
