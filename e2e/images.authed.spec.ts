@@ -157,6 +157,32 @@ test.describe("admin product images", () => {
     await expect(tiles.nth(1).locator("img")).toHaveAttribute("src", originalFirst!);
   });
 
+  test("dragging does not select the page text or fling the picture", async ({
+    page,
+  }) => {
+    /*
+     * Two browser gestures compete with this one, and both made the drag hard
+     * to control before they were shut off.
+     *
+     * An <img> is natively draggable, so pressing one started the HTML5 drag as
+     * well: a translucent copy of the picture followed the cursor off across
+     * the window while the reorder underneath tried to run. And the selection
+     * gesture highlighted the badges and button labels the drag passed over, so
+     * the grid ended up blue instead of reordered.
+     *
+     * Only a real browser can answer either. jsdom implements neither pointer
+     * capture nor selection.
+     */
+    const tiles = page.locator('[class*="imageItem"]');
+
+    await expect(tiles.first().locator("img")).toHaveAttribute("draggable", "false");
+
+    await tiles.first().dragTo(tiles.nth(1));
+
+    const selected = await page.evaluate(() => window.getSelection()?.toString() ?? "");
+    expect(selected, "the drag selected text instead of moving a tile").toBe("");
+  });
+
   test("dragging to the front makes an image primary", async ({ page }) => {
     // image_urls[0] is the display image, so a drag to the front is a promotion
     // - the same thing the star button does.

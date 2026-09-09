@@ -279,6 +279,12 @@
      the browser claims the gesture for scrolling the moment a finger moves, and
      the pointermove events never arrive. */
   touch-action: none;
+  /* And on a desktop the competing gesture is text selection: dragging across
+     the grid highlighted the badge and button labels instead of moving a tile,
+     which both looks broken and makes the drag hard to control. There is no
+     text here worth selecting. */
+  user-select: none;
+  -webkit-user-select: none;
   cursor: grab;
   position: relative;
   width: 100px;
@@ -289,6 +295,9 @@
 }
 
 .imageThumb {
+  /* Safari ignores the draggable attribute on images; this is the only thing
+     that stops it. */
+  -webkit-user-drag: none;
   width: 100px;
   height: 100px;
   object-fit: cover;

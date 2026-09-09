@@ -455,10 +455,19 @@ export function AdminProductDetailPage() {
                   }`}
                   {...drag.tileProps(i)}
                 >
+                  {/*
+                    draggable={false} because the browser has a drag of its own.
+                    An <img> is natively draggable, so pressing one starts the
+                    HTML5 drag: a translucent copy of the picture follows the
+                    cursor anywhere on screen, and it fights the pointer-event
+                    reorder underneath it. Turning it off leaves exactly one
+                    drag in play - ours.
+                  */}
                   <img
                     src={url}
                     alt={`Product image ${i + 1}`}
                     className={styles.imageThumb}
+                    draggable={false}
                   />
                   {i === 0 ? (
                     <span className={styles.primaryBadge}>Primary</span>

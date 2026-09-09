@@ -77,6 +77,16 @@ export function useDragReorder(
         if ((e.target as HTMLElement).closest("button")) return;
         if (e.button !== 0 && e.pointerType === "mouse") return;
 
+        // Stops the browser starting a text selection under the drag.
+        //
+        // `user-select: none` on the tile covers most of it, but the selection
+        // gesture begins on pointerdown and a drag that leaves the tile can
+        // still take the page with it - the admin ends up highlighting half the
+        // form instead of moving an image. Safe here because this line is only
+        // reached for a press that is not on a button: the tile itself is not
+        // focusable, so there is no focus to suppress.
+        e.preventDefault();
+
         current.current = index;
         origin.current = { x: e.clientX, y: e.clientY };
         armed.current = false;
