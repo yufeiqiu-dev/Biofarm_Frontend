@@ -58,7 +58,11 @@ export function Navbar() {
 
   const handleAdminClick = () => {
     setMenuOpen(false);
-    navigate("/admin/products");
+    // The dashboard, not the product list. /admin renders it and always has;
+    // this button was the one thing routing past it, so the queue counts, the
+    // card-hold warnings and the day's takings were only ever seen by someone
+    // who edited the URL.
+    navigate("/admin");
   };
 
   const handleSignOutClick = () => {
