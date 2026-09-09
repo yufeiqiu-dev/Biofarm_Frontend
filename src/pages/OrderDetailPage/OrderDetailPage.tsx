@@ -5,6 +5,7 @@ import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import { formatCardDisplay } from "../../utils/card";
 import type { Order, OrderStatus } from "../../types/order_types";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
+import { taxRatePercent } from "../../utils/tax";
 import styles from "./OrderDetailPage.module.css";
 
 const STATUS_LABELS: Record<OrderStatus, string> = {
@@ -123,6 +124,8 @@ export function OrderDetailPage() {
   if (error && !order) return <div className={styles.page}><p>Error: {error}</p></div>;
   if (!order) return <div className={styles.page}><p>Order not found.</p></div>;
 
+  const taxRate = taxRatePercent(order.tax_amount, order.total_amount + order.shipping_amount);
+
   const canCancel = order.status === "pending" || order.status === "awaiting_fulfillment";
 
   return (
@@ -155,15 +158,31 @@ export function OrderDetailPage() {
           <span>Subtotal</span>
           <span>${order.total_amount.toFixed(2)}</span>
         </div>
+        {/* Rendered whenever it was charged, including on old orders where it
+            is zero and reads "Free" - a receipt that omits a line the customer
+            paid for is one they have to query. */}
+        {order.shipping_amount > 0 && (
+          <div className={styles.itemRow} style={{ color: "#6b7280" }}>
+            <span>Shipping</span>
+            <span>${order.shipping_amount.toFixed(2)}</span>
+          </div>
+        )}
         {order.tax_amount > 0 && (
           <div className={styles.itemRow} style={{ color: "#6b7280" }}>
-            <span>Tax ({parseFloat(((order.tax_amount / order.total_amount) * 100).toFixed(2))}%)</span>
+            {/*
+              Goods + shipping in the denominator: that is what the tax was
+              levied on, and dividing by the goods alone overstated the rate
+              whenever a fee was charged. The guard matters too - total_amount
+              alone could be zero with tax present, which rendered
+              "Tax (Infinity%)".
+            */}
+            <span>Tax{taxRate !== null ? ` (${taxRate}%)` : ""}</span>
             <span>${order.tax_amount.toFixed(2)}</span>
           </div>
         )}
         <div className={styles.total}>
           <span>Total</span>
-          <span>${(order.total_amount + order.tax_amount).toFixed(2)}</span>
+          <span>${(order.total_amount + order.shipping_amount + order.tax_amount).toFixed(2)}</span>
         </div>
       </div>
 
@@ -212,7 +231,23 @@ export function OrderDetailPage() {
       <ConfirmDialog
         isOpen={confirmCancel}
         title="Cancel Order"
-        message="Are you sure you want to cancel this order? No charge has been made."
+        /*
+          Deliberately does not claim which of the two happened.
+
+          Branching on captured_at looks like the fix and is not: it is set and
+          committed in the same transaction as the status change, so in the one
+          window that makes this copy wrong - confirm captures, the commit rolls
+          back - the money has moved and captured_at is NULL along with the
+          status. The flag reads false in exactly the case it was meant to
+          catch, and there is nothing else on the order that distinguishes them;
+          only Stripe knows, which is why the backend asks it by attempting the
+          void and falling back to a refund.
+
+          So the copy covers both outcomes instead of asserting the common one.
+          "No charge has been made" was right almost always and a flat
+          contradiction of the customer's statement when it was not.
+        */
+        message="Are you sure you want to cancel this order? If your card has already been charged, we will refund it; otherwise the hold is released and you are not charged at all."
         confirmLabel="Cancel Order"
         variant="danger"
         onConfirm={() => {

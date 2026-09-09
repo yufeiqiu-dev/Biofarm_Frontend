@@ -16,6 +16,8 @@ function makeOrder(overrides: Partial<AdminOrder> = {}): AdminOrder {
     status: 'confirmed',
     total_amount: 19.99,
     tax_amount: 1.75,
+    authorization_days_remaining: 5,
+  shipping_amount: 0,
     card_brand: 'visa',
     card_last4: '4242',
     shipping_name: 'Jane Smith',
@@ -260,6 +262,132 @@ describe('AdminOrdersPage status in the url', () => {
     await waitFor(() => expect(adminListOrders).toHaveBeenCalled());
     expect(vi.mocked(adminListOrders).mock.calls[0][0]).toMatchObject({
       status: 'awaiting_fulfillment',
+    });
+  });
+
+  /*
+   * The card-hold cohorts the dashboard's red tiles link to. The tiles used to
+   * point at ?status=all - a list that agreed with the count about membership
+   * and not about findability, since it is newest-first, 50 to a page, with no
+   * age filter, and these are by definition the oldest live orders.
+   */
+  describe('card-hold cohorts', () => {
+    function renderAt(url: string) {
+      return renderWithProviders(<AdminOrdersPage />, {
+        user: createMockAdminUser(),
+        initialEntries: [url],
+      });
+    }
+
+    it('asks the server for the cohort rather than filtering a page of it', async () => {
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=expiring');
+
+      await waitFor(() => {
+        expect(vi.mocked(adminListOrders)).toHaveBeenCalledWith(
+          expect.objectContaining({ hold: 'expiring' }),
+        );
+      });
+    });
+
+    it('does not narrow to one status, which would hide part of the count', async () => {
+      // A cohort spans pending, awaiting_fulfillment and confirmed. Defaulting
+      // to the Awaiting Fulfillment tab would show a subset of the number the
+      // tile displayed - the same mismatch this filter exists to remove.
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=expired');
+
+      await waitFor(() => {
+        expect(vi.mocked(adminListOrders)).toHaveBeenCalledWith(
+          expect.objectContaining({ hold: 'expired', status: undefined }),
+        );
+      });
+    });
+
+    it('says which cohort is on screen and what to do about it', async () => {
+      // Otherwise it is indistinguishable from an ordinary filtered list, and
+      // an admin arriving from a red tile cannot tell that these orders need
+      // the opposite action from the ones normally listed here.
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=expired');
+
+      expect(await screen.findByText(/card holds expired/i)).toBeInTheDocument();
+      expect(screen.getByText(/will fail at capture/i)).toBeInTheDocument();
+    });
+
+    it('does not name an action the console will not offer', async () => {
+      /*
+       * The cohort is every live unshipped status and they do not share one
+       * action: a pending order can neither be confirmed nor shipped -
+       * update_order_status rejects both and the detail page renders neither
+       * button - so naming them sent an admin to an order they could only
+       * cancel, under copy telling them to do something else.
+       */
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=expiring');
+
+      await screen.findByText(/card holds expiring/i);
+      expect(screen.queryByText(/confirming or shipping/i)).not.toBeInTheDocument();
+      expect(screen.getByText(/where you cannot, cancel/i)).toBeInTheDocument();
+    });
+
+    it('ignores a hold value it does not recognise', async () => {
+      // Rather than forwarding it and showing every order under a heading that
+      // promises only the at-risk ones.
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=whenever');
+
+      await waitFor(() => {
+        expect(vi.mocked(adminListOrders)).toHaveBeenCalledWith(
+          expect.objectContaining({ hold: undefined }),
+        );
+      });
+    });
+
+    it('shows every status when the cohort is cleared, as the button says', async () => {
+      // A tile links here with no status parameter, so merely dropping `hold`
+      // fell back to the Awaiting Fulfillment tab - "Show all orders" showed
+      // fewer, and the pending and confirmed orders that were on screen a
+      // moment ago vanished unexplained.
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=expired');
+      await screen.findByText(/card holds expired/i);
+
+      fireEvent.click(screen.getByRole('button', { name: /show all orders/i }));
+
+      await waitFor(() => {
+        expect(vi.mocked(adminListOrders)).toHaveBeenCalledWith(
+          expect.objectContaining({ status: undefined, hold: undefined }),
+        );
+      });
+      expect(screen.queryByText(/card holds expired/i)).not.toBeInTheDocument();
+    });
+
+    it('does not claim the cohort is clear when the request failed', async () => {
+      // A failed request lands in the same empty-list state, so this said
+      // "it has been dealt with" directly under "Error: Failed to fetch".
+      vi.mocked(adminListOrders).mockRejectedValue(new Error('Failed to fetch'));
+      renderAt('/admin/orders?hold=expired');
+
+      expect(await screen.findByText(/failed to fetch/i)).toBeInTheDocument();
+      expect(screen.queryByText(/has been dealt with/i)).not.toBeInTheDocument();
+    });
+
+    it('drops the cohort when a status tab is picked', async () => {
+      // Picking a tab means "show me this instead". Keeping both would
+      // intersect them and render an empty list reading "no orders" rather than
+      // "no orders matching both".
+      vi.mocked(adminListOrders).mockResolvedValue(page([makeOrder()]));
+      renderAt('/admin/orders?hold=expiring');
+      await screen.findByText(/card holds expiring/i);
+
+      fireEvent.click(screen.getByRole('button', { name: 'Shipped' }));
+
+      await waitFor(() => {
+        expect(vi.mocked(adminListOrders)).toHaveBeenCalledWith(
+          expect.objectContaining({ status: 'shipped', hold: undefined }),
+        );
+      });
     });
   });
 });

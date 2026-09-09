@@ -5,6 +5,14 @@ import { Navbar } from './Navbar';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { createMockUser } from '../../test/mocks/mockUser';
 
+// The destination is the whole point of this change, so it is asserted rather
+// than inferred from what happens to render afterwards.
+const navigate = vi.fn();
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual<typeof import('react-router-dom')>('react-router-dom');
+  return { ...actual, useNavigate: () => navigate };
+});
+
 describe('Navbar', () => {
   describe('the cart button when signed out', () => {
     it('does not route anywhere', async () => {
@@ -67,5 +75,20 @@ describe('Navbar', () => {
   it('renders a Sign in button when signed out', () => {
     renderWithProviders(<Navbar />, { user: null });
     expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+  });
+
+  it('sends an admin to the dashboard, not straight to the products list', async () => {
+    /*
+     * /admin has always rendered the dashboard; this button was the one thing
+     * routing past it, so the queue counts, the card-hold warnings and the
+     * day's takings were only seen by someone who edited the URL.
+     */
+    const admin = createMockUser({ name: 'Ada Admin', roles: ['Admin'] });
+    renderWithProviders(<Navbar />, { user: admin });
+
+    await userEvent.click(screen.getByRole('button', { name: /ada admin/i }));
+    await userEvent.click(screen.getByRole('button', { name: 'Admin' }));
+
+    expect(navigate).toHaveBeenCalledWith('/admin');
   });
 });

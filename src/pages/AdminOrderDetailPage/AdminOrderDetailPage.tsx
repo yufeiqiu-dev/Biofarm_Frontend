@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from "react";
-import ReactDOM from "react-dom";
 import { Link, useParams } from "react-router-dom";
 import {
   adminGetOrder,
@@ -15,7 +14,13 @@ import { ApiError } from "../../api/client";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import { PageLoading, useLoadingState } from "../../components/LoadingSpinner";
 import { formatCardDisplay } from "../../utils/card";
+import { ShipModal } from "./ShipModal";
 import styles from "./AdminOrderDetailPage.module.css";
+
+/** Two decimals: this is the exact sum the customer's card will be charged. */
+function formatMoney(value: number): string {
+  return `$${value.toFixed(2)}`;
+}
 
 const STATUS_LABELS: Record<string, string> = {
   pending: "Pending",
@@ -32,85 +37,6 @@ function CardBadge({ brand, last4 }: { brand: string; last4: string }) {
     <span className={styles.cardChip}>
       {formatCardDisplay(brand, last4)}
     </span>
-  );
-}
-
-interface ShipModalProps {
-  isOpen: boolean;
-  loading: boolean;
-  onConfirm: (trackingNumber: string) => void;
-  onCancel: () => void;
-}
-
-function ShipModal({ isOpen, loading, onConfirm, onCancel }: ShipModalProps) {
-  // Mounting the body only while open is what resets the tracking field. It
-  // used to stay mounted and clear itself with a setState inside an effect,
-  // which meant a render with the previous shipment's number still in it before
-  // the blanking one - and a stale value briefly visible if focus arrived first.
-  if (!isOpen) return null;
-  return <ShipModalBody loading={loading} onConfirm={onConfirm} onCancel={onCancel} />;
-}
-
-function ShipModalBody({ loading, onConfirm, onCancel }: Omit<ShipModalProps, "isOpen">) {
-  const [tracking, setTracking] = useState("");
-  const inputRef = useRef<HTMLInputElement>(null);
-
-  useEffect(() => {
-    // Portals are committed before effects run, so the input exists here. The
-    // old 50ms setTimeout was working around the element not yet being in the
-    // tree, and raced with anything that stole focus in the meantime.
-    inputRef.current?.focus();
-
-    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") onCancel(); };
-    document.addEventListener("keydown", handler);
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.removeEventListener("keydown", handler);
-      document.body.style.overflow = "";
-    };
-  }, [onCancel]);
-
-  return ReactDOM.createPortal(
-    <div className={styles.modalBackdrop} onClick={onCancel}>
-      <div
-        className={styles.modal}
-        onClick={(e) => e.stopPropagation()}
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="ship-modal-title"
-      >
-        <h2 id="ship-modal-title" className={styles.modalTitle}>Mark as Shipped</h2>
-        <p className={styles.modalDesc}>
-          Enter a tracking number so the customer can follow their shipment. This will capture payment.
-        </p>
-        <label className={styles.modalLabel} htmlFor="tracking-input">
-          Tracking Number <span className={styles.modalOptional}>(optional)</span>
-        </label>
-        <input
-          id="tracking-input"
-          ref={inputRef}
-          className={styles.modalInput}
-          type="text"
-          placeholder="e.g. 1Z999AA10123456784"
-          value={tracking}
-          onChange={(e) => setTracking(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") onConfirm(tracking.trim()); }}
-        />
-        <div className={styles.modalButtons}>
-          <button className={styles.modalCancel} onClick={onCancel} disabled={loading}>
-            Cancel
-          </button>
-          <button
-            className={styles.modalConfirm}
-            onClick={() => onConfirm(tracking.trim())}
-            disabled={loading}
-          >
-            {loading ? "Shipping…" : "Mark Shipped"}
-          </button>
-        </div>
-      </div>
-    </div>,
-    document.body
   );
 }
 
@@ -211,11 +137,55 @@ export function AdminOrderDetailPage() {
   const canShip = order.status === "confirmed";
   const canDeliver = order.status === "shipped";
   const canCancel = order.status !== "cancelled";
-  const cancelNeedsRefund = order.status === "shipped" || order.status === "delivered";
+  /*
+   * From the fact, not the status.
+   *
+   * This read `shipped || delivered`, which was the right boundary while
+   * capture happened at ship. Once it moved to confirm, a confirmed order was
+   * charged - and this still offered "Cancel Order" above the words "No charge
+   * has been made", then issued a real refund.
+   *
+   * It decides the button label and which copy to show, and it is right about
+   * the ordinary cases. It is not the same question the backend asks:
+   * release_funds attempts the void and refunds if Stripe says the money moved,
+   * so a captured-but-unrecorded order takes the refund path while this reads
+   * false. That is why the non-refund copy hedges rather than promising.
+   */
+  /*
+   * The fact when we have it, the old rule when we do not.
+   *
+   * captured_at is optional because a frontend can ship ahead of its backend,
+   * and `!= null` treated that absence as "not charged" - which put "No charge
+   * has been made" back over a delivered order while the old backend refunded
+   * it. Undefined means the backend predates the field, and that backend still
+   * branches on status, so mirror it.
+   */
+  const cancelNeedsRefund =
+    order.captured_at != null
+      ? true
+      // Both absent *and* null fall back to the old rule. Only `undefined` did,
+      // which left a legacy shipped row - served as null by a new backend, since
+      // the migration leaves every pre-existing row NULL - reading "No charge
+      // has been made" over an order the customer was charged for. The backend
+      // asks Stripe for those; the console cannot, so it uses the status the
+      // old backend used.
+      : order.status === "shipped" || order.status === "delivered";
 
-  const subtotal = order.items.reduce((s, i) => s + i.unit_price * i.quantity, 0);
+  /*
+   * The recorded subtotal, not a fresh sum over the lines.
+   *
+   * create_order writes total_amount as exactly sum(unit_price x quantity), so
+   * the two agree on every real order - but only one of them is what the card
+   * was authorised for. Re-deriving it means the screen stops matching the
+   * charge the moment anything makes the lines an incomplete account of the
+   * order: a truncated items list, a discount, a manual adjustment. The
+   * confirm dialog quotes this same figure, so the number in the dialog and the
+   * number in the summary above it cannot disagree.
+   */
+  const subtotal = order.total_amount;
   const tax = order.tax_amount;
-  const total = subtotal + tax;
+  const shipping = order.shipping_amount ?? 0;
+  const total = subtotal + shipping + tax;
 
   return (
     <div className={styles.page}>
@@ -275,6 +245,47 @@ export function AdminOrderDetailPage() {
             <div className={styles.metaLabel}>Status</div>
             <div className={styles.metaValue}>{STATUS_LABELS[order.status] ?? order.status}</div>
           </div>
+          {/*
+            Checkout only authorises; the money is captured when the order is
+            confirmed. Stripe releases an uncaptured hold after about a week, so
+            an order left unconfirmed that long can no longer be charged.
+
+            The capture used to happen at ship, which put this deadline on the
+            slowest step - packing and courier pickup can outrun a week, and the
+            failure landed with the box already packed.
+          */}
+          {/*
+            `!= null`, not `!== null`: the loose form also excludes undefined,
+            which is what a frontend deployed ahead of its backend receives. The
+            strict form let it through to Math.floor and rendered "Expires in
+            NaNd" - the exact version-skew case the ErrorBoundary was added for.
+          */}
+          {order.authorization_days_remaining != null && (
+            <div>
+              <div className={styles.metaLabel}>Card hold</div>
+              <div className={styles.metaValue}>
+                {order.authorization_days_remaining <= 0 ? (
+                  <span style={{ color: "#b91c1c", fontWeight: 600 }}>
+                    Expired — capture will fail
+                  </span>
+                ) : (
+                  <span
+                    style={
+                      order.authorization_days_remaining <= 2
+                        ? { color: "#b45309", fontWeight: 600 }
+                        : undefined
+                    }
+                  >
+                    {/* ceil, not floor: floor collapsed the whole final day to
+                        "0d", which reads as already expired - the one state the
+                        branch above deliberately words differently. Anything
+                        still live now reads at least "1d". */}
+                    Expires in {Math.ceil(order.authorization_days_remaining)}d
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
           <div>
             <div className={styles.metaLabel}>Payment</div>
             <div className={styles.metaValue}>
@@ -318,6 +329,15 @@ export function AdminOrderDetailPage() {
             <span>Subtotal</span>
             <span>${subtotal.toFixed(2)}</span>
           </div>
+          {/* Without this row the total stopped matching Subtotal + Tax, and
+              the admin reconciling an order against Stripe would find a
+              difference with nothing on the page explaining it. */}
+          {shipping > 0 && (
+            <div className={styles.totalRow}>
+              <span>Shipping</span>
+              <span>${shipping.toFixed(2)}</span>
+            </div>
+          )}
           {tax > 0 && (
             <div className={styles.totalRow}>
               <span>Tax</span>
@@ -440,9 +460,24 @@ export function AdminOrderDetailPage() {
 
       <ConfirmDialog
         isOpen={confirmConfirm}
-        title="Confirm Order"
-        message="Confirm this order and reserve stock? The customer will be notified that their order is being prepared."
-        confirmLabel="Confirm Order"
+        title="Confirm and charge"
+        /*
+          Says what confirming actually does now that it captures the payment.
+          The customer is charged at this click, not at dispatch - so this is a
+          commitment to ship, and backing out afterwards is a refund on which
+          Stripe keeps its fee rather than a free void. The old copy said
+          "reserve stock", which was true and no longer the important part.
+        */
+        // `total`, the same figure the summary above renders - not a second
+        // sum built from the same parts. They agree only because total_amount
+        // happens to equal the item subtotal; add a discount to one and this
+        // dialog would quote a different number from the summary directly above
+        // it, on the one screen whose entire purpose is stating the exact
+        // amount about to be charged.
+        message={
+          `This charges the customer ${formatMoney(total)} now, not when it ships. You are committing to send it — cancelling after this refunds the customer, and the payment fee is not returned.`
+        }
+        confirmLabel="Charge and confirm"
         onConfirm={() => {
           setConfirmConfirm(false);
           void handleAction(() => adminConfirmOrder(order.id));
@@ -453,6 +488,7 @@ export function AdminOrderDetailPage() {
       <ShipModal
         isOpen={shipModalOpen}
         loading={actionLoading}
+        alreadyCharged={order.captured_at != null}
         onConfirm={(trackingNumber) => {
           setShipModalOpen(false);
           void handleAction(() => adminShipOrder(order.id, trackingNumber || undefined));
@@ -466,7 +502,14 @@ export function AdminOrderDetailPage() {
         message={
           cancelNeedsRefund
             ? "Are you sure you want to cancel this order and issue a refund? This action cannot be undone."
-            : "Are you sure you want to cancel this order? No charge has been made."
+            : // Hedged, not asserted - the same wording the customer's own cancel
+              // dialog now carries, for the same reason. release_funds does not
+              // branch on captured_at alone: it attempts the void and refunds
+              // if Stripe says the money already moved. That happens when a
+              // confirm captured and its commit rolled back, which leaves this
+              // order reading awaiting_fulfillment with captured_at NULL - so
+              // the flat claim was made on exactly the click that refunds.
+              "Are you sure you want to cancel this order? If the card has already been charged we will refund it; otherwise the hold is released and nothing is charged."
         }
         confirmLabel={cancelNeedsRefund ? "Cancel + Refund" : "Cancel Order"}
         variant="danger"

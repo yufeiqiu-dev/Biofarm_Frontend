@@ -1,0 +1,55 @@
+.wrap {
+  max-width: 34rem;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-5);
+  text-align: center;
+}
+
+.title {
+  font-size: var(--text-lg);
+  margin: 0 0 var(--space-3);
+}
+
+.body {
+  color: var(--muted);
+  margin: 0 0 var(--space-4);
+}
+
+.button {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  cursor: pointer;
+  font: inherit;
+}
+
+.button:hover {
+  border-color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+/*
+ * The reset action. Distinct from the other two because it is the only one that
+ * throws something away - it signs the reader out and empties their cart - so
+ * it should not read as just a third way to try again.
+ */
+.buttonDanger {
+  padding: var(--space-2) var(--space-4);
+  border: 1px solid var(--danger);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--danger);
+  font: inherit;
+  cursor: pointer;
+}
+
+.buttonDanger:hover {
+  background: var(--danger-wash);
+}

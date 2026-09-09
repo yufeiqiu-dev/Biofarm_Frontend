@@ -141,6 +141,44 @@ export function useProductImages(showReminder: (r: { message: string }) => void)
   }, []);
 
   /**
+   * Moves an image to an arbitrary position.
+   *
+   * What dragging needs, where `move` only steps by one. Both end up in the
+   * same array, so a drag and an arrow press are the same operation with
+   * different arithmetic - there is no second ordering implementation to drift.
+   */
+  const reorder = useCallback((from: number, to: number) => {
+    setDisplayedUrls((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  /**
+   * The same for images chosen but not yet uploaded.
+   *
+   * They had no ordering controls at all - a fresh batch could only be arranged
+   * by saving it first and then rearranging. They upload in this order and
+   * append at the end, so the order set here is the order they land in.
+   */
+  const reorderPending = useCallback((from: number, to: number) => {
+    setPendingFiles((prev) => {
+      if (from === to || from < 0 || to < 0 || from >= prev.length || to >= prev.length) {
+        return prev;
+      }
+      const next = [...prev];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      return next;
+    });
+  }, []);
+
+  /**
    * Deletes what the admin staged for removal.
    *
    * By URL rather than by index, so nothing has to stay in step with the order
@@ -214,6 +252,8 @@ export function useProductImages(showReminder: (r: { message: string }) => void)
     stageDeletion,
     makePrimary,
     move,
+    reorder,
+    reorderPending,
     flushDeletions,
     uploadFor,
   };

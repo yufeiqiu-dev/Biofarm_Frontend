@@ -127,6 +127,12 @@ export async function apiRequest<T>(
         // say about the failure, and this runs in the customer's console on the
         // deployed site; the message is surfaced through the thrown Error, which
         // is where the UI can decide what is safe to show.
+        //
+        // The pages follow the same rule: a caught request failure is put on
+        // screen, not into the console. Seven of them used to do both, which
+        // meant the policy held in the one place that stated it and nowhere
+        // else. ErrorBoundary is the single exception, and says why - a render
+        // that threw leaves a blank page with nothing else to go on.
         const errorData = await response.json();
 
         const detail = errorData?.detail;
