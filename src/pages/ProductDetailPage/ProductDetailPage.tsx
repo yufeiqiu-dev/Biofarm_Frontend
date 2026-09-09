@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import styles from "./ProductDetailPage.module.css";
 import { getProductById } from "../../api/product";
+import { ApiError } from "../../api/client";
 import type { Product } from "../../types/product_type";
 import type { AddToCartItem } from "../../types/cart_types";
 import { AddToCartButton } from "../../components/AddToCartButton";
@@ -17,6 +18,7 @@ export function ProductDetailPage() {
   const { productId } = useParams<{ productId: string }>();
   const [loading, setLoading] = useState(true);
   const [product, setProduct] = useState<Product | null>(null);
+  const [loadFailed, setLoadFailed] = useState(false);
   const [selectedVariantId, setSelectedVariantId] = useState<string | null>(
     null,
   );
@@ -30,20 +32,48 @@ export function ProductDetailPage() {
       return;
     }
 
+    /*
+     * Answers from a product we have navigated away from are discarded.
+     *
+     * Clearing the flag as each load starts fixes the sequential case but not
+     * the overlapping one: click A then B straight away, B clears the flag and
+     * starts its fetch, A's request then 500s and its catch sets the flag on
+     * B's page - "It is a fault on our side" over a product that loaded
+     * perfectly, and stuck there until the next navigation.
+     */
+    let cancelled = false;
+
     const loadProduct = async () => {
       try {
         setLoading(true);
+        // Cleared as each load starts, not only when one fails. React Router
+        // keeps this component mounted across /products/:id changes, so the
+        // flag survived the param change: one transient 500 on product A left
+        // every product opened afterwards claiming the fault was ours, until a
+        // full reload. The cart sidebar links straight to other products, so
+        // that is one click away.
+        setLoadFailed(false);
         const p = await getProductById(productId);
+        if (cancelled) return;
         setProduct(p);
       } catch (error) {
-        console.error("Failed to load product", error);
+        // A 404 is a missing product; anything else is our failure and must not
+        // be reported as one. Collapsing both into setProduct(null) meant a
+        // backend outage rendered "Product not found." on every product page -
+        // a confident, wrong answer, and one that reads identically to a
+        // genuine deletion in a customer's bug report.
+        if (cancelled) return;
         setProduct(null);
+        setLoadFailed(!(error instanceof ApiError && error.status === 404));
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
 
     void loadProduct();
+    return () => {
+      cancelled = true;
+    };
   }, [productId]);
 
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -69,6 +99,15 @@ export function ProductDetailPage() {
 
   if (load.pending) {
     return <PageLoading visible={load.visible} />;
+  }
+
+  if (loadFailed) {
+    return (
+      <div className={styles.notFound}>
+        This page could not be loaded. It is a fault on our side, not a missing
+        product — reloading often clears it.
+      </div>
+    );
   }
 
   if (!product) {

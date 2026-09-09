@@ -27,6 +27,7 @@ function anOrder() {
     status: 'awaiting_fulfillment',
     created_at: new Date().toISOString(),
     total_amount: 285,
+    shipping_amount: 25,
     tax_amount: 24.94,
     card_brand: 'visa',
     card_last4: '4242',
@@ -186,11 +187,20 @@ describe('OrderSuccessPage when no order ever appears', () => {
     expect(screen.queryByText(/payment was successful/i)).not.toBeInTheDocument();
   }, 20000);
 
-  it('says the money is not taken if the item sold out', async () => {
+  it('says the money comes back if the item sold out, without promising how', async () => {
+    /*
+     * It used to assert "you have not been charged". Sold out reaches the
+     * webhook from payment_intent.succeeded as well as the capturable event, so
+     * the intent may already hold real money - the void is refused and a refund
+     * issued instead. Sold out also means no order is ever created, so this is
+     * the screen that customer lands on: told they were not charged, sometimes
+     * moments after they were.
+     */
     renderAt(auth({ user, isAuthenticated: true }));
 
     await screen.findByRole('heading', { name: /couldn.t confirm your order/i }, { timeout: 15000 });
-    expect(screen.getByText(/have not been charged/i)).toBeInTheDocument();
+    expect(screen.queryByText(/you have not been charged/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/refund it if your card was already charged/i)).toBeInTheDocument();
   }, 20000);
 
   it('keeps the cart, so they can order again', async () => {
@@ -239,6 +249,51 @@ describe('OrderSuccessPage in bypass mode', () => {
       </MemoryRouter>,
     );
   }
+
+  /*
+   * The receipt is what a customer reads immediately after paying, so it has to
+   * show the amount the card was actually charged. It omitted the shipping fee
+   * - the same dropped shipping_amount the admin response had, on the other
+   * side of the till.
+   */
+  it('adds its own rows up to its own total', async () => {
+    // Subtotal came from the item lines while Total came from total_amount, so
+    // the receipt's arithmetic held only while those happened to agree - in one
+    // visible block, on the screen read straight after paying. Read back off
+    // the rendered rows rather than asserting strings, since that is the claim.
+    fetchOrderById.mockResolvedValue(anOrder());
+    renderWithOrderId(auth({ user, isAuthenticated: true }));
+
+    await screen.findByText('Shipping');
+
+    const amountFor = (label: string) => {
+      const row = screen.getByText(label).parentElement!;
+      return Number(row.textContent!.replace(label, '').replace(/[$,]/g, ''));
+    };
+
+    const sum = amountFor('Subtotal') + amountFor('Shipping') + amountFor('Tax (8.05%)');
+    expect(sum).toBeCloseTo(amountFor('Total'), 2);
+  });
+
+  it('shows the shipping fee and includes it in the total', async () => {
+    fetchOrderById.mockResolvedValue(anOrder());
+    renderWithOrderId(auth({ user, isAuthenticated: true }));
+
+    expect(await screen.findByText('Shipping')).toBeInTheDocument();
+    expect(screen.getByText('$25.00')).toBeInTheDocument();
+    // 285 + 25 + 24.94, which is what Stripe captured.
+    expect(screen.getByText('$334.94')).toBeInTheDocument();
+  });
+
+  it('rates the tax against goods plus shipping', async () => {
+    // calculate_tax passes shipping to Stripe Tax because most US states tax
+    // delivery, so the goods subtotal alone overstates the rate.
+    fetchOrderById.mockResolvedValue(anOrder());
+    renderWithOrderId(auth({ user, isAuthenticated: true }));
+
+    await screen.findByText('Shipping');
+    expect(screen.getByText(/Tax \(8\.05%\)/)).toBeInTheDocument();
+  });
 
   it('shows the order without waiting for a webhook', async () => {
     fetchOrderById.mockResolvedValue(anOrder());

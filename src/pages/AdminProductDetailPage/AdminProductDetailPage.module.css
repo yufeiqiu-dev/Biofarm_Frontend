@@ -275,6 +275,17 @@
 }
 
 .imageItem {
+  /* touch-action: none is what makes this work on a tablet at all. Without it
+     the browser claims the gesture for scrolling the moment a finger moves, and
+     the pointermove events never arrive. */
+  touch-action: none;
+  /* And on a desktop the competing gesture is text selection: dragging across
+     the grid highlighted the badge and button labels instead of moving a tile,
+     which both looks broken and makes the drag hard to control. There is no
+     text here worth selecting. */
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
   position: relative;
   width: 100px;
   height: 100px;
@@ -284,6 +295,9 @@
 }
 
 .imageThumb {
+  /* Safari ignores the draggable attribute on images; this is the only thing
+     that stops it. */
+  -webkit-user-drag: none;
   width: 100px;
   height: 100px;
   object-fit: cover;
@@ -434,4 +448,90 @@
 .moveButton:disabled {
   opacity: 0.35;
   cursor: not-allowed;
+}
+
+/* The tile being dragged. Lifted rather than hidden, because the grid reorders
+   live underneath it - what is on screen is already what will be saved, so the
+   only thing left to show is which one is in hand. */
+.imageItemDragging {
+  cursor: grabbing;
+  opacity: 0.65;
+  transform: scale(1.04);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.25);
+  z-index: 2;
+}
+
+/*
+ * Stock, once the variant exists, is a readout rather than a field.
+ *
+ * It reads as a fact about the warehouse with an action beside it, not as
+ * something to type over - which is the point: the number on this page was
+ * correct when it rendered and the shelf has moved on since.
+ */
+.stockReadout {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.stockCount {
+  font-size: var(--text-lg);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.stockButton {
+  padding: 0.3rem 0.7rem;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.stockButton:hover {
+  border-color: var(--muted);
+}
+
+.restockBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.restockDialog {
+  width: min(28rem, calc(100vw - 2rem));
+  padding: var(--space-5);
+  border-radius: var(--radius-container);
+  background: var(--surface);
+}
+
+.restockTitle {
+  margin: 0 0 var(--space-3);
+  font-size: var(--text-lg);
+}
+
+.restockBody {
+  margin: 0 0 var(--space-4);
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.restockActions {
+  display: flex;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  margin-top: var(--space-4);
+}
+
+.optional {
+  color: var(--muted);
+  font-weight: 400;
 }

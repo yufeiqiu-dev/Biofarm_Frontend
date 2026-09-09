@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { LoadingOverlay, PageLoading, useLoadingState } from "../../components/LoadingSpinner";
-import { createProduct, deleteProduct, updateProduct } from "../../api/admin_product";
+import {
+  createProduct,
+  deleteProduct,
+  updateProduct,
+} from "../../api/admin_product";
 import { getProductById } from "../../api/product";
 import { getAdminTags } from "../../api/admin_tag";
 import type { Tag } from "../../types/tag_type";
@@ -10,80 +14,10 @@ import { DEFAULT_PRODUCT_IMAGE } from "../../constants/product";
 import { ConfirmDialog } from "../../components/ConfirmDialog";
 import styles from "./AdminProductDetailPage.module.css";
 import { MAX_IMAGES, useProductImages } from "./useProductImages";
-
-type AdminVariantForm = {
-  id?: string;
-  catalog_id: string;
-  size_value: string;
-  size_unit: string;
-  price: string;
-  stock: string;
-};
-
-type AdminProductForm = {
-  cat_id: string;
-  name: string;
-  description: string;
-  tag_ids: string[];
-  variants: AdminVariantForm[];
-};
-
-const createEmptyVariant = (): AdminVariantForm => ({
-  id: undefined,
-  catalog_id: "",
-  size_value: "",
-  size_unit: "",
-  price: "",
-  stock: "",
-});
-
-const createEmptyForm = (): AdminProductForm => ({
-  cat_id: "",
-  name: "",
-  description: "",
-  tag_ids: [],
-  variants: [],
-});
-
-function validateForm(form: AdminProductForm): Record<string, string> {
-  const errors: Record<string, string> = {};
-
-  if (!form.cat_id.trim()) {
-    errors.cat_id = "Product catalog ID is required.";
-  }
-  if (!form.name.trim()) {
-    errors.name = "Product name is required.";
-  }
-  if (!form.description.trim()) {
-    errors.description = "Product description is required.";
-  }
-
-  form.variants.forEach((variant, index) => {
-    if (!variant.catalog_id.trim()) {
-      errors[`variant_${index}_catalog_id`] = "Catalog ID is required.";
-    }
-    if (!variant.size_value.trim()) {
-      errors[`variant_${index}_size_value`] = "Size value is required.";
-    } else if (Number(variant.size_value) <= 0) {
-      errors[`variant_${index}_size_value`] = "Size value must be greater than 0.";
-    }
-    if (!variant.size_unit.trim()) {
-      errors[`variant_${index}_size_unit`] = "Size unit is required.";
-    }
-    if (!variant.price.trim()) {
-      errors[`variant_${index}_price`] = "Price is required.";
-    } else if (Number(variant.price) < 0) {
-      errors[`variant_${index}_price`] = "Price cannot be negative.";
-    }
-    if (!variant.stock.trim()) {
-      errors[`variant_${index}_stock`] = "Stock is required.";
-    } else if (Number(variant.stock) < 0) {
-      errors[`variant_${index}_stock`] = "Stock cannot be negative.";
-    }
-  });
-
-  return errors;
-}
+import { StockAdjustDialog } from "./StockAdjustDialog";
+import { VariantsSection } from "./VariantsSection";
+import { useProductForm } from "./useProductForm";
+import { useDragReorder } from "./useDragReorder";
 
 export function AdminProductDetailPage() {
   const navigate = useNavigate();
@@ -92,7 +26,17 @@ export function AdminProductDetailPage() {
   const isEditMode = Boolean(productId);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const [form, setForm] = useState<AdminProductForm>(createEmptyForm());
+  const {
+    form,
+    setForm,
+    formErrors,
+    handleFieldChange,
+    handleVariantChange,
+    handleAddVariant,
+    handleRemoveVariant,
+    handleToggleTag,
+    validate,
+  } = useProductForm(() => setSaveError(null));
   const [availableTags, setAvailableTags] = useState<Tag[]>([]);
   const images = useProductImages(showReminder);
   // Destructured because the effect below needs it as a dependency, and the
@@ -105,9 +49,37 @@ export function AdminProductDetailPage() {
   // Stores the product ID after a successful createProduct call, so a retry after
   // a partial upload failure reuses the same product instead of creating a duplicate.
   const [pendingProductId, setPendingProductId] = useState<string | undefined>(undefined);
-  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const load = useLoadingState(loading);
   const [saveError, setSaveError] = useState<string | null>(null);
+  /*
+   * Which variant is being adjusted, if any. The dialog owns everything
+   * else about it - its inputs, its request, its errors.
+   *
+   * Separate from the form's deferred save because it writes immediately,
+   * which is the whole point: deferring it would put the count back into a
+   * payload written from a page rendered minutes ago.
+   */
+  const [restockingVariantId, setRestockingVariantId] = useState<string | null>(null);
+  // Raised by the dialog while its request is in flight. The dialog disables
+  // its own Cancel and backdrop, but these buttons sit outside it and stay
+  // reachable by keyboard - and because the dialog is keyed by variant,
+  // pressing one mid-request unmounts the instance waiting for an answer.
+  const [adjustBusy, setAdjustBusy] = useState(false);
+
+  const recordAdjustedStock = (variantId: string, stock: number) => {
+    setForm((previous) => ({
+      ...previous,
+      // Matched on the variant's own id, not the row it was in. The dialog
+      // is aria-modal but the page behind it is not inert, so a keyboard
+      // user can tab out, remove a variant above this one, and tab back -
+      // after which an index would point at a different row and the new
+      // count would land on the wrong variant.
+      variants: previous.variants.map((variant) =>
+        variant.id === variantId ? { ...variant, stock: String(stock) } : variant,
+      ),
+    }));
+  };
+
   const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
 
   useEffect(() => {
@@ -140,7 +112,6 @@ export function AdminProductDetailPage() {
         });
         resetImages(product.image_urls ?? []);
       } catch (error) {
-        console.error("Failed to load product", error);
         setSaveError(
           error instanceof Error ? error.message : "Failed to load product."
         );
@@ -150,70 +121,31 @@ export function AdminProductDetailPage() {
     };
 
     void loadProduct();
-  }, [isEditMode, productId, resetImages]);
-
-  const handleFieldChange = (
-    field: keyof AdminProductForm,
-    value: string
-  ) => {
-    if (formErrors[field]) setFormErrors((prev) => { const next = { ...prev }; delete next[field]; return next; });
-    if (saveError) setSaveError(null);
-    setForm((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleVariantChange = (
-    index: number,
-    field: keyof AdminVariantForm,
-    value: string
-  ) => {
-    const key = `variant_${index}_${field}` as string;
-    if (formErrors[key]) setFormErrors((prev) => { const next = { ...prev }; delete next[key]; return next; });
-    if (saveError) setSaveError(null);
-    setForm((prev) => ({
-      ...prev,
-      variants: prev.variants.map((variant, i) =>
-        i === index ? { ...variant, [field]: value } : variant
-      ),
-    }));
-  };
-
-  const handleAddVariant = () => {
-    setForm((prev) => ({ ...prev, variants: [...prev.variants, createEmptyVariant()] }));
-  };
-
-  const handleRemoveVariant = (index: number) => {
-    setForm((prev) => ({
-      ...prev,
-      variants: prev.variants.filter((_, i) => i !== index),
-    }));
-    setFormErrors((prev) => {
-      const next = { ...prev };
-      Object.keys(next).forEach((key) => {
-        const m = key.match(/^variant_(\d+)_/);
-        if (!m) return;
-        const vi = parseInt(m[1], 10);
-        if (vi === index) {
-          delete next[key];
-        } else if (vi > index) {
-          next[key.replace(`variant_${vi}_`, `variant_${vi - 1}_`)] = next[key];
-          delete next[key];
-        }
-      });
-      return next;
-    });
-  };
-
-  const handleToggleTag = (tagId: string) => {
-    setForm((prev) => ({
-      ...prev,
-      tag_ids: prev.tag_ids.includes(tagId)
-        ? prev.tag_ids.filter((id) => id !== tagId)
-        : [...prev.tag_ids, tagId],
-    }));
-  };
+  // setForm is a useState setter and never changes identity, but it now
+  // arrives from a custom hook where the linter cannot see that - and being
+  // right by accident is not worth the suppression.
+  }, [isEditMode, productId, resetImages, setForm]);
 
   const pendingFocus = useRef<string | null>(null);
   const imageGridRef = useRef<HTMLDivElement>(null);
+
+  /*
+   * Saved and pending images share one grid, so they share one index space:
+   * pending tiles sit at savedCount + i.
+   *
+   * A drag that crosses between them is ignored rather than reinterpreted. A
+   * chosen file has no URL until it has been uploaded, so it cannot take a
+   * place among the saved ones - and silently dropping it back where it started
+   * is more honest than appearing to move it and then not.
+   */
+  const drag = useDragReorder((from, to) => {
+    const savedCount = images.displayedUrls.length;
+    const bothSaved = from < savedCount && to < savedCount;
+    const bothPending = from >= savedCount && to >= savedCount;
+
+    if (bothSaved) images.reorder(from, to);
+    else if (bothPending) images.reorderPending(from - savedCount, to - savedCount);
+  }, imageGridRef);
 
   // Applied after the reorder renders, since the button to focus does not exist
   // under that label until then.
@@ -254,9 +186,7 @@ export function AdminProductDetailPage() {
   const handleSave = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    const errors = validateForm(form);
-    if (Object.keys(errors).length > 0) {
-      setFormErrors(errors);
+    if (!validate()) {
       showReminder({ message: "Please fix errors in the form!" });
       return;
     }
@@ -276,7 +206,12 @@ export function AdminProductDetailPage() {
           size_value: Number(variant.size_value),
           size_unit: variant.size_unit.trim(),
           price: Number(variant.price),
-          stock: Number(variant.stock),
+          // Only for a variant being inserted, which has no count to adjust
+          // yet. Sending it on an existing one is rejected by the server, and
+          // for good reason: this payload was read before the admin started
+          // typing, so it would overwrite whatever sold while the page was
+          // open. Restocking goes through adjustVariantStock.
+          ...(variant.id ? {} : { stock: Number(variant.stock) }),
         })),
       };
 
@@ -292,7 +227,20 @@ export function AdminProductDetailPage() {
         // Product was created in a previous attempt — just update it.
         await updateProduct(pendingProductId, payload);
       } else {
-        const created = await createProduct(payload);
+        // Built separately, because create requires an opening count on every
+        // variant and the shared payload only carries one where there is no id.
+        // Nothing here has an id - the product does not exist yet - but that is
+        // a fact about this branch, not something the shared shape can state.
+        const created = await createProduct({
+          ...payload,
+          variants: form.variants.map((variant) => ({
+            catalog_id: variant.catalog_id.trim(),
+            size_value: Number(variant.size_value),
+            size_unit: variant.size_unit.trim(),
+            price: Number(variant.price),
+            stock: Number(variant.stock),
+          })),
+        });
         setPendingProductId(created.id);
         targetId = created.id;
       }
@@ -305,7 +253,6 @@ export function AdminProductDetailPage() {
 
       navigate("/admin/products");
     } catch (error) {
-      console.error("Failed to save product", error);
       setSaveError(
         error instanceof Error ? error.message : "Failed to save product."
       );
@@ -323,7 +270,6 @@ export function AdminProductDetailPage() {
       await deleteProduct(productId);
       navigate("/admin/products");
     } catch (error) {
-      console.error("Failed to delete product", error);
       setSaveError(
         error instanceof Error ? error.message : "Failed to delete product."
       );
@@ -361,6 +307,13 @@ export function AdminProductDetailPage() {
             <button
               type="button"
               className={styles.deleteButton}
+              // Every way off this page is shut while a stock request is in
+              // flight, not just the dialog's own. The dialog has no focus trap
+              // and the page behind it is not inert, so a keyboard admin can
+              // tab out to any of these and leave - and unmounting the page
+              // drops the adjustment's answer on the floor: no error, no
+              // change, and every reason to think it worked.
+              disabled={adjustBusy}
               onClick={() => setConfirmDeleteOpen(true)}
             >
               Delete Product
@@ -495,11 +448,26 @@ export function AdminProductDetailPage() {
 
             <div className={styles.imageGrid} ref={imageGridRef}>
               {images.displayedUrls.map((url, i) => (
-                <div key={url} className={styles.imageItem}>
+                <div
+                  key={url}
+                  className={`${styles.imageItem} ${
+                    drag.draggingIndex === i ? styles.imageItemDragging : ""
+                  }`}
+                  {...drag.tileProps(i)}
+                >
+                  {/*
+                    draggable={false} because the browser has a drag of its own.
+                    An <img> is natively draggable, so pressing one starts the
+                    HTML5 drag: a translucent copy of the picture follows the
+                    cursor anywhere on screen, and it fights the pointer-event
+                    reorder underneath it. Turning it off leaves exactly one
+                    drag in play - ours.
+                  */}
                   <img
                     src={url}
                     alt={`Product image ${i + 1}`}
                     className={styles.imageThumb}
+                    draggable={false}
                   />
                   {i === 0 ? (
                     <span className={styles.primaryBadge}>Primary</span>
@@ -554,7 +522,15 @@ export function AdminProductDetailPage() {
               ))}
 
               {images.pendingFiles.map(({ previewUrl }, i) => (
-                <div key={previewUrl} className={styles.imageItem}>
+                <div
+                  key={previewUrl}
+                  className={`${styles.imageItem} ${
+                    drag.draggingIndex === images.displayedUrls.length + i
+                      ? styles.imageItemDragging
+                      : ""
+                  }`}
+                  {...drag.tileProps(images.displayedUrls.length + i)}
+                >
                   <img
                     src={previewUrl}
                     alt={`Pending image ${i + 1}`}
@@ -586,159 +562,51 @@ export function AdminProductDetailPage() {
           </section>
         </div>
 
-        <section className={styles.section}>
-          <div className={styles.variantHeader}>
-            <h2 className={styles.sectionTitle}>Variants</h2>
-            <button
-              type="button"
-              className={styles.addVariantButton}
-              onClick={handleAddVariant}
-            >
-              Add Variant
-            </button>
-          </div>
-
-          {form.variants.length === 0 ? (
-            <div
-              style={{
-                padding: 16,
-                border: "1px dashed #d0d5dd",
-                borderRadius: 8,
-                color: "#667085",
-              }}
-            >
-              No variants yet. Click "Add Variant" to create one.
-            </div>
-          ) : (
-            <div className={styles.variantList}>
-              {form.variants.map((variant, index) => (
-                <div key={variant.id ?? `new-${index}`} className={styles.variantCard}>
-                  <div className={styles.variantCardHeader}>
-                    <h3 className={styles.variantTitle}>Variant {index + 1}</h3>
-                    <button
-                      type="button"
-                      className={styles.removeVariantButton}
-                      onClick={() => handleRemoveVariant(index)}
-                    >
-                      Remove
-                    </button>
-                  </div>
-
-                  {/*
-                    No variant id field. It is a uuid the admin cannot act on -
-                    read-only, and on a new variant it only ever said
-                    "auto-generated". The catalog id is the identifier this
-                    business actually uses. The id is still carried in form
-                    state and in the payload, because update_product reconciles
-                    variants by it.
-                  */}
-                  <div className={styles.variantGrid}>
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-variant-catalog-id-${index}`}>Catalog ID</label>
-                      <input
-                        id={`product-variant-catalog-id-${index}`}
-                        className={`${styles.input} ${formErrors[`variant_${index}_catalog_id`] ? styles.inputError : ""}`}
-                        type="text"
-                        value={variant.catalog_id}
-                        onChange={(e) =>
-                          handleVariantChange(index, "catalog_id", e.target.value)
-                        }
-                        placeholder="Enter catalog ID"
-                      />
-                      {formErrors[`variant_${index}_catalog_id`] && (
-                        <p className={styles.fieldError}>{formErrors[`variant_${index}_catalog_id`]}</p>
-                      )}
-                    </div>
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-size-value-${index}`}>Size Value</label>
-                      <input
-                        id={`product-size-value-${index}`}
-                        className={`${styles.input} ${formErrors[`variant_${index}_size_value`] ? styles.inputError : ""}`}
-                        type="number"
-                        value={variant.size_value}
-                        onChange={(e) =>
-                          handleVariantChange(index, "size_value", e.target.value)
-                        }
-                        placeholder="10"
-                      />
-                      {formErrors[`variant_${index}_size_value`] && (
-                        <p className={styles.fieldError}>{formErrors[`variant_${index}_size_value`]}</p>
-                      )}
-                    </div>
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-size-unit-${index}`}>Size Unit</label>
-                      <input
-                        id={`product-size-unit-${index}`}
-                        className={`${styles.input} ${formErrors[`variant_${index}_size_unit`] ? styles.inputError : ""}`}
-                        type="text"
-                        value={variant.size_unit}
-                        onChange={(e) =>
-                          handleVariantChange(index, "size_unit", e.target.value)
-                        }
-                        placeholder="mL"
-                      />
-                      {formErrors[`variant_${index}_size_unit`] && (
-                        <p className={styles.fieldError}>{formErrors[`variant_${index}_size_unit`]}</p>
-                      )}
-                    </div>
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-price-${index}`}>Price</label>
-                      <input
-                        id={`product-price-${index}`}
-                        className={`${styles.input} ${formErrors[`variant_${index}_price`] ? styles.inputError : ""}`}
-                        type="number"
-                        step="0.01"
-                        value={variant.price}
-                        onChange={(e) =>
-                          handleVariantChange(index, "price", e.target.value)
-                        }
-                        placeholder="99.99"
-                      />
-                      {formErrors[`variant_${index}_price`] && (
-                        <p className={styles.fieldError}>{formErrors[`variant_${index}_price`]}</p>
-                      )}
-                    </div>
-
-                    <div className={styles.fieldGroup}>
-                      <label className={styles.label} htmlFor={`product-stock-${index}`}>Stock</label>
-                      <input
-                        id={`product-stock-${index}`}
-                        className={`${styles.input} ${formErrors[`variant_${index}_stock`] ? styles.inputError : ""}`}
-                        type="number"
-                        value={variant.stock}
-                        onChange={(e) =>
-                          handleVariantChange(index, "stock", e.target.value)
-                        }
-                        placeholder="100"
-                      />
-                      {formErrors[`variant_${index}_stock`] && (
-                        <p className={styles.fieldError}>{formErrors[`variant_${index}_stock`]}</p>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </section>
+        <VariantsSection
+          form={form}
+          formErrors={formErrors}
+          adjustBusy={adjustBusy}
+          onVariantChange={handleVariantChange}
+          onAddVariant={handleAddVariant}
+          onRemoveVariant={handleRemoveVariant}
+          onAdjustStock={setRestockingVariantId}
+        />
 
         <div className={styles.footerActions}>
           <button
             type="button"
             className={styles.cancelButton}
+            disabled={adjustBusy}
             onClick={() => navigate("/admin/products")}
           >
             Cancel
           </button>
 
-          <button type="submit" className={styles.saveButton}>
+          <button type="submit" className={styles.saveButton} disabled={adjustBusy}>
             {isEditMode ? "Save Changes" : "Create Product"}
           </button>
         </div>
       </form>
+
+      {restockingVariantId !== null && (
+        <StockAdjustDialog
+          // Keyed by the variant, so switching between them remounts rather
+          // than rebinding. Without it React reconciles the same instance and
+          // its delta, reason and error survive the change - and the page
+          // behind is not inert and has no focus trap, so an admin can tab from
+          // this dialog to another variant's Adjust button and press Enter.
+          // That is exactly the carry-over the extraction was meant to make
+          // impossible, and moving the state into the component did not on its
+          // own achieve it.
+          key={restockingVariantId}
+          productId={productId!}
+          variantId={restockingVariantId}
+          onAdjusted={recordAdjustedStock}
+          onBusyChange={setAdjustBusy}
+          onClose={() => setRestockingVariantId(null)}
+        />
+      )}
+
 
       <ConfirmDialog
         isOpen={confirmDeleteOpen}

@@ -31,7 +31,6 @@ export function AdminProductsPage() {
         const data = await getAdminProducts();
         setProducts(data);
       } catch (error) {
-        console.error("Failed to load products", error);
         setLoadError(error instanceof Error ? error.message : "Failed to load products");
       } finally {
         setLoading(false);
@@ -99,8 +98,7 @@ export function AdminProductsPage() {
         prev.filter((product) => !idsToDelete.includes(product.id))
       );
       setSelectedProductIds([]);
-    } catch (error) {
-      console.error("Failed to delete selected products", error);
+    } catch {
       showReminder({ message: "Failed to delete some products. Please try again." });
     } finally {
       setDeleting(false);

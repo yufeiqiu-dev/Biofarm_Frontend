@@ -149,7 +149,14 @@ export function OrdersPage() {
             <div className={styles.cardBottom}>
               <span className={styles.itemSummary}>{itemSummary(order)}</span>
               <div className={styles.totalRow}>
-                <span className={styles.total}>${(order.total_amount + order.tax_amount).toFixed(2)}</span>
+                {/*
+                  Shipping included, so this agrees with the detail page for the
+                  same order. It did not: the list said $27.18 and the row you
+                  tapped through to said $33.17.
+                */}
+                <span className={styles.total}>
+                  ${(order.total_amount + order.shipping_amount + order.tax_amount).toFixed(2)}
+                </span>
                 <span className={styles.arrow}>›</span>
               </div>
             </div>

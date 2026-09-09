@@ -12,7 +12,7 @@ function stats(overrides: Partial<AdminStats> = {}): AdminStats {
   return {
     timezone: 'America/New_York',
     generated_at: new Date().toISOString(),
-    queue: { to_confirm: 0, to_ship: 0, in_transit: 0, oldest_awaiting_hours: null, queue_value: 0 },
+    queue: { to_confirm: 0, to_ship: 0, in_transit: 0, oldest_awaiting_hours: null, queue_value: 0, authorization_expiring: 0, authorization_expired: 0 },
     volume: { today: 0, last_7_days: 0, last_30_days: 0, all_time: 0 },
     top_products: [],
     daily: [],
@@ -50,7 +50,7 @@ describe('AdminDashboardPage', () => {
     // The age is the point. Three to confirm is a normal morning; one that has
     // sat two days is a customer wondering whether the shop is real.
     getStats.mockResolvedValue(
-      stats({ queue: { to_confirm: 3, to_ship: 1, in_transit: 2, oldest_awaiting_hours: 50, queue_value: 0 } }),
+      stats({ queue: { to_confirm: 3, to_ship: 1, in_transit: 2, oldest_awaiting_hours: 50, queue_value: 0, authorization_expiring: 0, authorization_expired: 0 } }),
     );
     render();
 
@@ -61,7 +61,7 @@ describe('AdminDashboardPage', () => {
 
   it('sends you to the orders that need the action', async () => {
     getStats.mockResolvedValue(
-      stats({ queue: { to_confirm: 2, to_ship: 4, in_transit: 0, oldest_awaiting_hours: 2, queue_value: 0 } }),
+      stats({ queue: { to_confirm: 2, to_ship: 4, in_transit: 0, oldest_awaiting_hours: 2, queue_value: 0, authorization_expiring: 0, authorization_expired: 0 } }),
     );
     render();
 
@@ -245,7 +245,7 @@ describe('AdminDashboardPage chart and queue value', () => {
   it('prices the queue so an afternoon is distinguishable from ten minutes', async () => {
     getStats.mockResolvedValue(
       stats({
-        queue: { to_confirm: 3, to_ship: 1, in_transit: 0, oldest_awaiting_hours: 5, queue_value: 1840 },
+        queue: { to_confirm: 3, to_ship: 1, in_transit: 0, oldest_awaiting_hours: 5, queue_value: 1840, authorization_expiring: 0, authorization_expired: 0 },
       }),
     );
     render();
@@ -256,7 +256,7 @@ describe('AdminDashboardPage chart and queue value', () => {
   it('points at Stripe for anything that is actually money', async () => {
     getStats.mockResolvedValue(
       stats({
-        queue: { to_confirm: 1, to_ship: 0, in_transit: 0, oldest_awaiting_hours: 1, queue_value: 50 },
+        queue: { to_confirm: 1, to_ship: 0, in_transit: 0, oldest_awaiting_hours: 1, queue_value: 50, authorization_expiring: 0, authorization_expired: 0 },
       }),
     );
     render();
@@ -365,5 +365,99 @@ describe('AdminDashboardPage review fixes', () => {
     render();
 
     expect(await screen.findByText(/nothing waiting/i)).toBeInTheDocument();
+  });
+});
+
+describe('AdminDashboardPage card holds', () => {
+  beforeEach(() => {
+    getStats.mockReset();
+  });
+
+  it('warns when a hold is about to lapse', async () => {
+    getStats.mockResolvedValue(
+      stats({
+        queue: {
+          to_confirm: 2, to_ship: 0, in_transit: 0,
+          oldest_awaiting_hours: 140, queue_value: 400,
+          authorization_expiring: 2, authorization_expired: 0,
+        },
+      }),
+    );
+    render();
+
+    expect(await screen.findByText('Card holds expiring')).toBeInTheDocument();
+    expect(screen.getByText(/act or they lapse/i)).toBeInTheDocument();
+  });
+
+  it('stays quiet when nothing is close', async () => {
+    // An always-present zero tile is noise, and this one is meant to alarm.
+    getStats.mockResolvedValue(
+      stats({
+        queue: {
+          to_confirm: 1, to_ship: 0, in_transit: 0,
+          oldest_awaiting_hours: 3, queue_value: 100,
+          authorization_expiring: 0, authorization_expired: 0,
+        },
+      }),
+    );
+    render();
+
+    await screen.findByText('To confirm');
+    expect(screen.queryByText('Card holds expiring')).not.toBeInTheDocument();
+  });
+});
+
+describe('AdminDashboardPage review-pass-2 fixes', () => {
+  beforeEach(() => {
+    getStats.mockReset();
+  });
+
+  it('does not say "nothing waiting" while a hold has lapsed', async () => {
+    // The counts also span `pending` orders, which contribute to neither
+    // to_confirm nor to_ship - so the gate hid a red alarm behind "Nothing
+    // waiting. Every order is on its way."
+    getStats.mockResolvedValue(
+      stats({
+        queue: {
+          to_confirm: 0, to_ship: 0, in_transit: 0,
+          oldest_awaiting_hours: null, queue_value: 0,
+          authorization_expiring: 0, authorization_expired: 1,
+        },
+      }),
+    );
+    render();
+
+    expect(await screen.findByText('Card holds expired')).toBeInTheDocument();
+    expect(screen.queryByText(/nothing waiting/i)).not.toBeInTheDocument();
+  });
+
+  it('sends card-hold tiles to a list of exactly that cohort', async () => {
+    /*
+     * status=all was not enough, and chasing which statuses the count spanned
+     * was the wrong question. It agreed with the count about membership and not
+     * about findability: the order list is newest-first, 50 to a page, with no
+     * age filter or sort, and these are by definition the oldest live orders.
+     * Past 50 orders in five days the admin clicked a red tile reading "3" and
+     * landed on a page that could not contain any of the three.
+     */
+    getStats.mockResolvedValue(
+      stats({
+        queue: {
+          to_confirm: 1, to_ship: 0, in_transit: 0,
+          oldest_awaiting_hours: 130, queue_value: 90,
+          authorization_expiring: 1, authorization_expired: 2,
+        },
+      }),
+    );
+    render();
+
+    expect(
+      await screen.findByRole('link', { name: /card holds expiring/i }),
+    ).toHaveAttribute('href', '/admin/orders?hold=expiring');
+    // Two cohorts, two lists: the advice is opposite, so one list showing both
+    // would tell half the admins the wrong thing.
+    expect(
+      await screen.findByRole('link', { name: /card holds expired/i }),
+    ).toHaveAttribute('href', '/admin/orders?hold=expired');
   });
 });

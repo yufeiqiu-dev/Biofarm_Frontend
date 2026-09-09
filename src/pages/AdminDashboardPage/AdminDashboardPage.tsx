@@ -89,7 +89,15 @@ export function AdminDashboardPage() {
   }
 
   const { queue, volume, top_products, catalogue, daily } = stats;
-  const nothingWaiting = queue.to_confirm === 0 && queue.to_ship === 0;
+  // The card-hold counts belong in this gate too. They also span `pending`
+  // orders, which contribute to neither count above - so a lapsed hold on one
+  // rendered "Nothing waiting. Every order is on its way." with the red alarm
+  // suppressed behind it.
+  const nothingWaiting =
+    queue.to_confirm === 0 &&
+    queue.to_ship === 0 &&
+    (queue.authorization_expiring ?? 0) === 0 &&
+    (queue.authorization_expired ?? 0) === 0;
 
   return (
     <div className={styles.page}>
@@ -130,6 +138,47 @@ export function AdminDashboardPage() {
               value={queue.in_transit}
               to="/admin/orders?status=shipped"
             />
+            {/*
+              Only when there is something to say. Checkout authorises and the
+              money moves when an admin confirms; Stripe releases an uncaptured
+              hold after about a week - so these are orders that will fail at
+              capture, with their stock reserved the whole time.
+            */}
+            {/*
+              ?hold=, not ?status=. The link used to be status=all and spent
+              three revisions chasing whichever statuses the count happened to
+              span - which was the wrong question. status=all agreed with the
+              count about membership and not about findability: the list is
+              newest-first, 50 to a page, with no age filter, and these are by
+              definition the oldest live orders. Past 50 orders in five days the
+              admin landed on a page that could not contain any of them.
+
+              The backend now serves this exact cohort from the same window the
+              tile counts, so the two cannot drift apart again.
+            */}
+            {(queue.authorization_expiring ?? 0) > 0 && (
+              <Tile
+                label="Card holds expiring"
+                value={queue.authorization_expiring ?? 0}
+                to="/admin/orders?hold=expiring"
+                hint="act or they lapse"
+                urgent
+              />
+            )}
+            {/*
+              Separate from the above, because the advice is the opposite.
+              Shipping one of these fails at capture - the hold is already gone,
+              so the honest action is to cancel and return the stock.
+            */}
+            {(queue.authorization_expired ?? 0) > 0 && (
+              <Tile
+                label="Card holds expired"
+                value={queue.authorization_expired ?? 0}
+                to="/admin/orders?hold=expired"
+                hint="capture will fail"
+                urgent
+              />
+            )}
           </div>
         )}
 

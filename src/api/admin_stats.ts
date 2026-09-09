@@ -7,6 +7,17 @@ export interface AdminQueue {
   /** null when nothing is waiting. */
   oldest_awaiting_hours: number | null;
   /**
+   * Unshipped orders whose card hold lapses within the warning window, and
+   * those whose hold has already lapsed.
+   *
+   * Optional for the reason the order field is: the repos deploy independently,
+   * so a frontend ahead of its backend receives these absent. Declared required,
+   * `undefined === 0` is false forever - and the dashboard rendered three zero
+   * tiles instead of saying nothing was waiting.
+   */
+  authorization_expiring?: number;
+  authorization_expired?: number;
+  /**
    * Everything unshipped, priced pre-tax - awaiting_fulfillment and confirmed
    * together, which is why it is named for the queue rather than for
    * "awaiting": the two fields above mean awaiting_fulfillment alone.
