@@ -1,6 +1,4 @@
 import { useCartSideBar } from "../../context/useCartSideBar";
-import { useAuth } from "../../auth/useAuth";
-import { useReminder } from "../../context/useReminder";
 import type { AddToCartItem } from "../../types/cart_types";
 import shared from "../../styles/shared.module.css";
 
@@ -21,18 +19,14 @@ interface Props {
 
 export function AddToCartButton({ item, available }: Props) {
   const { openCartSideBar, addToCart, cartItems } = useCartSideBar();
-  const { user } = useAuth();
-  const { showReminder } = useReminder();
 
   const soldOut = available === 0;
   const inCart = cartItems.some((cartItem) => cartItem.variantId === item.variantId);
 
+  // No sign-in gate: the basket is local-first, so a guest can build one same
+  // as anyone else. They are only asked to sign in at checkout, once there is
+  // something worth carrying across a device - see CartPage.handleCheckout.
   const handleAddToCart = () => {
-    if (!user) {
-      showReminder({ message: "Please sign in before adding items to your cart." });
-      return;
-    }
-
     if (soldOut) return;
 
     if (inCart) {

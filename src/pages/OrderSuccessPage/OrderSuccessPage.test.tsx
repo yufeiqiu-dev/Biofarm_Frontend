@@ -8,6 +8,7 @@ import { AuthContext, type AuthContextValue } from '../../auth/useAuth';
 import { ReminderContext } from '../../context/useReminder';
 import { createMockUser } from '../../test/mocks/mockUser';
 import { setupLocalStorageStub } from '../../test/localStorageStub';
+import { getCart } from '../../api/cart';
 
 vi.mock('../../api/order', () => ({
   getMyOrderByPaymentIntent: vi.fn(),
@@ -65,16 +66,12 @@ function auth(overrides: Partial<AuthContextValue>): AuthContextValue {
   } as AuthContextValue;
 }
 
-/**
- * The saved cart, as items. clearCart removes the key and the provider's
- * persistence effect writes an empty array straight back - both mean "no cart",
- * so asserting on the items rather than on the key avoids pinning an
- * implementation detail that does not matter.
+/*
+ * The basket is local-first: clearCart tombstones every line synchronously, so
+ * `cartItems` dropping to zero is itself the assertion that matters, not a
+ * downstream API call whose timing (a debounce, a tab-hide) is not this page's
+ * concern - see CartSideBarContext for where that push actually happens.
  */
-function savedCartItems(): unknown[] {
-  const raw = localStorage.getItem(`cart:${user.user_id}`);
-  return raw ? JSON.parse(raw) : [];
-}
 
 function CartProbe() {
   const { cartItems } = useCartSideBar();
@@ -111,22 +108,28 @@ describe('OrderSuccessPage clearing the cart', () => {
   setupLocalStorageStub();
 
   beforeEach(() => {
-    localStorage.setItem(
-      `cart:${user.user_id}`,
-      JSON.stringify([
-        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
-      ]),
-    );
+    vi.mocked(getCart).mockResolvedValue({
+      items: [
+        {
+          variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
+          size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
+          available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
+        },
+      ],
+      subtotal: 285,
+      unavailable: [],
+    });
   });
 
   it('empties the cart once the order is confirmed', async () => {
     fetchOrder.mockResolvedValue(anOrder());
     renderAt(auth({ user, isAuthenticated: true }));
 
-    await waitFor(() => {
-      expect(screen.getByTestId('count')).toHaveTextContent('0');
-    });
-    expect(savedCartItems()).toEqual([]);
+    // The basket loads first, so its disappearance is a real change rather
+    // than the state it started in.
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('0'));
   });
 
   it('still empties it when the session resolves after the redirect', async () => {
@@ -148,10 +151,10 @@ describe('OrderSuccessPage clearing the cart', () => {
       </MemoryRouter>,
     );
 
-    await waitFor(() => {
-      expect(screen.getByTestId('count')).toHaveTextContent('0');
-    });
-    expect(savedCartItems()).toEqual([]);
+    // The basket loads first, so its disappearance is a real change rather
+    // than the state it started in.
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('0'));
   });
 });
 
@@ -169,12 +172,18 @@ describe('OrderSuccessPage when no order ever appears', () => {
   setupLocalStorageStub();
 
   beforeEach(() => {
-    localStorage.setItem(
-      `cart:${user.user_id}`,
-      JSON.stringify([
-        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
-      ]),
-    );
+    vi.mocked(getCart).mockResolvedValue({
+      items: [
+        {
+          variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
+          size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
+          available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
+        },
+      ],
+      subtotal: 285,
+      unavailable: [],
+    });
     fetchOrder.mockRejectedValue(new Error('not found'));
   });
 
@@ -208,8 +217,10 @@ describe('OrderSuccessPage when no order ever appears', () => {
 
     await screen.findByRole('heading', { name: /couldn.t confirm your order/i }, { timeout: 15000 });
 
-    expect(screen.getByTestId('count')).toHaveTextContent('1');
-    expect(savedCartItems()).toHaveLength(1);
+    // The basket is still there, and untouched on the server. Losing it to a
+    // checkout that never produced an order would be worse than the problem
+    // saving it server-side was meant to solve.
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
   }, 20000);
 });
 
@@ -227,12 +238,18 @@ describe('OrderSuccessPage in bypass mode', () => {
   setupLocalStorageStub();
 
   beforeEach(() => {
-    localStorage.setItem(
-      `cart:${user.user_id}`,
-      JSON.stringify([
-        { id: 'p1-v1', productId: 'p1', variantId: 'v1', name: 'Anti-Tau', imageUrl: '', catalogNumber: 'AB-101-50', sizeLabel: '50ug', unitPrice: 285, quantity: 1 },
-      ]),
-    );
+    vi.mocked(getCart).mockResolvedValue({
+      items: [
+        {
+          variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
+          size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
+          available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
+        },
+      ],
+      subtotal: 285,
+      unavailable: [],
+    });
   });
 
   function renderWithOrderId(authValue: AuthContextValue) {

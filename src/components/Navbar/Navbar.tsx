@@ -3,7 +3,6 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { SearchBar } from "../SearchBar";
 import { useCartSideBar } from "../../context/useCartSideBar";
-import { useReminder } from "../../context/useReminder";
 import styles from "./Navbar.module.css";
 
 function getInitials(name: string): string {
@@ -19,7 +18,6 @@ export function Navbar() {
   const { user, signIn, signOut } = useAuth();
   const [menuOpen, setMenuOpen] = useState(false);
   const [showBottomRow, setShowBottomRow] = useState(true);
-  const { showReminder } = useReminder();
   const { toggleCartSideBar } = useCartSideBar();
   const accountWrapperRef = useRef<HTMLDivElement>(null);
 
@@ -71,18 +69,12 @@ export function Navbar() {
   };
 
   const handleCartClick = () => {
-    // Originally this navigated to "/signin", a route that has never existed -
-    // sign-in is Cognito's hosted UI - so it landed on the 404 page.
-    //
-    // Redirecting straight to that hosted UI was the obvious repair and was
-    // worse: a click on the cart icon threw the shopper out to an external page
-    // without asking. AddToCartButton already had the right answer for the same
-    // situation, so this matches it - say what is needed and leave them where
-    // they are. The Sign in button is right beside this one when they want it.
-    if (!user) {
-      showReminder({ message: "Please sign in to see your cart." });
-      return;
-    }
+    // The basket is local-first and open to guests - a signed-out visitor can
+    // build one and see it here, same as anyone else. Signing in is only
+    // prompted at checkout, once there is something worth carrying across a
+    // device. (This used to navigate to "/signin", a route that never existed,
+    // then to gate on `!user` with a reminder - both from when the basket
+    // lived on the server and a guest had nothing to show.)
     toggleCartSideBar();
   };
 

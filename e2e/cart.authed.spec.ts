@@ -3,9 +3,14 @@ import { test, expect, type Page } from "@playwright/test";
 /**
  * The cart, signed in as the seeded test account.
  *
- * The cart is client-side and persisted per user under `cart:{user_id}`, so the
- * interesting behaviour is what survives a reload - which is where the bug lived
- * where a paid-for cart came back out of storage after checkout.
+ * The basket is kept on the server against the customer's sub, so the
+ * interesting behaviour is what survives a reload - and now a different device
+ * entirely, which is why it moved off localStorage.
+ *
+ * That also means it survives between runs of this file. Each test empties it
+ * first: localStorage used to hand every run a clean basket for free, and
+ * without replacing that these specs inherited whatever the last one left and
+ * failed looking for an "Add to cart" button that read "In cart".
  */
 
 /**
@@ -28,6 +33,26 @@ function navbarCartButton(page: Page) {
   // the panel, which is a strict-mode violation rather than a useful locator.
   return page.getByRole("banner").getByRole("button", { name: /cart/i });
 }
+
+/** Leaves the account with an empty basket, whatever the last run left. */
+async function emptyTheCart(page: Page) {
+  await page.goto("/cart");
+
+  // The page is fetched now, so wait for it to settle before deciding it is
+  // empty - otherwise this races the load and removes nothing.
+  const remove = page.getByRole("button", { name: /remove/i });
+  await expect(async () => {
+    const count = await remove.count();
+    if (count > 0) {
+      await remove.first().click();
+    }
+    expect(await remove.count()).toBe(0);
+  }).toPass({ timeout: 20000 });
+}
+
+test.beforeEach(async ({ page }) => {
+  await emptyTheCart(page);
+});
 
 async function addFirstAvailableProduct(page: Page) {
   await page.goto("/products");
