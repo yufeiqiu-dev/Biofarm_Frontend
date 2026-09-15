@@ -1,14 +1,22 @@
+import { useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../auth/useAuth";
 import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../../components/CartProductCard";
-import { PageLoading } from "../../components/LoadingSpinner";
 import styles from "./CartPage.module.css";
 
 export function CartPage() {
-  const { cartItems, loading, failed, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
+  const { cartItems, unavailable, refreshCart, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
   const { isAuthenticated, signIn } = useAuth();
   const navigate = useNavigate();
+
+  // The cart page is one of the two pull points the design doc calls for (the
+  // other is signing in, handled inside the provider itself) - opening it
+  // re-reconciles against the server rather than trusting whatever this
+  // device happened to have on mount. A no-op for a guest.
+  useEffect(() => {
+    void refreshCart();
+  }, [refreshCart]);
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -21,61 +29,17 @@ export function CartPage() {
     navigate("/checkout");
   };
 
-  if (loading) {
-    // The basket is fetched now, so it is briefly empty on every load. Showing
-    // "your cart is empty" in that window is a dead end a customer can act on
-    // before their basket has even arrived.
-    return (
-      <div className={styles.page}>
-        <PageLoading label="Loading your cart…" />
-      </div>
-    );
-  }
-
-  if (failed) {
-    // Not "empty". Sending someone off to browse for things they have already
-    // chosen is worse than admitting we could not read their basket.
-    return (
-      <div className={styles.page}>
-        <div className={styles.empty}>
-          <div className={styles.emptyIcon}>🛒</div>
-          <p>We could not load your cart just now.</p>
-          <button
-            type="button"
-            className={styles.shopLink}
-            onClick={() => window.location.reload()}
-          >
-            Try again
-          </button>
-        </div>
-      </div>
-    );
-  }
-
   if (cartItems.length === 0) {
-    // A signed-out shopper always sees an empty cart - it is kept per customer
-    // on the server and is not this browser's to show - so "your cart is
-    // empty" is true but unhelpful, and offering only "browse products" makes
-    // this a dead end for someone who had items a moment ago. Say which of the
-    // two situations they are in.
+    // The basket is local-first, so a guest can have built one same as anyone
+    // else - it is just this browser's, not carried anywhere yet. Empty here
+    // means empty, for both; the difference between a guest and a signed-in
+    // customer only matters once they try to check out.
     return (
       <div className={styles.page}>
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>🛒</div>
-          {isAuthenticated ? (
-            <>
-              <p>Your cart is empty.</p>
-              <Link to="/products" className={styles.shopLink}>Browse Products</Link>
-            </>
-          ) : (
-            <>
-              <p>Sign in to see your cart.</p>
-              <button className={styles.shopLink} onClick={() => void signIn()}>
-                Sign in
-              </button>
-              <p className={styles.signInNote}>You'll be redirected back after signing in.</p>
-            </>
-          )}
+          <p>Your cart is empty.</p>
+          <Link to="/products" className={styles.shopLink}>Browse Products</Link>
         </div>
       </div>
     );
@@ -84,6 +48,20 @@ export function CartPage() {
   return (
     <div className={styles.page}>
       <h1 className={styles.heading}>Your Cart</h1>
+
+      {/*
+        Said here rather than discovered at the Review step. The sidebar shows
+        the same notice; a customer who navigates straight to /cart never sees
+        that one.
+      */}
+      {unavailable.length > 0 && (
+        <p className={styles.unavailableNotice} role="status">
+          {unavailable.length === 1
+            ? `${unavailable[0]} is no longer available in the quantity you wanted.`
+            : `${unavailable.length} items are no longer available in the quantities you wanted.`}{" "}
+          Adjust them before checking out.
+        </p>
+      )}
 
       <div className={styles.layout}>
         <div className={styles.itemsPanel}>

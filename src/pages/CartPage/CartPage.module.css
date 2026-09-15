@@ -9,6 +9,21 @@
   font-size: 1.5rem;
 }
 
+/*
+ * The stock warning, matching the sidebar's. The server reports it on every
+ * read of the basket; without it here the customer's first signal on the cart
+ * page was a 400 from the Review step.
+ */
+.unavailableNotice {
+  margin: 0 0 1.5rem;
+  padding: 0.7rem 1rem;
+  background: var(--danger-wash);
+  border-left: 3px solid var(--danger);
+  color: var(--status-cancelled-text);
+  font-size: 0.85rem;
+  line-height: 1.45;
+}
+
 /* ── Empty ── */
 
 .empty {

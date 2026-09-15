@@ -4,6 +4,14 @@ import userEvent from '@testing-library/user-event';
 import { Navbar } from './Navbar';
 import { renderWithProviders } from '../../test/renderWithProviders';
 import { createMockUser } from '../../test/mocks/mockUser';
+import { useCartSideBar } from '../../context/useCartSideBar';
+
+/** Surfaces the sidebar's open flag - the Navbar toggles it but does not
+ * render the sidebar itself. */
+function CartOpenProbe() {
+  const { isOpen } = useCartSideBar();
+  return <span data-testid="cart-open">{String(isOpen)}</span>;
+}
 
 // The destination is the whole point of this change, so it is asserted rather
 // than inferred from what happens to render afterwards.
@@ -18,57 +26,47 @@ describe('Navbar', () => {
     it('does not route anywhere', async () => {
       // The original bug: this navigated to "/signin", a route that has never
       // existed - sign-in is Cognito's hosted UI - so it landed on the 404 page.
-      const showReminder = vi.fn();
-      renderWithProviders(<Navbar />, { user: null, reminderValue: { showReminder } });
+      renderWithProviders(<Navbar />, { user: null });
 
       await userEvent.click(screen.getByRole('button', { name: /cart/i }));
 
       expect(screen.queryByText(/not found/i)).not.toBeInTheDocument();
+      expect(navigate).not.toHaveBeenCalled();
     });
 
-    it('explains what is needed instead of redirecting away', async () => {
-      // Redirecting straight to the hosted UI was the obvious repair and was
-      // worse - a click on the cart icon threw the shopper out to an external
-      // page without asking. AddToCartButton already handled this by saying so
-      // and leaving them where they are; this matches it.
+    it('opens the sidebar - the basket is local-first and open to guests', async () => {
+      // It used to gate on `!user` and show "please sign in to see your cart",
+      // from when the basket lived on the server. A guest now has a real local
+      // basket, and this is how they get to it.
       const signIn = vi.fn().mockResolvedValue(undefined);
-      const showReminder = vi.fn();
-
-      renderWithProviders(<Navbar />, {
-        user: null,
-        authValue: { signIn },
-        reminderValue: { showReminder },
-      });
-
-      await userEvent.click(screen.getByRole('button', { name: /cart/i }));
-
-      expect(showReminder).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringMatching(/sign in/i) }),
+      renderWithProviders(
+        <>
+          <Navbar />
+          <CartOpenProbe />
+        </>,
+        { user: null, authValue: { signIn } },
       );
-      expect(signIn).not.toHaveBeenCalled();
-    });
-
-    it('does not open the sidebar, which would be empty anyway', async () => {
-      // The cart is stored per user and cleared on sign-out.
-      renderWithProviders(<Navbar />, { user: null, reminderValue: { showReminder: vi.fn() } });
 
       await userEvent.click(screen.getByRole('button', { name: /cart/i }));
 
-      expect(screen.queryByRole('heading', { name: 'Cart' })).not.toBeInTheDocument();
+      expect(screen.getByTestId('cart-open')).toHaveTextContent('true');
+      expect(signIn).not.toHaveBeenCalled();
     });
   });
 
   describe('the cart button when signed in', () => {
-    it('opens the sidebar and says nothing', async () => {
-      const showReminder = vi.fn();
-      renderWithProviders(<Navbar />, {
-        user: createMockUser(),
-        reminderValue: { showReminder },
-      });
+    it('opens the sidebar', async () => {
+      renderWithProviders(
+        <>
+          <Navbar />
+          <CartOpenProbe />
+        </>,
+        { user: createMockUser() },
+      );
 
       await userEvent.click(screen.getByRole('button', { name: /cart/i }));
 
-      expect(showReminder).not.toHaveBeenCalled();
+      expect(screen.getByTestId('cart-open')).toHaveTextContent('true');
     });
   });
 

@@ -7,407 +7,390 @@ import {
   type ReactNode,
 } from "react";
 import { useAuth } from "../auth/useAuth";
-import { ApiError } from "../api/client";
-import { useReminder } from "./useReminder";
+import { getCart, syncCart } from "../api/cart";
 import {
-  clearServerCart,
-  getCart,
-  removeCartLine,
-  setCartLine,
-  type CartResponse,
-} from "../api/cart";
+  GUEST_OWNER_ID,
+  clearLocalCart,
+  fromServerLine,
+  liveLines,
+  loadLocalCart,
+  mergeUnion,
+  pruneTombstones,
+  saveLocalCart,
+  tombstoneAll,
+  tombstoneFromServer,
+  tombstoneLocalLine,
+  toSyncPayload,
+  upsertLocalLine,
+  type StoredCartLine,
+} from "./localCart";
 import type { AddToCartItem, CartItem } from "../types/cart_types";
 import { CartSideBarContext } from "./useCartSideBar";
 
 /*
- * The basket lives on the server.
+ * The basket, local-first.
  *
- * It used to live in localStorage under `cart:{sub}`, which ties a basket to a
- * device and not to a person: fill one on a phone, sign in on a laptop, and it
- * is gone. Nothing is cached locally now - a second copy is a second source of
- * truth, and reconciling the two is the divergence this move exists to remove.
+ * localStorage is the working copy: every edit lands there synchronously and
+ * is on screen immediately, with no request anywhere in that path. The server
+ * holds a copy that is brought into sync at a handful of points instead of on
+ * every click - a pause in editing, the tab hiding or closing, and signing in.
+ * Full reasoning, including why a per-line clock and not a per-basket flag:
+ * Biofarm_KnowledgeBase/documentation/designs/2026-09-08-local-first-cart-sync.md
  *
- * Writes are optimistic and roll back. A basket is a direct-manipulation UI:
- * waiting for a round trip before the quantity moves makes every press feel
- * broken, and silently keeping a change the server refused would be worse than
- * either.
+ * Signing out is handled outside this file, in AuthContext.signOut - it
+ * flushes this device's basket and clears its localStorage itself, before
+ * Amplify's own sign-out redirects the page away (taking every bit of this
+ * component's state with it). By the time this provider next mounts, the
+ * owner is already `guest`.
+ *
+ * A push's response is never written back into what is on screen - it is
+ * fire-and-forget from the editor's point of view. Only the two pull points -
+ * signing in, and opening the cart page - merge the server's copy in, via
+ * mergeUnion. Two tabs open on the same account therefore do not see each
+ * other's edits until one of them pulls; the design doc accepts that as
+ * "last flush wins" between tabs, which is the trade a local-first basket
+ * makes deliberately.
  */
 
-// A module-level constant, so the transient "identity just changed" render does
-// not hand the context memo a brand-new array on every pass.
-const NO_ITEMS: CartItem[] = [];
-const NO_UNAVAILABLE: string[] = [];
+/** A pause this long with no further edit is what triggers a push - every
+ * edit restarts the wait, so this is "quiet for half a second," not "half a
+ * second after the first click." */
+const SYNC_DEBOUNCE_MS = 500;
 
-/** The line id the sidebar and cart page address items by. */
+/** Stable empty references, so a memo keyed on them does not see a new
+ * identity every render just because there is nothing in it. */
+const NO_LINES: StoredCartLine[] = [];
+
+interface ReconcileResult {
+  merged: StoredCartLine[];
+  /** True when the merge kept a line the server did not send - something this
+   * device needs to push. False on the common "nothing has changed" pull. */
+  needsPush: boolean;
+}
+
 function lineId(productId: string, variantId: string) {
   return `${productId}-${variantId}`;
 }
 
-/**
- * Hand a basket saved by the old localStorage cart to the server, once.
- *
- * Without this, every customer holding an unbought basket at deploy loses it -
- * which is a poor way to introduce a feature whose entire promise is that
- * baskets stop disappearing.
- *
- * Runs after the server basket has been read, and keeps the larger quantity per
- * line so a re-run cannot double anything. The key is dropped whatever happens:
- * a basket that cannot be replayed twice is better than one that is retried on
- * every page load forever.
- */
-async function migrateLocalCart(userId: string, server: CartResponse): Promise<boolean> {
-  const key = `cart:${userId}`;
-  let saved: { variantId?: string; quantity?: number }[] = [];
-  try {
-    const raw = localStorage.getItem(key);
-    if (!raw) return false;
-    const parsed = JSON.parse(raw);
-    saved = Array.isArray(parsed) ? parsed : [];
-  } catch {
-    // Corrupt JSON, or storage denied outright. Nothing to migrate either way.
-    return false;
-  }
-
-  let handed = 0;
-  const retry: typeof saved = [];
-
-  for (const line of saved) {
-    if (!line?.variantId || !line.quantity) continue;
-    const onServer = server.items.find((item) => item.variant_id === line.variantId);
-    const quantity = Math.max(line.quantity, onServer?.quantity ?? 0);
-    try {
-      await setCartLine(line.variantId, quantity);
-      handed += 1;
-    } catch (error) {
-      /*
-       * Per line, and only a line that might succeed later is kept.
-       *
-       * A refusal the server will repeat - a variant discontinued since, a
-       * stored quantity it will never accept - is dropped, because retrying it
-       * forever would keep the whole key alive. That matters more than it
-       * sounds: this replays Math.max(local, server), so a key that never goes
-       * away resurrects quantities the customer has since changed. Delete an
-       * item, reload, and it is back.
-       */
-      const permanent = error instanceof ApiError && error.status >= 400 && error.status < 500;
-      if (!permanent) retry.push(line);
-    }
-  }
-
-  try {
-    if (retry.length > 0) {
-      // Only what is worth trying again, never the lines already handed over.
-      localStorage.setItem(key, JSON.stringify(retry));
-    } else {
-      localStorage.removeItem(key);
-    }
-  } catch {
-    // Storage denied. At worst the handover is attempted again, which is safe:
-    // it keeps the larger quantity rather than adding to it.
-  }
-  return handed > 0;
-}
-
-function toCartItems(response: CartResponse): CartItem[] {
-  return response.items.map((line) => ({
-    id: lineId(line.product_id, line.variant_id),
-    productId: line.product_id,
-    variantId: line.variant_id,
+function toCartItems(lines: StoredCartLine[]): CartItem[] {
+  return liveLines(lines).map((line) => ({
+    id: lineId(line.productId, line.variantId),
+    productId: line.productId,
+    variantId: line.variantId,
     name: line.name,
-    imageUrl: line.image_url,
-    catalogNumber: line.catalog_number,
-    sizeLabel: line.size_label,
-    unitPrice: line.unit_price,
+    imageUrl: line.imageUrl,
+    catalogNumber: line.catalogNumber,
+    sizeLabel: line.sizeLabel,
+    unitPrice: line.unitPrice,
     quantity: line.quantity,
     available: line.available,
-    overStock: line.over_stock,
+    overStock: line.overStock,
   }));
 }
 
 export function CartSideBarProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const { showReminder } = useReminder();
-  const userId = user?.user_id ?? null;
+  const ownerId = user?.user_id ?? GUEST_OWNER_ID;
 
   const [isOpen, setIsOpen] = useState(false);
 
-  /*
-   * The basket, carrying the identity it belongs to.
-   *
-   * One piece of state rather than three, and the signed-out case is derived
-   * from it rather than assigned by an effect: an effect that writes state on
-   * every change of user renders the previous customer's basket first and
-   * replaces it a frame later, which is both a visible flash and a cascading
-   * render.
-   */
-  const [state, setState] = useState<{
-    owner: string | null;
-    items: CartItem[];
-    unavailable: string[];
-    /**
-     * Whether this basket is trustworthy.
-     *
-     * "failed" is not "empty", and conflating them was doing real damage: one
-     * timeout on the load showed "your cart is empty" for the rest of the
-     * session while the server held the basket - and because a write sends an
-     * absolute quantity, the next Add computed 0 + 1 and overwrote the real
-     * basket with a single line.
-     */
-    status: "ready" | "failed";
-  }>({ owner: null, items: NO_ITEMS, unavailable: [], status: "ready" });
+  // Seeded synchronously from localStorage, so the first paint already shows
+  // whatever this device last knew - no loading state to gate on, because
+  // there is no request between mount and that first paint.
+  const [state, setState] = useState<{ owner: string; lines: StoredCartLine[] }>(() => ({
+    owner: ownerId,
+    lines: loadLocalCart(ownerId),
+  }));
 
-  const settled = state.owner === userId;
-  const loaded = settled && state.status === "ready";
-  const failed = settled && state.status === "failed";
-  const cartItems = loaded ? state.items : NO_ITEMS;
-  // NO_UNAVAILABLE rather than a fresh [], which would be a new identity every
-  // render and defeat the memo below.
-  const unavailable = loaded ? state.unavailable : NO_UNAVAILABLE;
-  // Derived, so there is no flag to leave switched on down some path that
-  // forgot to clear it. Signed out, there is nothing to wait for.
-  const loading = userId !== null && !settled;
-
-  const setCartItems = useCallback(
-    (update: CartItem[] | ((previous: CartItem[]) => CartItem[])) =>
-      setState((previous) => ({
-        ...previous,
-        items: typeof update === "function" ? update(previous.items) : update,
-      })),
-    [],
+  // Falls back to empty rather than showing a previous owner's basket for a
+  // frame - relevant mainly to tests that swap the signed-in user without a
+  // full remount; a real sign-in/out is a full-page redirect, so this repo's
+  // production code never actually observes ownerId changing under a mounted
+  // provider.
+  const lines = state.owner === ownerId ? state.lines : NO_LINES;
+  const cartItems = useMemo(() => toCartItems(lines), [lines]);
+  const unavailable = useMemo(
+    () => liveLines(lines).filter((line) => line.overStock).map((line) => line.catalogNumber),
+    [lines],
   );
 
   /*
-   * The identity the current basket belongs to.
-   *
-   * Read by the write handlers before they apply a server response, so a reply
-   * that arrives after a sign-out - or after a different account signs in -
-   * cannot paint one customer's basket into another's session.
+   * Whether there is an edit the server has not seen yet. Set by every
+   * mutation, cleared by a push that actually lands - so a tab that is only
+   * ever looked at, never edited, does not resend an unchanged basket on
+   * every visibility flip.
    */
-  const ownerRef = useRef<string | null>(null);
-
+  const dirtyRef = useRef(false);
   /*
-   * Which write a response belongs to.
-   *
-   * Every reply carries the whole basket, so applying a stale one undoes newer
-   * changes. Two quick presses of "+" send quantity 2 then 3; if the answers
-   * come back out of order the screen settles on 2 while the server holds 3,
-   * and nothing reconciles them until the next full load.
+   * The latest basket and owner, readable outside of React's render cycle -
+   * by the debounce timer, the pagehide/visibilitychange listeners, and by a
+   * second edit landing in the same tick as the first (see applyEdit, which
+   * updates this synchronously rather than waiting for the effect below).
    */
-  const writeSeq = useRef(0);
-
-  /*
-   * The basket as of the last change, including ones not yet rendered.
-   *
-   * The handlers used to compute from the render closure, so two presses of "+"
-   * landing before React re-rendered both read the same quantity and both sent
-   * it - and because the write is absolute rather than an increment, one press
-   * was silently dropped instead of arriving twice. Updated in the handler
-   * itself, which is an event and not a render.
-   */
-  const pendingItems = useRef<CartItem[] | null>(null);
-
-
-  const applyResponse = useCallback(
-    (response: CartResponse, owner: string | null) => {
-      if (ownerRef.current !== owner) return;
-      const items = toCartItems(response);
-      // The server has spoken, so the local running total is finished with.
-      pendingItems.current = items;
-      setState({ owner, items, unavailable: response.unavailable, status: "ready" });
-    },
-    [],
-  );
-
+  const linesRef = useRef(lines);
+  const ownerIdRef = useRef(ownerId);
   useEffect(() => {
-    ownerRef.current = userId;
-    // Signed out, the derivation above already shows an empty basket. The
-    // basket itself is not lost - it is on the server - it is just not this
-    // browser's to show.
-    if (!userId) return;
+    linesRef.current = lines;
+    ownerIdRef.current = ownerId;
+  }, [lines, ownerId]);
 
-    let cancelled = false;
-    getCart()
-      .then(async (response) => {
-        if (cancelled) return;
-        // A basket left behind by the old localStorage cart is handed over
-        // before the first paint, so the customer never sees it disappear.
-        const migrated = await migrateLocalCart(userId, response);
-        if (cancelled) return;
-        applyResponse(migrated ? await getCart() : response, userId);
+  // Deduped only for the read. A full load landing on /cart or /checkout while
+  // signed in fires the provider's own reconcile effect and that page's
+  // refreshCart in the same tick; sharing one GET /cart is a clean win with no
+  // downside. The write is deliberately NOT coalesced this way - an in-flight
+  // guard there strands an edit that lands while a slow push is running, since
+  // nothing re-triggers the debounce for it. Concurrent PUTs are safe: the
+  // server merges per line under a row lock, so an extra idempotent request is
+  // waste, not wrongness.
+  const pullInFlightRef = useRef<Promise<ReconcileResult> | null>(null);
+
+  /**
+   * Push this device's whole basket for reconciliation. Guests never call the
+   * API at all - there is nothing on the server for a basket that was never
+   * uploaded - and an already-clean basket is skipped rather than resent.
+   *
+   * Errors are swallowed deliberately: localStorage already holds the truth,
+   * so a failed push loses nothing, only delays when the server catches up.
+   * The next debounce, tab-hide, or sign-in pull tries again.
+   */
+  const flush = useCallback((opts: { keepalive?: boolean } = {}): Promise<void> => {
+    if (ownerIdRef.current === GUEST_OWNER_ID) return Promise.resolve();
+    if (!dirtyRef.current) return Promise.resolve();
+
+    const snapshot = linesRef.current;
+    return syncCart(toSyncPayload(snapshot), opts)
+      .then(() => {
+        // Only if nothing changed while the request was in flight. An edit
+        // that landed mid-request is not in what was just sent, and clearing
+        // the flag would strand it until the next unrelated edit.
+        if (linesRef.current === snapshot) dirtyRef.current = false;
       })
       .catch(() => {
-        // An empty basket is the honest answer when we could not read one, and
-        // marking it loaded stops the sidebar waiting forever. Not surfaced as
-        // a reminder: this happens on load, with no action of the customer's to
-        // attach it to.
-        if (!cancelled && ownerRef.current === userId) {
-          // Settled but not ready: the basket is unknown, not empty. Writes are
-          // refused below rather than computed against a view we know is wrong.
-          setState({ owner: userId, items: NO_ITEMS, unavailable: [], status: "failed" });
-        }
+        // Best effort - see the docstring above.
       });
+  }, []);
+
+  // Debounce: every change to `lines` restarts the wait, so a burst of clicks
+  // produces one push after the last of them, not one per click.
+  useEffect(() => {
+    if (ownerId === GUEST_OWNER_ID) return;
+    const timer = window.setTimeout(() => { void flush(); }, SYNC_DEBOUNCE_MS);
+    return () => window.clearTimeout(timer);
+  }, [ownerId, lines, flush]);
+
+  /*
+   * Tab hide / close. `visibilitychange` -> hidden is the one that actually
+   * works: it fires first in almost every flow - switching tabs, minimising,
+   * navigating away - while the page is still fully alive, so the ordinary
+   * request (auth token lookup included) completes.
+   *
+   * `pagehide` is a best-effort backstop only, and known to be leaky: even
+   * with `keepalive`, apiRequest awaits the Amplify session before it calls
+   * fetch, and that async prelude often does not finish during a hard unload -
+   * so an edit made in the last moment before closing the tab, with no
+   * preceding visibilitychange, can be lost. The design doc accepts this: the
+   * ~500ms idle debounce is what the basket really relies on, and it is
+   * reached constantly.
+   */
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") void flush();
+    };
+    const onPageHide = () => { void flush({ keepalive: true }); };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [flush]);
+
+  /*
+   * The read half of pull-and-merge: this device's basket for `owner`, any
+   * basket left behind by browsing as a guest, and the server's copy -
+   * unioned together with the newest `clientUpdatedAt` per line winning
+   * (localCart.mergeUnion). Deliberately setState-free - see where this is
+   * called from for why.
+   *
+   * `needsPush` says whether the merge kept anything the server did not send:
+   * a local or guest line newer than the server's copy, or one it never had.
+   * When it did not - the common "opened the cart, nothing has changed" case -
+   * the caller skips the PUT entirely. A failed read cannot tell, so it
+   * assumes yes: a pending local edit must still get out.
+   */
+  const computeReconciled = useCallback(async (owner: string): Promise<ReconcileResult> => {
+    let merged = loadLocalCart(owner);
+    const guest = loadLocalCart(GUEST_OWNER_ID);
+    if (guest.length > 0) merged = mergeUnion(merged, guest);
+
+    let serverLines: StoredCartLine[] = [];
+    let serverRead = false;
+    try {
+      const server = await getCart();
+      // Tombstones merged alongside live lines. A variant the server has
+      // deleted is simply absent from `items`, which a union merge reads as
+      // "this side never heard of it" and keeps - so a deletion made on
+      // another device would be silently undone here and pushed back. Folding
+      // the tombstone in lets its clock win the comparison, exactly as
+      // merge_cart resolves it server-side.
+      serverLines = [
+        ...server.items.map(fromServerLine),
+        ...(server.deleted_lines ?? []).map(tombstoneFromServer),
+      ];
+      serverRead = true;
+    } catch {
+      // The server basket could not be read. Proceed with what this device
+      // already has, rather than block a pull point on a request that may
+      // never come back.
+    }
+
+    // Drop tombstones past the retention window so neither storage nor the
+    // next push payload carries an unbounded add-then-remove history.
+    merged = pruneTombstones(mergeUnion(merged, serverLines));
+
+    const serverByVariant = new Map(serverLines.map((line) => [line.variantId, line]));
+    const needsPush =
+      !serverRead ||
+      merged.some((line) => {
+        const onServer = serverByVariant.get(line.variantId);
+        return (
+          !onServer ||
+          Date.parse(onServer.clientUpdatedAt) !== Date.parse(line.clientUpdatedAt)
+        );
+      });
+
+    return { merged, needsPush };
+  }, []);
+
+  /** Reconcile, deduped: concurrent callers in the same tick share one
+   * GET /cart rather than each firing their own. */
+  const pullMerged = useCallback((owner: string): Promise<ReconcileResult> => {
+    if (pullInFlightRef.current) return pullInFlightRef.current;
+    const done = computeReconciled(owner).finally(() => {
+      pullInFlightRef.current = null;
+    });
+    pullInFlightRef.current = done;
+    return done;
+  }, [computeReconciled]);
+
+  /*
+   * Runs whenever a real identity is established. Because signing in is a
+   * full-page redirect through Cognito's hosted UI, that means this fires
+   * once per mount for a signed-in visitor - equally on a genuine sign-in and
+   * on a plain reload while already signed in. Treating those alike is
+   * deliberate: both are "the last point this device could have missed
+   * something," and the reconciliation is cheap and idempotent either way.
+   *
+   * The setState lives inside the `.then()` here rather than in a named
+   * function called directly from the effect body - awaiting a fetch before
+   * setting state is exactly what an effect is for, but written as an
+   * `async`/`await` helper called straight from the effect it reads as a
+   * synchronous derivation, which is the shape the mount of every other
+   * server-backed page in this app avoids for the same reason.
+   */
+  useEffect(() => {
+    if (ownerId === GUEST_OWNER_ID) return;
+    let cancelled = false;
+
+    pullMerged(ownerId).then(({ merged, needsPush }) => {
+      if (cancelled) return;
+      saveLocalCart(ownerId, merged);
+      clearLocalCart(GUEST_OWNER_ID);
+      linesRef.current = merged;
+      ownerIdRef.current = ownerId;
+      if (needsPush) dirtyRef.current = true;
+      setState({ owner: ownerId, lines: merged });
+      void flush();
+    });
 
     return () => {
       cancelled = true;
     };
-  }, [userId, applyResponse]);
+  }, [ownerId, pullMerged, flush]);
 
-  /**
-   * Apply a change to the basket on screen, then to the server, rolling back if
-   * the server refuses.
-   *
-   * The rollback is the point. Without it a failed write leaves the customer
-   * looking at a basket that does not exist - and they find out at checkout,
-   * which is the worst possible moment.
-   */
-  const mutate = useCallback(
-    (
-      optimistic: (previous: CartItem[]) => CartItem[],
-      request: () => Promise<CartResponse | void>,
-      /**
-       * Whether this write is computed from what is on screen.
-       *
-       * Everything that sends a quantity is: acting on a basket we have not
-       * read overwrites the real one. Emptying it is not - it says "remove
-       * everything" regardless of what is there - and gating that too broke the
-       * success page, which clears once, behind a ref, and never retries: the
-       * customer saw "your cart is still loading" on the screen confirming
-       * their payment, and the basket was never emptied.
-       */
-      needsCurrentBasket = true,
-    ) => {
-      /*
-       * The identity from this render, not from the ref.
-       *
-       * The ref is set by the provider's effect, and effects run child-first -
-       * so a child clearing the basket on mount (OrderSuccessPage, once an
-       * order appears) reached here before the provider had ever set it, took
-       * the early return, and never told the server. The paid-for basket came
-       * straight back on the next load.
-       */
-      const owner = userId;
-      if (!owner) return;
+  /** Exposed for the cart page's own pull point - opening it re-reconciles
+   * rather than trusting whatever this device happened to have on mount. A
+   * no-op for a guest: there is nothing on the server to pull. */
+  const refreshCart = useCallback((): Promise<void> => {
+    if (ownerId === GUEST_OWNER_ID) return Promise.resolve();
 
-      /*
-       * Only against a basket we have actually read.
-       *
-       * The write sends an absolute quantity, computed from what is on screen -
-       * so acting on a view that is still loading, or that failed to load,
-       * overwrites the real basket. Five in the basket, a click before the load
-       * lands, and the server is told "1".
-       */
-      if (needsCurrentBasket && !loaded) {
-        showReminder({
-          message: failed
-            ? "We could not load your cart. Please refresh the page."
-            : "Your cart is still loading. Try again in a moment.",
-        });
-        return;
-      }
-      // Covers that same first-paint gap for the staleness check below.
-      ownerRef.current ??= owner;
-
-      /*
-       * The basket as this render sees it, captured before the change.
-       *
-       * Not read from inside the state updater, which looks equivalent and is
-       * not: React runs that updater when it next renders, which can be after a
-       * rejected request has already reached the catch below - so the rollback
-       * restored whatever the variable happened to be initialised to, and a
-       * failed add emptied the basket instead of leaving it alone.
-       */
-      const current = pendingItems.current ?? cartItems;
-      const rollback = current;
-      const next = optimistic(current);
-      pendingItems.current = next;
-
-      const seq = ++writeSeq.current;
-      setCartItems(next);
-
-      void request()
-        .then((response) => {
-          // Only the newest write may repaint the basket; an older reply is a
-          // snapshot from before the change now on screen.
-          if (response && seq === writeSeq.current) applyResponse(response, owner);
-        })
-        .catch(() => {
-          if (ownerRef.current !== owner) return;
-          /*
-           * Only if nothing newer has happened since.
-           *
-           * The success path already refuses to repaint from a stale reply; the
-           * failure path did not, and rolling back to a snapshot taken before
-           * this write undoes everything that came after it. Press "+", then
-           * remove the line: the removal succeeds, the "+" then times out, and
-           * the removed item reappears with nothing left to correct it.
-           */
-          if (seq !== writeSeq.current) return;
-          pendingItems.current = rollback;
-          setCartItems(rollback);
-          showReminder({
-            message: "We could not update your cart. Please try again.",
-          });
-        });
-    },
-    [applyResponse, cartItems, failed, loaded, setCartItems, showReminder, userId],
-  );
+    return pullMerged(ownerId).then(({ merged, needsPush }) => {
+      saveLocalCart(ownerId, merged);
+      clearLocalCart(GUEST_OWNER_ID);
+      linesRef.current = merged;
+      ownerIdRef.current = ownerId;
+      if (needsPush) dirtyRef.current = true;
+      setState({ owner: ownerId, lines: merged });
+      return flush();
+    });
+  }, [ownerId, pullMerged, flush]);
 
   const toggleCartSideBar = useCallback(() => setIsOpen((prev) => !prev), []);
   const openCartSideBar = useCallback(() => setIsOpen(true), []);
   const closeCartSideBar = useCallback(() => setIsOpen(false), []);
 
+  /*
+   * Every mutation goes through here. `linesRef.current` is read rather than
+   * the `lines` render value, and written back synchronously rather than
+   * waiting for the sync effect above - which is what lets two edits landing
+   * in the same tick (a double click on "+") each see the other's result
+   * instead of both computing from the same stale quantity.
+   */
+  const applyEdit = useCallback(
+    (compute: (current: StoredCartLine[]) => StoredCartLine[]) => {
+      const current = linesRef.current;
+      const next = compute(current);
+      if (next === current) return;
+      saveLocalCart(ownerId, next);
+      dirtyRef.current = true;
+      linesRef.current = next;
+      setState({ owner: ownerId, lines: next });
+    },
+    [ownerId],
+  );
+
   const addToCart = useCallback(
     (item: AddToCartItem) => {
-      // Deduped by variantId, not productId: two sizes of the same product are
-      // two distinct lines.
-      const existing = (pendingItems.current ?? cartItems).find(
-        (line) => line.variantId === item.variantId,
-      );
-      const quantity = (existing?.quantity ?? 0) + item.quantity;
-
-      mutate(
-        (previous) =>
-          existing
-            ? previous.map((line) =>
-                line.variantId === item.variantId ? { ...line, quantity } : line,
-              )
-            : [
-                ...previous,
-                { ...item, id: lineId(item.productId, item.variantId), quantity },
-              ],
-        () => setCartLine(item.variantId, quantity),
-      );
+      applyEdit((current) => {
+        // Deduped by variantId, not productId: two sizes of the same product
+        // are two distinct lines.
+        const existing = liveLines(current).find((line) => line.variantId === item.variantId);
+        const quantity = (existing?.quantity ?? 0) + item.quantity;
+        return upsertLocalLine(current, item, quantity);
+      });
     },
-    [cartItems, mutate],
+    [applyEdit],
   );
 
   const removeFromCart = useCallback(
     (itemId: string) => {
-      const target = (pendingItems.current ?? cartItems).find((line) => line.id === itemId);
-      if (!target) return;
-      mutate(
-        (previous) => previous.filter((line) => line.id !== itemId),
-        () => removeCartLine(target.variantId),
-      );
+      applyEdit((current) => {
+        const target = liveLines(current).find(
+          (line) => lineId(line.productId, line.variantId) === itemId,
+        );
+        if (!target) return current;
+        return tombstoneLocalLine(current, target.variantId);
+      });
     },
-    [cartItems, mutate],
+    [applyEdit],
   );
 
   const setQuantity = useCallback(
     (itemId: string, next: (current: number) => number) => {
-      const target = (pendingItems.current ?? cartItems).find((line) => line.id === itemId);
-      if (!target) return;
-      const quantity = next(target.quantity);
-
-      mutate(
-        (previous) =>
-          quantity <= 0
-            ? previous.filter((line) => line.id !== itemId)
-            : previous.map((line) => (line.id === itemId ? { ...line, quantity } : line)),
-        () => setCartLine(target.variantId, quantity),
-      );
+      applyEdit((current) => {
+        const target = liveLines(current).find(
+          (line) => lineId(line.productId, line.variantId) === itemId,
+        );
+        if (!target) return current;
+        const quantity = next(target.quantity);
+        // Quantity zero is a line that should not be there - the server's own
+        // CHECK (quantity > 0) agrees - so it is a removal, not a write of 0.
+        return quantity <= 0
+          ? tombstoneLocalLine(current, target.variantId)
+          : upsertLocalLine(current, target, quantity);
+      });
     },
-    [cartItems, mutate],
+    [applyEdit],
   );
 
   const increaseQuantity = useCallback(
@@ -421,48 +404,32 @@ export function CartSideBarProvider({ children }: { children: ReactNode }) {
   );
 
   /*
-   * Called by OrderSuccessPage once an order exists.
-   *
-   * The server already empties the basket in the same commit as the order, so
-   * this is about the copy on screen rather than the record. It still asks the
-   * server, because in bypass mode the order is created inline and this is the
-   * only signal that a purchase happened.
+   * Called by OrderSuccessPage once an order exists. Purely local - checkout
+   * re-prices and re-validates stock from the catalogue server-side, so
+   * nothing here needs to reach the server before the sale is final. This
+   * still pushes (through the ordinary debounce path, not a special one),
+   * both to keep other devices' baskets from showing what was just bought and
+   * because a since-tombstoned line surviving as a stray local write until the
+   * next edit is a real, if minor, staleness window worth closing promptly.
    */
   const clearCart = useCallback(() => {
-    // The stock warning refers to lines that are about to be gone, so it goes
-    // with them - otherwise the sidebar reads "… is no longer available" over
-    // an empty basket until the next full load.
-    setState((previous) => ({ ...previous, unavailable: NO_UNAVAILABLE }));
-    mutate(
-      () => NO_ITEMS,
-      async () => {
-        await clearServerCart();
-        // Known to be empty now, so a session that started with a failed load
-        // stops claiming the basket is unreadable - nothing would have retried,
-        // because the success page clears once behind a ref.
-        setState((previous) => ({ ...previous, status: "ready" }));
-      },
-      // Sends no computed quantity, so it does not need the basket read first.
-      false,
-    );
-  }, [mutate]);
+    applyEdit((current) => tombstoneAll(current));
+  }, [applyEdit]);
 
-  // Memoized, and every handler with it. Rebuilt inline, this object made every
-  // consumer of the cart re-render whenever anything in the provider changed -
-  // including the sidebar's open flag, which nothing outside the sidebar cares
-  // about.
+  // Memoized, and every handler with it, so a consumer that only reads
+  // `isOpen` (the sidebar) does not re-render on every basket edit made from
+  // somewhere else on the page.
   const value = useMemo(
     () => ({
       isOpen,
       cartItems,
       unavailable,
-      loading,
-      failed,
       addToCart,
       removeFromCart,
       increaseQuantity,
       decreaseQuantity,
       clearCart,
+      refreshCart,
       toggleCartSideBar,
       openCartSideBar,
       closeCartSideBar,
@@ -471,13 +438,12 @@ export function CartSideBarProvider({ children }: { children: ReactNode }) {
       isOpen,
       cartItems,
       unavailable,
-      loading,
-      failed,
       addToCart,
       removeFromCart,
       increaseQuantity,
       decreaseQuantity,
       clearCart,
+      refreshCart,
       toggleCartSideBar,
       openCartSideBar,
       closeCartSideBar,

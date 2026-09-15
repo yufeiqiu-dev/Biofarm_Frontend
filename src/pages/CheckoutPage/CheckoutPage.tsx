@@ -22,8 +22,28 @@ const stripePromise = STRIPE_BYPASS
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { cartItems, loading: cartLoading, failed: cartFailed } = useCartSideBar();
+  const { cartItems, refreshCart } = useCartSideBar();
   const { user } = useAuth();
+
+  /*
+   * The basket is local-first and already on screen synchronously from
+   * mount - but this device's copy of it may be stale (items added on
+   * another device, or via a guest basket merged in on some earlier sign-in
+   * this device never pulled). Checkout is the one place that stakes money on
+   * the answer, so it waits for its own explicit pull rather than trusting
+   * whatever localStorage happened to hold on arrival - a deep link straight
+   * to /checkout has no other pull point before this one.
+   */
+  const [reconciling, setReconciling] = useState(true);
+  useEffect(() => {
+    let active = true;
+    void refreshCart().finally(() => {
+      if (active) setReconciling(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshCart]);
 
   const [step, setStep] = useState(0);
   const [contact, setContact] = useState<ContactForm>({ name: "", phone: "", email: "" });
@@ -53,34 +73,19 @@ export function CheckoutPage() {
   const [piError, setPiError] = useState<string | null>(null);
 
   /*
-   * An empty basket belongs on the cart page - but only once we know it is
-   * empty.
-   *
-   * This used to navigate during render, which was survivable while the basket
-   * came out of localStorage synchronously: it was never briefly empty. Now it
-   * is fetched, so the first render of every checkout has no items yet, and
-   * navigating there put React into an infinite update loop - render, navigate,
-   * render - before the basket had a chance to arrive.
+   * An empty basket belongs on the cart page - but only once the pull above
+   * has actually run. Navigating here rather than during render, which put
+   * React into an infinite update loop the one time this was tried - render,
+   * navigate, render - before the basket had a chance to arrive.
    */
   useEffect(() => {
-    if (cartLoading) return;
-    // Not on a basket we failed to read: an unknown basket is not an empty one,
-    // and bouncing to /cart would show the same nothing there.
-    if (cartFailed) return;
+    if (reconciling) return;
     if (cartItems.length > 0) return;
     navigate("/cart");
-  }, [cartLoading, cartFailed, cartItems.length, navigate]);
+  }, [reconciling, cartItems.length, navigate]);
 
-  if (cartLoading) {
+  if (reconciling) {
     return <PageLoading label="Loading your cart…" />;
-  }
-
-  if (cartFailed) {
-    return (
-      <div className={styles.page}>
-        <p>We could not load your cart just now. Please refresh the page.</p>
-      </div>
-    );
   }
 
   if (cartItems.length === 0) {

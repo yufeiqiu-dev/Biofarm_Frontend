@@ -4,7 +4,7 @@ import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../CartProductCard";
 
 export function CartSideBar() {
-  const { isOpen, closeCartSideBar, cartItems, loading, failed, unavailable, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
+  const { isOpen, closeCartSideBar, cartItems, unavailable, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -58,20 +58,7 @@ export function CartSideBar() {
         )}
 
         <div className={styles.items}>
-          {loading ? (
-            // The basket is fetched, so it is briefly empty on every load.
-            // "Your cart is empty" in that window is wrong more often than it
-            // is right.
-            <div className={styles.emptyState}>
-              <p className={styles.emptyText}>Loading your cart…</p>
-            </div>
-          ) : failed ? (
-            // Not "empty" - the basket is unknown, and saying it is empty sends
-            // someone off to browse for what they have already chosen.
-            <div className={styles.emptyState}>
-              <p className={styles.emptyText}>We could not load your cart just now.</p>
-            </div>
-          ) : cartItems.length === 0 ? (
+          {cartItems.length === 0 ? (
             <div className={styles.emptyState}>
               <p className={styles.emptyText}>Your cart is empty.</p>
               <Link to="/products" className={styles.shopLink} onClick={closeCartSideBar}>

@@ -16,16 +16,16 @@ export type CartSideBarContextValue = {
    * how someone buys fewer than they meant and only finds out from the receipt.
    */
   unavailable: string[];
-  /** True while the saved basket is being fetched for the first time. */
-  loading: boolean;
   /**
-   * True when the basket could not be read at all.
+   * Re-pull the server's basket and merge it into this device's local copy.
    *
-   * Distinct from an empty basket, and the distinction matters: telling a
-   * customer their cart is empty when it is merely unknown sends them off to
-   * browse for things they have already chosen.
+   * Local-first means there is no "loading" or "failed" state to gate a page
+   * on - the basket above is already the truth as far as this device knows,
+   * synchronously, from the moment the provider mounts. This exists for the
+   * cart page's own pull point: opening it re-reconciles rather than trusting
+   * whatever this device happened to have on mount. A no-op for a guest.
    */
-  failed: boolean;
+  refreshCart: () => Promise<void>;
   toggleCartSideBar: () => void;
   openCartSideBar: () => void;
   closeCartSideBar: () => void;

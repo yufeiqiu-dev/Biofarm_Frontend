@@ -8,7 +8,7 @@ import { AuthContext, type AuthContextValue } from '../../auth/useAuth';
 import { ReminderContext } from '../../context/useReminder';
 import { createMockUser } from '../../test/mocks/mockUser';
 import { setupLocalStorageStub } from '../../test/localStorageStub';
-import { clearServerCart, getCart } from '../../api/cart';
+import { getCart } from '../../api/cart';
 
 vi.mock('../../api/order', () => ({
   getMyOrderByPaymentIntent: vi.fn(),
@@ -66,31 +66,12 @@ function auth(overrides: Partial<AuthContextValue>): AuthContextValue {
   } as AuthContextValue;
 }
 
-/**
- * The saved cart, as items. clearCart removes the key and the provider's
- * persistence effect writes an empty array straight back - both mean "no cart",
- * so asserting on the items rather than on the key avoids pinning an
- * implementation detail that does not matter.
- */
 /*
- * The basket is saved on the server, so "was it cleared" is a request rather
- * than a localStorage key. The server also empties it in the same commit as the
- * order for the webhook path; this call is what covers bypass mode, where the
- * order is created inline and there is no webhook to do it.
+ * The basket is local-first: clearCart tombstones every line synchronously, so
+ * `cartItems` dropping to zero is itself the assertion that matters, not a
+ * downstream API call whose timing (a debounce, a tab-hide) is not this page's
+ * concern - see CartSideBarContext for where that push actually happens.
  */
-/*
- * The basket is saved on the server, so "was it cleared" is a request rather
- * than a localStorage key. The server also empties it in the same commit as the
- * order for the webhook path; this call is what covers bypass mode, where the
- * order is created inline and there is no webhook to do it.
- *
- * Waited for rather than read once. The count reaching zero proves nothing on
- * its own - it starts at zero, because the saved basket arrives a tick later -
- * so asserting on it immediately passes before the page has cleared anything.
- */
-function waitForServerClear() {
-  return waitFor(() => expect(vi.mocked(clearServerCart)).toHaveBeenCalled());
-}
 
 function CartProbe() {
   const { cartItems } = useCartSideBar();
@@ -133,6 +114,7 @@ describe('OrderSuccessPage clearing the cart', () => {
           variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
           size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
           available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
         },
       ],
       subtotal: 285,
@@ -147,7 +129,6 @@ describe('OrderSuccessPage clearing the cart', () => {
     // The basket loads first, so its disappearance is a real change rather
     // than the state it started in.
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
-    await waitForServerClear();
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('0'));
   });
 
@@ -173,7 +154,6 @@ describe('OrderSuccessPage clearing the cart', () => {
     // The basket loads first, so its disappearance is a real change rather
     // than the state it started in.
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
-    await waitForServerClear();
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('0'));
   });
 });
@@ -198,6 +178,7 @@ describe('OrderSuccessPage when no order ever appears', () => {
           variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
           size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
           available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
         },
       ],
       subtotal: 285,
@@ -240,7 +221,6 @@ describe('OrderSuccessPage when no order ever appears', () => {
     // checkout that never produced an order would be worse than the problem
     // saving it server-side was meant to solve.
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
-    expect(vi.mocked(clearServerCart)).not.toHaveBeenCalled();
   }, 20000);
 });
 
@@ -264,6 +244,7 @@ describe('OrderSuccessPage in bypass mode', () => {
           variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau', catalog_number: 'AB-101-50',
           size_label: '50ug', image_url: '', unit_price: 285, quantity: 1,
           available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
         },
       ],
       subtotal: 285,

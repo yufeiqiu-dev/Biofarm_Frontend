@@ -42,6 +42,7 @@ describe('CheckoutPage contact email', () => {
           variant_id: 'v1', product_id: 'p1', name: 'Anti-Tau',
           catalog_number: 'AB-101-50', size_label: '50ug', image_url: '',
           unit_price: 285, quantity: 1, available: 5, over_stock: false,
+          client_updated_at: '2020-01-01T00:00:00.000Z',
         },
       ],
       subtotal: 285,
