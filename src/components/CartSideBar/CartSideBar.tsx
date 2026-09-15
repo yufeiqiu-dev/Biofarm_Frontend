@@ -4,7 +4,7 @@ import { useCartSideBar } from "../../context/useCartSideBar";
 import { CartProductCard } from "../CartProductCard";
 
 export function CartSideBar() {
-  const { isOpen, closeCartSideBar, cartItems, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
+  const { isOpen, closeCartSideBar, cartItems, unavailable, increaseQuantity, decreaseQuantity, removeFromCart } = useCartSideBar();
 
   const subtotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
   const itemCount = cartItems.reduce((sum, item) => sum + item.quantity, 0);
@@ -40,6 +40,22 @@ export function CartSideBar() {
           </h2>
           <button className={styles.closeBtn} onClick={closeCartSideBar} aria-label="Close cart">✕</button>
         </div>
+
+        {/*
+          Said here rather than discovered at checkout. The server reports a
+          line the shelf can no longer cover on every read of the basket; until
+          this rendered it, the customer's first signal was "Insufficient stock"
+          from the Review step, which is the late failure the field exists to
+          pre-empt.
+        */}
+        {unavailable.length > 0 && (
+          <p className={styles.unavailableNotice} role="status">
+            {unavailable.length === 1
+              ? `${unavailable[0]} is no longer available in the quantity you wanted.`
+              : `${unavailable.length} items are no longer available in the quantities you wanted.`}{" "}
+            Adjust them before checking out.
+          </p>
+        )}
 
         <div className={styles.items}>
           {cartItems.length === 0 ? (

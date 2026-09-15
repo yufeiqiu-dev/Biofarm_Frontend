@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AddToCartButton } from './AddToCartButton';
@@ -80,18 +80,17 @@ describe('AddToCartButton', () => {
   });
 
   describe('when signed out', () => {
-    it('explains rather than adding silently', async () => {
-      const showReminder = vi.fn();
+    // The basket is local-first: a guest can build one same as anyone else,
+    // and is only asked to sign in once they try to check out with it (see
+    // CartPage.handleCheckout). No reminder, no gate here.
+    it('adds to the local cart same as a signed-in visitor', async () => {
       renderWithProviders(<AddToCartButton item={item} available={4} />, {
         user: null,
-        reminderValue: { showReminder },
       });
 
-      await userEvent.click(screen.getByRole('button'));
+      await userEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
 
-      expect(showReminder).toHaveBeenCalledWith(
-        expect.objectContaining({ message: expect.stringMatching(/sign in/i) }),
-      );
+      expect(await screen.findByRole('button', { name: 'In cart' })).toBeInTheDocument();
     });
   });
 });

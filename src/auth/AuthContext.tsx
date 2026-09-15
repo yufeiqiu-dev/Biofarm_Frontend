@@ -13,6 +13,8 @@ import {
   signOut as amplifySignOut,
 } from "aws-amplify/auth";
 import { setSessionGetter } from "../api/client";
+import { syncCart } from "../api/cart";
+import { clearLocalCart, loadLocalCart, toSyncPayload } from "../context/localCart";
 import { AuthContext } from "./useAuth";
 
 const REDIRECT_PATH_KEY = "RedirectPath";
@@ -87,6 +89,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signOut = useCallback(async () => {
+    /*
+     * The basket is flushed and cleared here, not reactively from a change in
+     * `user` - this call is the last moment the access token is still valid.
+     * `amplifySignOut()` below redirects through Cognito's hosted logout page,
+     * which is a full-page navigation: by the time any component next reads
+     * `user`, this whole provider (and CartSideBarProvider with it) has been
+     * torn down and rebuilt from nothing, with no token left to flush against.
+     *
+     * Read from localStorage directly rather than through CartSideBarContext,
+     * so this does not depend on that provider being mounted, or its debounce
+     * having already caught up with the last edit - every mutation there
+     * writes to storage synchronously, so this always sees the true basket.
+     * The provider's flush gates on its own in-memory "dirty since last push"
+     * flag; this has no such history to consult, so it gates on "is there
+     * anything at all to send" instead. The two answers necessarily differ.
+     */
+    if (user) {
+      try {
+        const lines = loadLocalCart(user.user_id);
+        if (lines.length > 0) await syncCart(toSyncPayload(lines));
+      } catch {
+        // Best effort - a basket that fails to flush here is not lost, only
+        // stuck on this device until it next signs in somewhere and pulls.
+      }
+      // "If user signed in already then sign out the local storage should
+      // clear" - this device's copy of that account's basket goes with the
+      // session, whether or not the flush above succeeded.
+      clearLocalCart(user.user_id);
+    }
+
     // Cleared, not stored. "Put me back where I was" is sign-in's idea and it
     // does not survive the trip here: the page you are on when you sign out is
     // frequently the one you can no longer see. An admin signing out of
@@ -95,7 +127,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // failure for doing exactly what you meant to.
     sessionStorage.removeItem(REDIRECT_PATH_KEY);
     await amplifySignOut();
-  }, []);
+  }, [user]);
 
   const getSessionTokens = useCallback(async () => {
     try {

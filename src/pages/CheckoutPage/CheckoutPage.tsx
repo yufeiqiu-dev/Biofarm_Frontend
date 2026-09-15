@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { loadStripe } from "@stripe/stripe-js";
 import { Elements } from "@stripe/react-stripe-js";
+import { PageLoading } from "../../components/LoadingSpinner";
 import { useAuth } from "../../auth/useAuth";
 import { useCartSideBar } from "../../context/useCartSideBar";
 import { createPaymentIntent } from "../../api/order";
@@ -21,8 +22,28 @@ const stripePromise = STRIPE_BYPASS
 
 export function CheckoutPage() {
   const navigate = useNavigate();
-  const { cartItems } = useCartSideBar();
+  const { cartItems, refreshCart } = useCartSideBar();
   const { user } = useAuth();
+
+  /*
+   * The basket is local-first and already on screen synchronously from
+   * mount - but this device's copy of it may be stale (items added on
+   * another device, or via a guest basket merged in on some earlier sign-in
+   * this device never pulled). Checkout is the one place that stakes money on
+   * the answer, so it waits for its own explicit pull rather than trusting
+   * whatever localStorage happened to hold on arrival - a deep link straight
+   * to /checkout has no other pull point before this one.
+   */
+  const [reconciling, setReconciling] = useState(true);
+  useEffect(() => {
+    let active = true;
+    void refreshCart().finally(() => {
+      if (active) setReconciling(false);
+    });
+    return () => {
+      active = false;
+    };
+  }, [refreshCart]);
 
   const [step, setStep] = useState(0);
   const [contact, setContact] = useState<ContactForm>({ name: "", phone: "", email: "" });
@@ -51,8 +72,25 @@ export function CheckoutPage() {
   const [piLoading, setPiLoading] = useState(false);
   const [piError, setPiError] = useState<string | null>(null);
 
-  if (cartItems.length === 0) {
+  /*
+   * An empty basket belongs on the cart page - but only once the pull above
+   * has actually run. Navigating here rather than during render, which put
+   * React into an infinite update loop the one time this was tried - render,
+   * navigate, render - before the basket had a chance to arrive.
+   */
+  useEffect(() => {
+    if (reconciling) return;
+    if (cartItems.length > 0) return;
     navigate("/cart");
+  }, [reconciling, cartItems.length, navigate]);
+
+  if (reconciling) {
+    return <PageLoading label="Loading your cart…" />;
+  }
+
+  if (cartItems.length === 0) {
+    // The effect above is on its way to the cart page; rendering the wizard
+    // against an empty basket in the meantime would flash a $0.00 order.
     return null;
   }
 
